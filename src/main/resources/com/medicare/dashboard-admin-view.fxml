@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane prefWidth="1000" prefHeight="650"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.medicare.controllers.DashboardAdminController">
+
+    <left>
+        <VBox prefWidth="220" spacing="5"
+              style="-fx-background-color: #7c3aed;">
+            <padding>
+                <Insets top="20" bottom="20" left="10" right="10"/>
+            </padding>
+
+            <Label fx:id="userNameLabel" text="Admin"
+                   style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 5 10;"/>
+            <Label fx:id="userEmailLabel" text=""
+                   style="-fx-text-fill: #ddd6fe; -fx-font-size: 11px; -fx-padding: 0 0 10 10;"/>
+
+            <Separator/>
+
+            <Button fx:id="btnAccueil" text="  Accueil" onAction="#onAccueilClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnUtilisateurs" text="  Utilisateurs" onAction="#onUtilisateursClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnRendezVous" text="  Rendez-vous" onAction="#onRendezVousClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnDonation" text="  Donations" onAction="#onDonationClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnProduit" text="  Produits" onAction="#onProduitClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnCollaboration" text="  Collaborations" onAction="#onCollaborationClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnForum" text="  Forum" onAction="#onForumClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Separator/>
+
+            <Button fx:id="btnLogout" text="  Deconnexion" onAction="#onLogoutClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: #fecaca; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+        </VBox>
+    </left>
+
+    <center>
+        <StackPane fx:id="contentArea"
+                   style="-fx-background-color: #f5f3ff;">
+            <padding>
+                <Insets top="20" bottom="20" left="20" right="20"/>
+            </padding>
+            <Label text="Bienvenue sur le panneau d'administration !"
+                   style="-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;"/>
+        </StackPane>
+    </center>
+</BorderPane>
+
