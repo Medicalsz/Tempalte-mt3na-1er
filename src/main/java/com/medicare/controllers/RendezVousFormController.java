@@ -49,6 +49,31 @@ public class RendezVousFormController {
     public void setRendezVousToEdit(RendezVous rv) {
         this.rvToEdit = rv;
         formTitle.setText("Modifier le rendez-vous");
+
+        // Pré-remplir et bloquer spécialité
+        for (Specialite s : specialiteCombo.getItems()) {
+            if (s.getNom() != null && s.getNom().equals(rv.getSpecialite())) {
+                specialiteCombo.setValue(s);
+                break;
+            }
+        }
+        specialiteCombo.setDisable(true);
+
+        // Charger les médecins de cette spécialité et pré-remplir
+        if (specialiteCombo.getValue() != null) {
+            List<Medecin> medecins = service.getMedecinsBySpecialite(specialiteCombo.getValue().getId());
+            medecinCombo.setItems(FXCollections.observableArrayList(medecins));
+            for (Medecin m : medecins) {
+                if (m.getId() == rv.getMedecinId()) {
+                    medecinCombo.setValue(m);
+                    break;
+                }
+            }
+        }
+        medecinCombo.setDisable(true);
+
+        // Activer le date picker directement
+        datePicker.setDisable(false);
     }
 
     @FXML
@@ -123,32 +148,32 @@ public class RendezVousFormController {
 
         for (LocalTime creneau : tousCreneaux) {
             Button btn = new Button(creneau.toString());
-            btn.setPrefWidth(80);
-            btn.setPrefHeight(35);
+            btn.setPrefWidth(85);
+            btn.setPrefHeight(38);
 
             boolean pris = prises.contains(creneau);
             if (pris) {
-                // Rouge, désactivé
-                btn.setStyle("-fx-background-color: #fecaca; -fx-text-fill: #dc2626; " +
-                             "-fx-background-radius: 8; -fx-font-size: 12px;");
+                btn.setStyle("-fx-background-color: #fee2e2; -fx-text-fill: #ef4444; " +
+                             "-fx-background-radius: 10; -fx-font-size: 12px; -fx-font-weight: bold;");
                 btn.setDisable(true);
             } else {
-                // Vert/disponible
-                btn.setStyle("-fx-background-color: #dcfce7; -fx-text-fill: #16a34a; " +
-                             "-fx-background-radius: 8; -fx-font-size: 12px; -fx-cursor: hand;");
+                String normalStyle = "-fx-background-color: #f0fdf4; -fx-text-fill: #16a34a; " +
+                        "-fx-background-radius: 10; -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand; " +
+                        "-fx-border-color: #bbf7d0; -fx-border-radius: 10;";
+                String selectedStyle = "-fx-background-color: linear-gradient(to right, #3b82f6, #6366f1); -fx-text-fill: white; " +
+                        "-fx-background-radius: 10; -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand; " +
+                        "-fx-border-color: transparent; -fx-border-radius: 10; " +
+                        "-fx-effect: dropshadow(gaussian, rgba(59,130,246,0.3), 8, 0, 0, 2);";
+                btn.setStyle(normalStyle);
                 btn.setOnAction(e -> {
                     selectedHeure = creneau;
                     selectedHeureLabel.setText("Heure choisie : " + creneau);
-                    // Reset les styles de tous les boutons
                     for (Node n : creneauxPane.getChildren()) {
                         if (n instanceof Button b && !b.isDisable()) {
-                            b.setStyle("-fx-background-color: #dcfce7; -fx-text-fill: #16a34a; " +
-                                       "-fx-background-radius: 8; -fx-font-size: 12px; -fx-cursor: hand;");
+                            b.setStyle(normalStyle);
                         }
                     }
-                    // Highlight le bouton sélectionné
-                    btn.setStyle("-fx-background-color: #1a73e8; -fx-text-fill: white; " +
-                                 "-fx-background-radius: 8; -fx-font-size: 12px; -fx-cursor: hand;");
+                    btn.setStyle(selectedStyle);
                 });
             }
             creneauxPane.getChildren().add(btn);
@@ -165,7 +190,6 @@ public class RendezVousFormController {
         Medecin medecin = medecinCombo.getValue();
 
         if (rvToEdit != null) {
-            rvToEdit.setMedecinId(medecin.getId());
             rvToEdit.setDate(datePicker.getValue());
             rvToEdit.setHeure(selectedHeure);
             service.update(rvToEdit);
@@ -184,30 +208,49 @@ public class RendezVousFormController {
 
     private void showSuccessPopup(String title, String message, FontAwesomeSolid iconType, String color) {
         Stage popup = new Stage();
-        popup.initStyle(StageStyle.UNDECORATED);
+        popup.initStyle(StageStyle.TRANSPARENT);
         popup.initModality(Modality.APPLICATION_MODAL);
         popup.initOwner(specialiteCombo.getScene().getWindow());
 
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: " + color + "20; -fx-background-radius: 50; " +
+                            "-fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
         FontIcon icon = new FontIcon(iconType);
-        icon.setIconSize(48);
+        icon.setIconSize(32);
         icon.setIconColor(Color.web(color));
+        iconCircle.getChildren().add(icon);
 
         Label titleLbl = new Label(title);
-        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;");
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
 
         Label msgLbl = new Label(message);
-        msgLbl.setStyle("-fx-font-size: 13px; -fx-text-fill: #555; -fx-text-alignment: center;");
+        msgLbl.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b; -fx-text-alignment: center;");
         msgLbl.setWrapText(true);
 
-        VBox box = new VBox(15, icon, titleLbl, msgLbl);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(30));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
-                     "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
+        javafx.scene.shape.Rectangle progressBar = new javafx.scene.shape.Rectangle(200, 4);
+        progressBar.setFill(Color.web(color));
+        progressBar.setArcWidth(4);
+        progressBar.setArcHeight(4);
 
-        popup.setScene(new Scene(box, 340, 220));
+        VBox box = new VBox(18, iconCircle, titleLbl, msgLbl, progressBar);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(35));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
+
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 380, 270);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        popup.setScene(scene);
         popup.show();
+
+        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(Duration.ZERO, new javafx.animation.KeyValue(progressBar.widthProperty(), 200)),
+            new javafx.animation.KeyFrame(Duration.seconds(2), new javafx.animation.KeyValue(progressBar.widthProperty(), 0))
+        );
+        timeline.play();
 
         PauseTransition pause = new PauseTransition(Duration.seconds(2));
         pause.setOnFinished(e -> {
@@ -225,6 +268,14 @@ public class RendezVousFormController {
     private void goBackToList() {
         if (contentArea == null) return;
         try {
+            // Réafficher le sidebar
+            javafx.scene.layout.BorderPane root = (javafx.scene.layout.BorderPane) contentArea.getScene().getRoot();
+            Node sidebar = root.getLeft();
+            if (sidebar != null) {
+                sidebar.setVisible(true);
+                sidebar.setManaged(true);
+            }
+
             FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("rendez-vous-list-view.fxml"));
             Node list = loader.load();
             RendezVousListController ctrl = loader.getController();

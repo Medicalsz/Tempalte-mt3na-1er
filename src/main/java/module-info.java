@@ -2,9 +2,11 @@ module com.medicare.medicarejavafx {
     requires javafx.controls;
     requires javafx.fxml;
     requires java.sql;
+    requires java.desktop;
     requires jbcrypt;
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.fontawesome5;
+    requires itextpdf;
 
 
     opens com.medicare to javafx.fxml;

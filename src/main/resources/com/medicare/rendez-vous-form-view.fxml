@@ -3,84 +3,122 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.effect.DropShadow?>
+<?import javafx.scene.paint.Color?>
 
-<ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;"
+<ScrollPane fitToWidth="true" fitToHeight="true"
+            style="-fx-background-color: #f0f4ff; -fx-background: #f0f4ff; -fx-border-color: transparent;"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.medicare.controllers.RendezVousFormController">
-    <VBox spacing="16" alignment="CENTER" style="-fx-background-color: transparent;"
-          maxWidth="520">
+
+    <VBox spacing="0" alignment="TOP_CENTER" style="-fx-background-color: #f0f4ff;">
         <padding>
-            <Insets top="15" bottom="30" left="30" right="30"/>
+            <Insets top="30" bottom="40" left="40" right="40"/>
         </padding>
 
-        <!-- Header -->
-        <HBox alignment="CENTER_LEFT" spacing="12">
+        <!-- Header avec retour + titre -->
+        <HBox alignment="CENTER_LEFT" spacing="15">
+            <padding>
+                <Insets bottom="25"/>
+            </padding>
             <Button fx:id="btnRetour" text="" onAction="#onRetourClick"
-                    style="-fx-background-color: #e8f0fe; -fx-cursor: hand; -fx-padding: 8; -fx-background-radius: 50;"/>
+                    style="-fx-background-color: white; -fx-cursor: hand; -fx-padding: 10 14;
+                           -fx-background-radius: 12;
+                           -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 6, 0, 0, 2);"/>
             <Label fx:id="formTitle" text="Prendre un rendez-vous"
-                   style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;"/>
+                   style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
         </HBox>
 
-        <!-- Card formulaire -->
-        <VBox spacing="18" alignment="CENTER"
-              style="-fx-background-color: white; -fx-background-radius: 14; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 3);">
+        <!-- Card formulaire principale -->
+        <VBox spacing="0" maxWidth="700" alignment="CENTER"
+              style="-fx-background-color: white; -fx-background-radius: 20;">
+            <effect>
+                <DropShadow blurType="GAUSSIAN" radius="20" spread="0.02" offsetY="4">
+                    <color><Color red="0" green="0" blue="0" opacity="0.08"/></color>
+                </DropShadow>
+            </effect>
             <padding>
-                <Insets top="25" bottom="25" left="30" right="30"/>
+                <Insets top="35" bottom="35" left="40" right="40"/>
             </padding>
 
-            <!-- Etape 1 -->
-            <VBox spacing="6" alignment="CENTER_LEFT">
-                <Label text="1. Choisissez une specialite"
-                       style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #555;"/>
-                <ComboBox fx:id="specialiteCombo" promptText="Selectionner une specialite"
-                          maxWidth="Infinity" prefHeight="38"
-                          style="-fx-background-radius: 8; -fx-font-size: 13px;"/>
-            </VBox>
+            <!-- Etapes en 2 colonnes : spécialité + médecin -->
+            <HBox spacing="20">
+                <VBox spacing="8" HBox.hgrow="ALWAYS">
+                    <Label text="Specialite"
+                           style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;"/>
+                    <ComboBox fx:id="specialiteCombo" promptText="Choisir une specialite"
+                              maxWidth="Infinity" prefHeight="44"
+                              style="-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0;
+                                     -fx-border-radius: 10; -fx-background-radius: 10; -fx-font-size: 13px;"/>
+                </VBox>
 
-            <!-- Etape 2 -->
-            <VBox spacing="6" alignment="CENTER_LEFT">
-                <Label text="2. Choisissez un medecin"
-                       style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #555;"/>
-                <ComboBox fx:id="medecinCombo" promptText="Selectionner un medecin"
-                          maxWidth="Infinity" prefHeight="38"
-                          style="-fx-background-radius: 8; -fx-font-size: 13px;"/>
-            </VBox>
+                <VBox spacing="8" HBox.hgrow="ALWAYS">
+                    <Label text="Medecin"
+                           style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;"/>
+                    <ComboBox fx:id="medecinCombo" promptText="Choisir un medecin"
+                              maxWidth="Infinity" prefHeight="44"
+                              style="-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0;
+                                     -fx-border-radius: 10; -fx-background-radius: 10; -fx-font-size: 13px;"/>
+                </VBox>
+            </HBox>
 
-            <!-- Etape 3 -->
-            <VBox spacing="6" alignment="CENTER_LEFT">
-                <Label text="3. Choisissez une date"
-                       style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #555;"/>
+            <!-- Séparateur -->
+            <Separator style="-fx-padding: 18 0 10 0;"/>
+
+            <!-- Date -->
+            <VBox spacing="8">
+                <Label text="Date du rendez-vous"
+                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;"/>
                 <DatePicker fx:id="datePicker" promptText="Selectionner une date"
-                            maxWidth="Infinity" prefHeight="38"
-                            style="-fx-background-radius: 8; -fx-font-size: 13px;"/>
+                            maxWidth="280" prefHeight="44"
+                            style="-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0;
+                                   -fx-border-radius: 10; -fx-background-radius: 10; -fx-font-size: 13px;"/>
             </VBox>
 
-            <!-- Etape 4 -->
-            <VBox spacing="8" alignment="CENTER">
-                <Label text="4. Choisissez un creneau"
-                       style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #555;"
-                       alignment="CENTER_LEFT" maxWidth="Infinity"/>
-                <HBox spacing="6" alignment="CENTER">
-                    <Label text="●" style="-fx-text-fill: #16a34a; -fx-font-size: 11px;"/>
-                    <Label text="Disponible" style="-fx-text-fill: #666; -fx-font-size: 11px;"/>
-                    <Label text="  ●" style="-fx-text-fill: #dc2626; -fx-font-size: 11px;"/>
-                    <Label text="Pris" style="-fx-text-fill: #666; -fx-font-size: 11px;"/>
-                    <Label text="  ●" style="-fx-text-fill: #1a73e8; -fx-font-size: 11px;"/>
-                    <Label text="Selectionne" style="-fx-text-fill: #666; -fx-font-size: 11px;"/>
+            <!-- Séparateur -->
+            <Separator style="-fx-padding: 18 0 10 0;"/>
+
+            <!-- Créneaux -->
+            <VBox spacing="12" alignment="CENTER">
+                <HBox spacing="20" alignment="CENTER_LEFT">
+                    <Label text="Creneaux disponibles"
+                           style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <HBox spacing="5" alignment="CENTER">
+                        <Label text="●" style="-fx-text-fill: #22c55e; -fx-font-size: 10px;"/>
+                        <Label text="Libre" style="-fx-text-fill: #64748b; -fx-font-size: 11px;"/>
+                    </HBox>
+                    <HBox spacing="5" alignment="CENTER">
+                        <Label text="●" style="-fx-text-fill: #ef4444; -fx-font-size: 10px;"/>
+                        <Label text="Pris" style="-fx-text-fill: #64748b; -fx-font-size: 11px;"/>
+                    </HBox>
+                    <HBox spacing="5" alignment="CENTER">
+                        <Label text="●" style="-fx-text-fill: #3b82f6; -fx-font-size: 10px;"/>
+                        <Label text="Choisi" style="-fx-text-fill: #64748b; -fx-font-size: 11px;"/>
+                    </HBox>
                 </HBox>
-                <FlowPane fx:id="creneauxPane" hgap="8" vgap="8" alignment="CENTER"/>
+
+                <FlowPane fx:id="creneauxPane" hgap="10" vgap="10" alignment="CENTER"
+                          style="-fx-padding: 5 0 0 0;"/>
             </VBox>
 
+            <!-- Heure sélectionnée -->
             <Label fx:id="selectedHeureLabel" text="" alignment="CENTER" maxWidth="Infinity"
-                   style="-fx-font-size: 14px; -fx-text-fill: #1a73e8; -fx-font-weight: bold;"/>
+                   style="-fx-font-size: 15px; -fx-text-fill: #3b82f6; -fx-font-weight: bold; -fx-padding: 12 0 0 0;"/>
 
+            <!-- Erreur -->
             <Label fx:id="errorLabel" text="" alignment="CENTER" maxWidth="Infinity"
-                   style="-fx-text-fill: #dc2626; -fx-font-size: 13px;"/>
+                   style="-fx-text-fill: #ef4444; -fx-font-size: 13px; -fx-padding: 5 0 0 0;"/>
 
-            <!-- Valider -->
-            <Button fx:id="btnValider" text="Confirmer le rendez-vous" onAction="#onValiderClick"
-                    prefWidth="280" prefHeight="42" alignment="CENTER"
-                    style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 15px; -fx-background-radius: 10; -fx-cursor: hand;"/>
+            <!-- Bouton Valider -->
+            <HBox alignment="CENTER" style="-fx-padding: 20 0 0 0;">
+                <Button fx:id="btnValider" text="Confirmer le rendez-vous" onAction="#onValiderClick"
+                        prefWidth="300" prefHeight="48"
+                        style="-fx-background-color: linear-gradient(to right, #3b82f6, #6366f1);
+                               -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;
+                               -fx-background-radius: 12; -fx-cursor: hand;
+                               -fx-effect: dropshadow(gaussian, rgba(59,130,246,0.35), 12, 0, 0, 4);"/>
+            </HBox>
         </VBox>
     </VBox>
 </ScrollPane>

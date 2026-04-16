@@ -75,10 +75,17 @@ public class DashboardMedecinController {
     @FXML
     private void onPlanningClick() {
         highlightButton(btnPlanning);
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(new Label("Planning (a venir)") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("planning-view.fxml"));
+            Node view = loader.load();
+            PlanningController ctrl = loader.getController();
+            ctrl.setContentArea(contentArea);
+            ctrl.setMedecinId(medecinId);
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML

@@ -31,6 +31,10 @@ public class RendezVousListController {
     private final RendezVousService service = new RendezVousService();
     private int patientId;
     private StackPane contentArea;
+    private List<RendezVous> allRdvs;
+    private String currentFilter = "all";
+    private String searchQuery = "";
+    private Button btnAll, btnAccepte, btnAttente, btnAnnule;
 
     public void setContentArea(StackPane contentArea) { this.contentArea = contentArea; }
 
@@ -59,10 +63,30 @@ public class RendezVousListController {
         // Header
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setSpacing(20);
+        header.setSpacing(15);
 
-        Label title = new Label("Mes Rendez-vous");
-        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;");
+        // Boutons filtres
+        btnAll = createFilterBtn("Tout", "all");
+        btnAccepte = createFilterBtn("Confirme", "confirme");
+        btnAttente = createFilterBtn("En attente", "en_attente");
+        btnAnnule = createFilterBtn("Annule", "annule");
+
+        HBox filters = new HBox(8, btnAll, btnAccepte, btnAttente, btnAnnule);
+        filters.setAlignment(Pos.CENTER_LEFT);
+
+        // Barre de recherche
+        javafx.scene.control.TextField searchField = new javafx.scene.control.TextField();
+        searchField.setPromptText("Rechercher par medecin ou specialite...");
+        searchField.setPrefWidth(250);
+        searchField.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #d1d5db; " +
+                             "-fx-padding: 5 12; -fx-font-size: 12px;");
+        FontIcon searchIcon = new FontIcon(FontAwesomeSolid.SEARCH);
+        searchIcon.setIconSize(12);
+        searchIcon.setIconColor(Color.web("#9ca3af"));
+        searchField.textProperty().addListener((obs, old, val) -> {
+            searchQuery = val.trim().toLowerCase();
+            applyFilters();
+        });
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -76,13 +100,41 @@ public class RendezVousListController {
                         "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 20;");
         btnNew.setOnAction(e -> openForm(null));
 
-        header.getChildren().addAll(title, spacer, btnNew);
+        header.getChildren().addAll(filters, searchField, spacer, btnNew);
         container.getChildren().add(header);
 
-        List<RendezVous> rdvs = service.getByPatient(patientId);
+        allRdvs = service.getByPatient(patientId);
+        highlightFilter(btnAll);
+        applyFilters();
+    }
 
-        if (rdvs.isEmpty()) {
-            Label empty = new Label("Aucun rendez-vous pour le moment.");
+    private Button createFilterBtn(String text, String filter) {
+        Button btn = new Button(text);
+        btn.setStyle("-fx-background-color: #e5e7eb; -fx-text-fill: #555; -fx-font-size: 12px; " +
+                     "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;");
+        btn.setOnAction(e -> {
+            currentFilter = filter;
+            highlightFilter(btn);
+            applyFilters();
+        });
+        return btn;
+    }
+
+    private void applyFilters() {
+        // Retirer les anciennes cards (garder le header en index 0)
+        if (container.getChildren().size() > 1) {
+            container.getChildren().remove(1, container.getChildren().size());
+        }
+
+        List<RendezVous> filtered = allRdvs.stream()
+                .filter(rv -> currentFilter.equals("all") || rv.getStatut().equals(currentFilter))
+                .filter(rv -> searchQuery.isEmpty() ||
+                        rv.getMedecinFullName().toLowerCase().contains(searchQuery) ||
+                        (rv.getSpecialite() != null && rv.getSpecialite().toLowerCase().contains(searchQuery)))
+                .toList();
+
+        if (filtered.isEmpty()) {
+            Label empty = new Label("Aucun rendez-vous trouve.");
             empty.setStyle("-fx-font-size: 15px; -fx-text-fill: #888; -fx-padding: 40 0 0 0;");
             container.getChildren().add(empty);
             return;
@@ -90,63 +142,121 @@ public class RendezVousListController {
 
         DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter heureFmt = DateTimeFormatter.ofPattern("HH:mm");
-
-        for (RendezVous rv : rdvs) {
-            HBox card = new HBox(15);
-            card.setAlignment(Pos.CENTER_LEFT);
-            card.setPadding(new Insets(15));
-            card.setStyle("-fx-background-color: white; -fx-background-radius: 10; " +
-                          "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-
-            FontIcon calIcon = new FontIcon(FontAwesomeSolid.CALENDAR_CHECK);
-            calIcon.setIconSize(28);
-            calIcon.setIconColor(Color.web("#1a73e8"));
-
-            VBox infos = new VBox(3);
-            HBox.setHgrow(infos, Priority.ALWAYS);
-
-            Label medecinLabel = new Label("Dr. " + rv.getMedecinFullName());
-            medecinLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333;");
-
-            Label specLabel = new Label(rv.getSpecialite());
-            specLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #888;");
-
-            Label dateLabel = new Label(rv.getDate().format(dateFmt) + " a " + rv.getHeure().format(heureFmt));
-            dateLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #555;");
-
-            Label statutLabel = new Label(rv.getStatut());
-            String statutColor = switch (rv.getStatut()) {
-                case "confirme" -> "#16a34a";
-                case "annule" -> "#dc2626";
-                case "termine" -> "#6b7280";
-                default -> "#f59e0b";
-            };
-            statutLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: white; -fx-padding: 2 10; " +
-                                 "-fx-background-color: " + statutColor + "; -fx-background-radius: 12;");
-
-            infos.getChildren().addAll(medecinLabel, specLabel, dateLabel, statutLabel);
-
-            // Boutons d'action HORIZONTAUX
-            HBox actions = new HBox(8);
-            actions.setAlignment(Pos.CENTER);
-
-            Button btnVoir = createActionBtn(FontAwesomeSolid.EYE, "#1a73e8", "#e8f0fe", "Voir");
-            btnVoir.setOnAction(e -> showDetails(rv));
-            actions.getChildren().add(btnVoir);
-
-            if (!rv.getStatut().equals("annule") && !rv.getStatut().equals("termine")) {
-                Button btnEdit = createActionBtn(FontAwesomeSolid.PEN, "#f59e0b", "#fef3c7", "Modifier");
-                btnEdit.setOnAction(e -> openForm(rv));
-
-                Button btnCancel = createActionBtn(FontAwesomeSolid.BAN, "#dc2626", "#fee2e2", "Annuler");
-                btnCancel.setOnAction(e -> showCancelConfirmation(rv));
-
-                actions.getChildren().addAll(btnEdit, btnCancel);
-            }
-
-            card.getChildren().addAll(calIcon, infos, actions);
-            container.getChildren().add(card);
+        for (RendezVous rv : filtered) {
+            container.getChildren().add(buildCard(rv, dateFmt, heureFmt));
         }
+    }
+
+    private void highlightFilter(Button active) {
+        String normal = "-fx-background-color: #e5e7eb; -fx-text-fill: #555; -fx-font-size: 12px; " +
+                        "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;";
+        String selected = "-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 12px; " +
+                          "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;";
+        btnAll.setStyle(normal);
+        btnAccepte.setStyle(normal);
+        btnAttente.setStyle(normal);
+        btnAnnule.setStyle(normal);
+        active.setStyle(selected);
+    }
+
+    private VBox buildCard(RendezVous rv, DateTimeFormatter dateFmt, DateTimeFormatter heureFmt) {
+        VBox card = new VBox(10);
+        card.setPadding(new Insets(15));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; " +
+                      "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+
+        // Ligne principale : icône + infos + actions
+        HBox topRow = new HBox(15);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+
+        FontIcon calIcon = new FontIcon(FontAwesomeSolid.CALENDAR_CHECK);
+        calIcon.setIconSize(28);
+        calIcon.setIconColor(Color.web("#1a73e8"));
+
+        VBox infos = new VBox(3);
+        HBox.setHgrow(infos, Priority.ALWAYS);
+
+        Label medecinLabel = new Label("Dr. " + rv.getMedecinFullName());
+        medecinLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333;");
+
+        Label specLabel = new Label(rv.getSpecialite());
+        specLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #888;");
+
+        Label dateLabel = new Label(rv.getDate().format(dateFmt) + " a " + rv.getHeure().format(heureFmt));
+        dateLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #555;");
+
+        Label statutLabel = new Label(rv.getStatut());
+        String statutColor = switch (rv.getStatut()) {
+            case "confirme" -> "#16a34a";
+            case "annule" -> "#dc2626";
+            case "termine" -> "#6b7280";
+            default -> "#f59e0b";
+        };
+        statutLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: white; -fx-padding: 2 10; " +
+                             "-fx-background-color: " + statutColor + "; -fx-background-radius: 12;");
+
+        infos.getChildren().addAll(medecinLabel, specLabel, dateLabel, statutLabel);
+
+        // Étiquette "Reporté" si le médecin a proposé un report
+        if (rv.isReportPending() && rv.getProposedDate() != null) {
+            Label reportLabel = new Label("Reporté → " + rv.getProposedDate().format(dateFmt) + " a " + rv.getProposedHeure().format(heureFmt));
+            reportLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: white; -fx-padding: 2 10; " +
+                                 "-fx-background-color: #8b5cf6; -fx-background-radius: 12;");
+            infos.getChildren().add(reportLabel);
+        }
+
+        HBox actions = new HBox(8);
+        actions.setAlignment(Pos.CENTER);
+
+        Button btnVoir = createActionBtn(FontAwesomeSolid.EYE, "#1a73e8", "#e8f0fe", "Voir");
+        btnVoir.setOnAction(e -> showDetails(rv));
+        actions.getChildren().add(btnVoir);
+
+        // Si report en attente → boutons accepter/refuser
+        if (rv.isReportPending() && rv.getProposedDate() != null) {
+            Button btnAcceptReport = createActionBtn(FontAwesomeSolid.CHECK, "#16a34a", "#dcfce7", "Accepter le report");
+            btnAcceptReport.setOnAction(e -> showAcceptReportConfirmation(rv));
+
+            Button btnRefuseReport = createActionBtn(FontAwesomeSolid.TIMES, "#dc2626", "#fee2e2", "Refuser le report");
+            btnRefuseReport.setOnAction(e -> showRefuseReportConfirmation(rv));
+
+            actions.getChildren().addAll(btnAcceptReport, btnRefuseReport);
+        } else if (!rv.getStatut().equals("annule") && !rv.getStatut().equals("termine")) {
+            Button btnEdit = createActionBtn(FontAwesomeSolid.PEN, "#f59e0b", "#fef3c7", "Modifier");
+            btnEdit.setOnAction(e -> openForm(rv));
+
+            Button btnCancel = createActionBtn(FontAwesomeSolid.BAN, "#dc2626", "#fee2e2", "Annuler");
+            btnCancel.setOnAction(e -> showCancelConfirmation(rv));
+
+            actions.getChildren().addAll(btnEdit, btnCancel);
+        }
+
+        topRow.getChildren().addAll(calIcon, infos, actions);
+        card.getChildren().add(topRow);
+
+        // Bouton ordonnance centré en bas de la card
+        if (rv.getStatut().equals("confirme") && service.hasOrdonnance(rv.getId())) {
+            // Séparateur
+            Region separator = new Region();
+            separator.setStyle("-fx-background-color: #e5e7eb; -fx-min-height: 1; -fx-max-height: 1;");
+
+            Button btnOrdo = new Button("  Télécharger mon ordonnance");
+            FontIcon pdfIcon = new FontIcon(FontAwesomeSolid.FILE_PDF);
+            pdfIcon.setIconSize(16);
+            pdfIcon.setIconColor(Color.web("#3b82f6"));
+            btnOrdo.setGraphic(pdfIcon);
+            btnOrdo.setStyle("-fx-background-color: #dbeafe; -fx-text-fill: #3b82f6; -fx-font-size: 13px; " +
+                             "-fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 24;");
+            btnOrdo.setOnAction(e -> downloadOrdonnancePDF(rv));
+
+            HBox ordoRow = new HBox(btnOrdo);
+            ordoRow.setAlignment(Pos.CENTER);
+            ordoRow.setPadding(new Insets(5, 0, 0, 0));
+
+            card.getChildren().addAll(separator, ordoRow);
+        }
+
+        return card;
     }
 
     private Button createActionBtn(FontAwesomeSolid iconType, String iconColor, String bgColor, String tooltipText) {
@@ -165,42 +275,51 @@ public class RendezVousListController {
 
     private void showCancelConfirmation(RendezVous rv) {
         Stage popup = new Stage();
-        popup.initStyle(StageStyle.UNDECORATED);
+        popup.initStyle(StageStyle.TRANSPARENT);
         popup.initModality(Modality.APPLICATION_MODAL);
         popup.initOwner(container.getScene().getWindow());
 
+        // Icône dans un cercle
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: #fef3c7; -fx-background-radius: 50; -fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
         FontIcon warnIcon = new FontIcon(FontAwesomeSolid.EXCLAMATION_TRIANGLE);
-        warnIcon.setIconSize(44);
+        warnIcon.setIconSize(32);
         warnIcon.setIconColor(Color.web("#f59e0b"));
+        iconCircle.getChildren().add(warnIcon);
 
         Label titleLbl = new Label("Annuler ce rendez-vous ?");
-        titleLbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #333;");
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
 
         Label msgLbl = new Label("Dr. " + rv.getMedecinFullName() + "\n" +
                 rv.getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " a " +
                 rv.getHeure().format(DateTimeFormatter.ofPattern("HH:mm")));
-        msgLbl.setStyle("-fx-font-size: 13px; -fx-text-fill: #666; -fx-text-alignment: center;");
+        msgLbl.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b; -fx-text-alignment: center; -fx-line-spacing: 2;");
         msgLbl.setWrapText(true);
 
         Button btnOui = new Button("Oui, annuler");
-        btnOui.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 13px; " +
-                        "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 25;");
+        btnOui.setStyle("-fx-background-color: linear-gradient(to right, #ef4444, #dc2626); -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                        "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 35; " +
+                        "-fx-effect: dropshadow(gaussian, rgba(239,68,68,0.3), 10, 0, 0, 3);");
 
         Button btnNon = new Button("Non, garder");
-        btnNon.setStyle("-fx-background-color: #e5e7eb; -fx-text-fill: #333; -fx-font-size: 13px; " +
-                        "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 25;");
+        btnNon.setStyle("-fx-background-color: #f1f5f9; -fx-text-fill: #475569; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                        "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 35;");
 
         HBox buttons = new HBox(15, btnNon, btnOui);
         buttons.setAlignment(Pos.CENTER);
 
-        VBox box = new VBox(15, warnIcon, titleLbl, msgLbl, buttons);
+        VBox box = new VBox(18, iconCircle, titleLbl, msgLbl, buttons);
         box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(30));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
-                     "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
+        box.setPadding(new Insets(35));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
 
-        popup.setScene(new Scene(box, 380, 250));
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 420, 300);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        popup.setScene(scene);
         popup.show();
 
         btnNon.setOnAction(e -> popup.close());
@@ -209,7 +328,7 @@ public class RendezVousListController {
             service.cancel(rv.getId());
             showSuccessPopup("Rendez-vous annule",
                     "Votre rendez-vous a ete annule avec succes.",
-                    FontAwesomeSolid.CALENDAR_TIMES, "#dc2626");
+                    FontAwesomeSolid.CALENDAR_TIMES, "#ef4444");
         });
     }
 
@@ -217,30 +336,51 @@ public class RendezVousListController {
 
     private void showSuccessPopup(String title, String message, FontAwesomeSolid iconType, String color) {
         Stage popup = new Stage();
-        popup.initStyle(StageStyle.UNDECORATED);
+        popup.initStyle(StageStyle.TRANSPARENT);
         popup.initModality(Modality.APPLICATION_MODAL);
         popup.initOwner(container.getScene().getWindow());
 
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: " + color + "20; -fx-background-radius: 50; " +
+                            "-fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
         FontIcon icon = new FontIcon(iconType);
-        icon.setIconSize(48);
+        icon.setIconSize(32);
         icon.setIconColor(Color.web(color));
+        iconCircle.getChildren().add(icon);
 
         Label titleLbl = new Label(title);
-        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;");
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
 
         Label msgLbl = new Label(message);
-        msgLbl.setStyle("-fx-font-size: 13px; -fx-text-fill: #555; -fx-text-alignment: center;");
+        msgLbl.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b; -fx-text-alignment: center;");
         msgLbl.setWrapText(true);
 
-        VBox box = new VBox(15, icon, titleLbl, msgLbl);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(30));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
-                     "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
+        // Barre de progression animée
+        javafx.scene.shape.Rectangle progressBar = new javafx.scene.shape.Rectangle(200, 4);
+        progressBar.setFill(Color.web(color));
+        progressBar.setArcWidth(4);
+        progressBar.setArcHeight(4);
 
-        popup.setScene(new Scene(box, 340, 220));
+        VBox box = new VBox(18, iconCircle, titleLbl, msgLbl, progressBar);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(35));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
+
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 380, 270);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        popup.setScene(scene);
         popup.show();
+
+        // Animation de la barre
+        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(Duration.ZERO, new javafx.animation.KeyValue(progressBar.widthProperty(), 200)),
+            new javafx.animation.KeyFrame(Duration.seconds(2), new javafx.animation.KeyValue(progressBar.widthProperty(), 0))
+        );
+        timeline.play();
 
         PauseTransition pause = new PauseTransition(Duration.seconds(2));
         pause.setOnFinished(e -> {
@@ -263,7 +403,7 @@ public class RendezVousListController {
         modal.setAlignment(Pos.CENTER);
         modal.setPadding(new Insets(30));
         modal.setMaxWidth(420);
-        modal.setMaxHeight(380);
+        modal.setMaxHeight(450);
         modal.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 20, 0, 0, 5);");
 
@@ -288,7 +428,25 @@ public class RendezVousListController {
                           "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 30;");
         closeBtn.setOnAction(e -> reloadFullList());
 
-        modal.getChildren().addAll(icon, titleLabel, details, closeBtn);
+        modal.getChildren().addAll(icon, titleLabel, details);
+
+        // Afficher le motif d'annulation si le RDV est annulé
+        if ("annule".equals(full.getStatut()) && full.getMotifAnnulation() != null && !full.getMotifAnnulation().isEmpty()) {
+            VBox motifBox = new VBox(5);
+            motifBox.setStyle("-fx-background-color: #fee2e2; -fx-background-radius: 8; -fx-padding: 10;");
+
+            Label motifTitle = new Label("Motif d'annulation :");
+            motifTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #dc2626;");
+
+            Label motifText = new Label(full.getMotifAnnulation());
+            motifText.setStyle("-fx-font-size: 13px; -fx-text-fill: #7f1d1d;");
+            motifText.setWrapText(true);
+
+            motifBox.getChildren().addAll(motifTitle, motifText);
+            modal.getChildren().add(motifBox);
+        }
+
+        modal.getChildren().add(closeBtn);
 
         StackPane overlay = new StackPane(modal);
         overlay.setStyle("-fx-background-color: rgba(0,0,0,0.4);");
@@ -296,6 +454,153 @@ public class RendezVousListController {
 
         contentArea.getChildren().clear();
         contentArea.getChildren().add(overlay);
+    }
+
+    // ========== REPORT PATIENT ==========
+
+    // ========== ORDONNANCE PDF ==========
+
+    private void downloadOrdonnancePDF(RendezVous rv) {
+        com.medicare.models.Ordonnance ord = service.getOrdonnanceByRdv(rv.getId());
+        if (ord == null) return;
+
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Enregistrer l'ordonnance");
+        fileChooser.setInitialFileName("ordonnance_" + rv.getId() + ".pdf");
+        fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("PDF", "*.pdf"));
+
+        java.io.File file = fileChooser.showSaveDialog(container.getScene().getWindow());
+        if (file != null) {
+            String result = com.medicare.utils.OrdonnancePDF.generate(ord, file.getAbsolutePath());
+            if (result != null) {
+                showSuccessPopup("PDF genere", "L'ordonnance a ete telechargee.",
+                          FontAwesomeSolid.FILE_PDF, "#16a34a");
+                try { java.awt.Desktop.getDesktop().open(file); } catch (Exception ex) { ex.printStackTrace(); }
+            }
+        }
+    }
+
+    private void showAcceptReportConfirmation(RendezVous rv) {
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        DateTimeFormatter heureFmt = DateTimeFormatter.ofPattern("HH:mm");
+
+        Stage popup = new Stage();
+        popup.initStyle(StageStyle.TRANSPARENT);
+        popup.initModality(Modality.APPLICATION_MODAL);
+        popup.initOwner(container.getScene().getWindow());
+
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: #dbeafe; -fx-background-radius: 50; " +
+                            "-fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
+        FontIcon icon = new FontIcon(FontAwesomeSolid.CALENDAR_ALT);
+        icon.setIconSize(32);
+        icon.setIconColor(Color.web("#3b82f6"));
+        iconCircle.getChildren().add(icon);
+
+        Label titleLbl = new Label("Report propose par le medecin");
+        titleLbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        Label msgLbl = new Label("Nouvelle date : " + rv.getProposedDate().format(dateFmt) +
+                "\nNouvel horaire : " + rv.getProposedHeure().format(heureFmt) +
+                "\n\nAcceptez-vous ce report ?");
+        msgLbl.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b; -fx-text-alignment: center; -fx-line-spacing: 2;");
+        msgLbl.setWrapText(true);
+
+        Button btnAccept = new Button("Accepter");
+        btnAccept.setStyle("-fx-background-color: linear-gradient(to right, #16a34a, #15803d); -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                           "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 35; " +
+                           "-fx-effect: dropshadow(gaussian, rgba(22,163,74,0.3), 10, 0, 0, 3);");
+
+        Button btnRefuse = new Button("Refuser");
+        btnRefuse.setStyle("-fx-background-color: linear-gradient(to right, #ef4444, #dc2626); -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                           "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 35; " +
+                           "-fx-effect: dropshadow(gaussian, rgba(239,68,68,0.3), 10, 0, 0, 3);");
+
+        HBox buttons = new HBox(15, btnRefuse, btnAccept);
+        buttons.setAlignment(Pos.CENTER);
+
+        VBox box = new VBox(18, iconCircle, titleLbl, msgLbl, buttons);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(35));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
+
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 440, 330);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        popup.setScene(scene);
+        popup.show();
+
+        btnAccept.setOnAction(e -> {
+            popup.close();
+            service.acceptReport(rv.getId());
+            showSuccessPopup("Report accepte", "Le rendez-vous a ete reporte avec succes.",
+                    FontAwesomeSolid.CALENDAR_CHECK, "#16a34a");
+        });
+
+        btnRefuse.setOnAction(e -> {
+            popup.close();
+            service.refuseReport(rv.getId());
+            showSuccessPopup("Report refuse", "Le rendez-vous a ete annule.",
+                    FontAwesomeSolid.CALENDAR_TIMES, "#ef4444");
+        });
+    }
+
+    private void showRefuseReportConfirmation(RendezVous rv) {
+        Stage popup = new Stage();
+        popup.initStyle(StageStyle.TRANSPARENT);
+        popup.initModality(Modality.APPLICATION_MODAL);
+        popup.initOwner(container.getScene().getWindow());
+
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: #fee2e2; -fx-background-radius: 50; " +
+                            "-fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
+        FontIcon icon = new FontIcon(FontAwesomeSolid.EXCLAMATION_TRIANGLE);
+        icon.setIconSize(32);
+        icon.setIconColor(Color.web("#ef4444"));
+        iconCircle.getChildren().add(icon);
+
+        Label titleLbl = new Label("Refuser le report ?");
+        titleLbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        Label msgLbl = new Label("Si vous refusez, le rendez-vous sera automatiquement annule.");
+        msgLbl.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b; -fx-text-alignment: center;");
+        msgLbl.setWrapText(true);
+
+        Button btnConfirm = new Button("Oui, refuser");
+        btnConfirm.setStyle("-fx-background-color: linear-gradient(to right, #ef4444, #dc2626); -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                            "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 35;");
+
+        Button btnCancel = new Button("Annuler");
+        btnCancel.setStyle("-fx-background-color: #f1f5f9; -fx-text-fill: #475569; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                           "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 35;");
+
+        HBox buttons = new HBox(15, btnCancel, btnConfirm);
+        buttons.setAlignment(Pos.CENTER);
+
+        VBox box = new VBox(18, iconCircle, titleLbl, msgLbl, buttons);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(35));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
+
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 420, 290);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        popup.setScene(scene);
+        popup.show();
+
+        btnCancel.setOnAction(e -> popup.close());
+        btnConfirm.setOnAction(e -> {
+            popup.close();
+            service.refuseReport(rv.getId());
+            showSuccessPopup("Report refuse", "Le rendez-vous a ete annule.",
+                    FontAwesomeSolid.CALENDAR_TIMES, "#ef4444");
+        });
     }
 
     // ========== NAVIGATION ==========
@@ -309,7 +614,16 @@ public class RendezVousListController {
             RendezVousFormController ctrl = loader.getController();
             ctrl.setContentArea(contentArea);
             ctrl.setPatientId(patientId);
-            if (rvToEdit != null) ctrl.setRendezVousToEdit(rvToEdit);
+            if (rvToEdit != null) {
+                ctrl.setRendezVousToEdit(rvToEdit);
+            }
+            // Cacher le sidebar pour mode plein écran
+            javafx.scene.layout.BorderPane root = (javafx.scene.layout.BorderPane) contentArea.getScene().getRoot();
+            Node sidebar = root.getLeft();
+            if (sidebar != null) {
+                sidebar.setVisible(false);
+                sidebar.setManaged(false);
+            }
             contentArea.getChildren().clear();
             contentArea.getChildren().add(form);
         } catch (Exception e) { e.printStackTrace(); }
