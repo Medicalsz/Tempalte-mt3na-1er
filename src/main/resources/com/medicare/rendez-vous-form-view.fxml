@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.medicare.controllers.RendezVousFormController">
+    <VBox spacing="16" alignment="CENTER" style="-fx-background-color: transparent;"
+          maxWidth="520">
+        <padding>
+            <Insets top="15" bottom="30" left="30" right="30"/>
+        </padding>
+
+        <!-- Header -->
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <Button fx:id="btnRetour" text="" onAction="#onRetourClick"
+                    style="-fx-background-color: #e8f0fe; -fx-cursor: hand; -fx-padding: 8; -fx-background-radius: 50;"/>
+            <Label fx:id="formTitle" text="Prendre un rendez-vous"
+                   style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;"/>
+        </HBox>
+
+        <!-- Card formulaire -->
+        <VBox spacing="18" alignment="CENTER"
+              style="-fx-background-color: white; -fx-background-radius: 14; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 3);">
+            <padding>
+                <Insets top="25" bottom="25" left="30" right="30"/>
+            </padding>
+
+            <!-- Etape 1 -->
+            <VBox spacing="6" alignment="CENTER_LEFT">
+                <Label text="1. Choisissez une specialite"
+                       style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #555;"/>
+                <ComboBox fx:id="specialiteCombo" promptText="Selectionner une specialite"
+                          maxWidth="Infinity" prefHeight="38"
+                          style="-fx-background-radius: 8; -fx-font-size: 13px;"/>
+            </VBox>
+
+            <!-- Etape 2 -->
+            <VBox spacing="6" alignment="CENTER_LEFT">
+                <Label text="2. Choisissez un medecin"
+                       style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #555;"/>
+                <ComboBox fx:id="medecinCombo" promptText="Selectionner un medecin"
+                          maxWidth="Infinity" prefHeight="38"
+                          style="-fx-background-radius: 8; -fx-font-size: 13px;"/>
+            </VBox>
+
+            <!-- Etape 3 -->
+            <VBox spacing="6" alignment="CENTER_LEFT">
+                <Label text="3. Choisissez une date"
+                       style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #555;"/>
+                <DatePicker fx:id="datePicker" promptText="Selectionner une date"
+                            maxWidth="Infinity" prefHeight="38"
+                            style="-fx-background-radius: 8; -fx-font-size: 13px;"/>
+            </VBox>
+
+            <!-- Etape 4 -->
+            <VBox spacing="8" alignment="CENTER">
+                <Label text="4. Choisissez un creneau"
+                       style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #555;"
+                       alignment="CENTER_LEFT" maxWidth="Infinity"/>
+                <HBox spacing="6" alignment="CENTER">
+                    <Label text="●" style="-fx-text-fill: #16a34a; -fx-font-size: 11px;"/>
+                    <Label text="Disponible" style="-fx-text-fill: #666; -fx-font-size: 11px;"/>
+                    <Label text="  ●" style="-fx-text-fill: #dc2626; -fx-font-size: 11px;"/>
+                    <Label text="Pris" style="-fx-text-fill: #666; -fx-font-size: 11px;"/>
+                    <Label text="  ●" style="-fx-text-fill: #1a73e8; -fx-font-size: 11px;"/>
+                    <Label text="Selectionne" style="-fx-text-fill: #666; -fx-font-size: 11px;"/>
+                </HBox>
+                <FlowPane fx:id="creneauxPane" hgap="8" vgap="8" alignment="CENTER"/>
+            </VBox>
+
+            <Label fx:id="selectedHeureLabel" text="" alignment="CENTER" maxWidth="Infinity"
+                   style="-fx-font-size: 14px; -fx-text-fill: #1a73e8; -fx-font-weight: bold;"/>
+
+            <Label fx:id="errorLabel" text="" alignment="CENTER" maxWidth="Infinity"
+                   style="-fx-text-fill: #dc2626; -fx-font-size: 13px;"/>
+
+            <!-- Valider -->
+            <Button fx:id="btnValider" text="Confirmer le rendez-vous" onAction="#onValiderClick"
+                    prefWidth="280" prefHeight="42" alignment="CENTER"
+                    style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 15px; -fx-background-radius: 10; -fx-cursor: hand;"/>
+        </VBox>
+    </VBox>
+</ScrollPane>

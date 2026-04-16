@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="CENTER" spacing="30" prefWidth="500" prefHeight="450"
+      style="-fx-background-color: #f0f4f8;"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.medicare.controllers.AccueilController">
+    <padding>
+        <Insets bottom="40" left="40" right="40" top="40"/>
+    </padding>
+
+    <!-- Logo placeholder : mets ton logo dans resources/com/medicare/images/logo.png -->
+    <ImageView fx:id="logoView" fitHeight="120" fitWidth="120" preserveRatio="true"/>
+
+    <Label text="Bienvenue sur Medicare"
+           style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;"/>
+
+    <Label text="Votre application de sante"
+           style="-fx-font-size: 14px; -fx-text-fill: #666;"/>
+
+    <Button text="Connexion" onAction="#onConnexionClick" prefWidth="250" prefHeight="40"
+            style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 15px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+    <Button text="Creer un compte" onAction="#onCreerCompteClick" prefWidth="250" prefHeight="40"
+            style="-fx-background-color: white; -fx-text-fill: #1a73e8; -fx-font-size: 15px; -fx-border-color: #1a73e8; -fx-border-radius: 8; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+    <Label fx:id="dbStatusLabel" text=""
+           style="-fx-font-size: 11px;"/>
+</VBox>
+
