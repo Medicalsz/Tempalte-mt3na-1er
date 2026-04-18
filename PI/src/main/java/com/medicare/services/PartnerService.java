@@ -5,8 +5,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -90,6 +88,35 @@ public class PartnerService implements Crud<Partner> {
                 }
                 p.setImageName(rs.getString("image_name"));
                 partners.add(p);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return partners;
+    }
+
+    public List<Partner> searchByName(String name) {
+        List<Partner> partners = new ArrayList<>();
+        String query = "SELECT * FROM partner WHERE name LIKE ?";
+        try (Connection conn = MyConnection.getInstance().getCnx();
+             PreparedStatement pst = conn.prepareStatement(query)) {
+            pst.setString(1, "%" + name + "%");
+            try (ResultSet rs = pst.executeQuery()) {
+                while (rs.next()) {
+                    Partner p = new Partner();
+                    p.setId(rs.getInt("id"));
+                    p.setName(rs.getString("name"));
+                    p.setTypePartenaire(rs.getString("type_partenaire"));
+                    p.setEmail(rs.getString("email"));
+                    p.setTelephone(rs.getString("telephone"));
+                    p.setAdresse(rs.getString("adresse"));
+                    p.setStatut(rs.getString("statut"));
+                    if (rs.getDate("date_partenariat") != null) {
+                        p.setDatePartenariat(rs.getDate("date_partenariat").toLocalDate());
+                    }
+                    p.setImageName(rs.getString("image_name"));
+                    partners.add(p);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();

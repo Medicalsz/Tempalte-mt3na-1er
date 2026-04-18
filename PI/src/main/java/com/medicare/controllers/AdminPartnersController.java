@@ -19,6 +19,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -34,18 +35,21 @@ public class AdminPartnersController {
     private VBox container;
 
     private final PartnerService partnerService = new PartnerService();
+    private TextField searchField;
 
     @FXML
     private void initialize() {
-        loadPartners();
+        setupUI();
+        loadPartners(null);
     }
 
-    private void loadPartners() {
+    private void setupUI() {
         container.getChildren().clear();
 
         // Header
         HBox header = new HBox(20);
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(0, 0, 15, 0));
 
         Label title = new Label("Gestion des Partenaires");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #7c3aed;");
@@ -53,12 +57,20 @@ public class AdminPartnersController {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        // Search Field
+        searchField = new TextField();
+        searchField.setPromptText("Rechercher par nom...");
+        searchField.setPrefWidth(250);
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            loadPartners(newValue);
+        });
+
         Button addBtn = new Button("Ajouter Partenaire");
         addBtn.setGraphic(new FontIcon(FontAwesomeSolid.PLUS));
         addBtn.setStyle("-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;");
         addBtn.setOnAction(e -> showPartnerForm(null));
 
-        header.getChildren().addAll(title, spacer, addBtn);
+        header.getChildren().addAll(title, spacer, searchField, addBtn);
         container.getChildren().add(header);
 
         // Table header
@@ -73,9 +85,21 @@ public class AdminPartnersController {
             colLabel("Actions", 120)
         );
         container.getChildren().add(tableHeader);
+    }
 
-        // Rows
-        List<Partner> partners = partnerService.getAll();
+    private void loadPartners(String searchTerm) {
+        // Clear only the rows, not the header
+        container.getChildren().removeIf(node -> node.getStyleClass().contains("partner-row"));
+        container.getChildren().removeIf(node -> node instanceof Label && ((Label)node).getText().startsWith("Aucun"));
+
+
+        List<Partner> partners;
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            partners = partnerService.getAll();
+        } else {
+            partners = partnerService.searchByName(searchTerm);
+        }
+
         if (partners.isEmpty()) {
             Label empty = new Label("Aucun partenaire trouvé.");
             empty.setStyle("-fx-font-size: 14px; -fx-text-fill: #888; -fx-padding: 20;");
@@ -147,7 +171,7 @@ public class AdminPartnersController {
 
             PartnerFormController controller = loader.getController();
             controller.setPartner(partner);
-            controller.setOnSave(this::loadPartners);
+            controller.setOnSave(() -> loadPartners(searchField.getText()));
 
             Stage stage = new Stage();
             stage.initModality(Modality.APPLICATION_MODAL);
@@ -168,7 +192,7 @@ public class AdminPartnersController {
         alert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
                 partnerService.delete(partner.getId());
-                loadPartners(); // Refresh the list
+                loadPartners(searchField.getText()); // Refresh the list
             }
         });
     }

@@ -1,6 +1,7 @@
 package com.medicare.controllers;
 
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -36,18 +38,21 @@ public class AdminCollaborationsController {
     private VBox container;
 
     private final CollaborationService collaborationService = new CollaborationService();
+    private TextField searchField;
 
     @FXML
     private void initialize() {
-        loadCollaborations();
+        setupUI();
+        loadCollaborations(null);
     }
 
-    private void loadCollaborations() {
+    private void setupUI() {
         container.getChildren().clear();
 
         // Header
         HBox header = new HBox(20);
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(0, 0, 15, 0));
 
         Label title = new Label("Gestion des Collaborations");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #7c3aed;");
@@ -55,12 +60,20 @@ public class AdminCollaborationsController {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        // Search Field
+        searchField = new TextField();
+        searchField.setPromptText("Rechercher par titre...");
+        searchField.setPrefWidth(250);
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            loadCollaborations(newValue);
+        });
+
         Button addBtn = new Button("Ajouter Collaboration");
         addBtn.setGraphic(new FontIcon(FontAwesomeSolid.PLUS));
         addBtn.setStyle("-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;");
         addBtn.setOnAction(e -> showCollaborationForm(null));
 
-        header.getChildren().addAll(title, spacer, addBtn);
+        header.getChildren().addAll(title, spacer, searchField, addBtn);
         container.getChildren().add(header);
 
         // Table header
@@ -72,18 +85,31 @@ public class AdminCollaborationsController {
             colLabel("Titre", 200),
             colLabel("Partenaire", 150),
             colLabel("Statut", 100),
+            colLabel("Date Fin", 120),
             colLabel("Actions", 120)
         );
         container.getChildren().add(tableHeader);
+    }
 
-        // Rows
-        List<Collaboration> collaborations = collaborationService.getAll();
+    private void loadCollaborations(String searchTerm) {
+        // Clear only the rows, not the header
+        container.getChildren().removeIf(node -> node.getStyleClass().contains("collaboration-row"));
+        container.getChildren().removeIf(node -> node instanceof Label && ((Label)node).getText().startsWith("Aucune"));
+
+        List<Collaboration> collaborations;
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            collaborations = collaborationService.getAll();
+        } else {
+            collaborations = collaborationService.searchByTitre(searchTerm);
+        }
         if (collaborations.isEmpty()) {
             Label empty = new Label("Aucune collaboration trouvée.");
             empty.setStyle("-fx-font-size: 14px; -fx-text-fill: #888; -fx-padding: 20;");
             container.getChildren().add(empty);
             return;
         }
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         for (int i = 0; i < collaborations.size(); i++) {
             Collaboration c = collaborations.get(i);
@@ -97,13 +123,18 @@ public class AdminCollaborationsController {
             titre.setPrefWidth(200);
             titre.setStyle("-fx-font-size: 13px; -fx-text-fill: #333;");
 
-            Label partner = new Label(c.getPartnerName());
+            Label partner = new Label(c.getPartnerName() != null ? c.getPartnerName() : "N/A");
             partner.setPrefWidth(150);
             partner.setStyle("-fx-font-size: 12px; -fx-text-fill: #555;");
-            
+
             Label statut = new Label(c.getStatut());
             statut.setPrefWidth(100);
             statut.setStyle("-fx-font-size: 12px; -fx-text-fill: #555;");
+
+            String dateFinText = (c.getDateFin() != null) ? c.getDateFin().format(formatter) : "Indéfinie";
+            Label dateFin = new Label(dateFinText);
+            dateFin.setPrefWidth(120);
+            dateFin.setStyle("-fx-font-size: 12px; -fx-text-fill: #555;");
 
             // Actions
             HBox actions = new HBox(6);
@@ -120,7 +151,7 @@ public class AdminCollaborationsController {
 
             actions.getChildren().addAll(btnVoir, btnDelete);
 
-            row.getChildren().addAll(titre, partner, statut, actions);
+            row.getChildren().addAll(titre, partner, statut, dateFin, actions);
             container.getChildren().add(row);
         }
     }
@@ -151,7 +182,7 @@ public class AdminCollaborationsController {
             controller.setCollaboration(collaboration);
             controller.setOnFormClose(updated -> {
                 if (updated) {
-                    loadCollaborations();
+                    loadCollaborations(searchField.getText());
                 }
             });
 
@@ -176,7 +207,7 @@ public class AdminCollaborationsController {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             collaborationService.delete(collaboration.getId());
-            loadCollaborations();
+            loadCollaborations(searchField.getText());
             showAlert(Alert.AlertType.INFORMATION, "Succès", "La collaboration a été supprimée avec succès.");
         }
     }
