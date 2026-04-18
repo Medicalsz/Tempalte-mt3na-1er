@@ -32,14 +32,10 @@ public class DashboardAdminController {
     @FXML private Button btnLogout;
 
     private static User currentUser;
+    private Button selectedButton;
 
     public static void setCurrentUser(User user) { currentUser = user; }
     public static User getCurrentUser() { return currentUser; }
-
-    private Button[] allButtons() {
-        return new Button[]{btnAccueil, btnUtilisateurs, btnRendezVous,
-                            btnDonation, btnProduit, btnCollaboration, btnPartenaire, btnForum};
-    }
 
     @FXML
     private void initialize() {
@@ -48,26 +44,20 @@ public class DashboardAdminController {
             userEmailLabel.setText(currentUser.getEmail());
         }
 
-        btnAccueil.setGraphic(icon(FontAwesomeSolid.HOME));
-        btnUtilisateurs.setGraphic(icon(FontAwesomeSolid.USERS));
-        btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
-        btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
-        btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
-        btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
-        btnPartenaire.setGraphic(icon(FontAwesomeSolid.BUILDING));
-        btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
-        btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#fecaca")));
-
-        highlightButton(btnAccueil);
+        setupButtonIcons();
+        onAccueilClick();
     }
 
-    private FontIcon icon(FontAwesomeSolid type) { return icon(type, Color.WHITE); }
-
-    private FontIcon icon(FontAwesomeSolid type, Color color) {
-        FontIcon fi = new FontIcon(type);
-        fi.setIconSize(16);
-        fi.setIconColor(color);
-        return fi;
+    private void setupButtonIcons() {
+        btnAccueil.setGraphic(new FontIcon(FontAwesomeSolid.HOME));
+        btnUtilisateurs.setGraphic(new FontIcon(FontAwesomeSolid.USERS));
+        btnRendezVous.setGraphic(new FontIcon(FontAwesomeSolid.CALENDAR_ALT));
+        btnDonation.setGraphic(new FontIcon(FontAwesomeSolid.HEART));
+        btnProduit.setGraphic(new FontIcon(FontAwesomeSolid.SHOPPING_CART));
+        btnCollaboration.setGraphic(new FontIcon(FontAwesomeSolid.HANDSHAKE));
+        btnPartenaire.setGraphic(new FontIcon(FontAwesomeSolid.BUILDING));
+        btnForum.setGraphic(new FontIcon(FontAwesomeSolid.COMMENTS));
+        btnLogout.setGraphic(new FontIcon(FontAwesomeSolid.SIGN_OUT_ALT));
     }
 
     // ========== NAVIGATION ==========
@@ -169,14 +159,14 @@ public class DashboardAdminController {
     // ========== UTILITAIRES ==========
 
     private void setContent(Node node) {
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(node);
+        contentArea.getChildren().setAll(node);
     }
 
-    private void highlightButton(Button active) {
-        String normal = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
-        String activeS = "-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
-        for (Button b : allButtons()) b.setStyle(normal);
-        active.setStyle(activeS);
+    private void highlightButton(Button button) {
+        if (selectedButton != null) {
+            selectedButton.getStyleClass().remove("sidebar-button-selected");
+        }
+        button.getStyleClass().add("sidebar-button-selected");
+        selectedButton = button;
     }
 }

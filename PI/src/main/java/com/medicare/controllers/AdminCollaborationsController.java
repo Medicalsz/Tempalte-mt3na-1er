@@ -33,6 +33,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
@@ -54,6 +55,7 @@ public class AdminCollaborationsController {
     private TextField searchField;
     private String currentSortColumn = "date_debut"; // Default sort
     private boolean sortAscending = false;
+    private VBox collaborationRowsContainer; // VBox for scrollable collaboration rows
 
     @FXML
     private void initialize() {
@@ -123,12 +125,21 @@ public class AdminCollaborationsController {
             colLabel("Actions", 120) // Actions column is not sortable
         );
         container.getChildren().add(tableHeader);
+
+        // ScrollPane for collaboration list
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS); // Make scroll pane grow
+
+        collaborationRowsContainer = new VBox(); // This will hold the collaboration rows
+        scrollPane.setContent(collaborationRowsContainer);
+
+        container.getChildren().add(scrollPane);
     }
 
     private void loadCollaborations(String searchTerm, String sortColumn, boolean ascending) {
-        // Clear only the rows, not the header
-        container.getChildren().removeIf(node -> node.getStyleClass().contains("collaboration-row"));
-        container.getChildren().removeIf(node -> node instanceof Label && ((Label)node).getText().startsWith("Aucune"));
+        // Clear only the rows
+        collaborationRowsContainer.getChildren().clear();
 
         List<Collaboration> collaborations;
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
@@ -139,7 +150,7 @@ public class AdminCollaborationsController {
         if (collaborations.isEmpty()) {
             Label empty = new Label("Aucune collaboration trouvée.");
             empty.setStyle("-fx-font-size: 14px; -fx-text-fill: #888; -fx-padding: 20;");
-            container.getChildren().add(empty);
+            collaborationRowsContainer.getChildren().add(empty);
             return;
         }
 
@@ -186,7 +197,7 @@ public class AdminCollaborationsController {
             actions.getChildren().addAll(btnVoir, btnDelete);
 
             row.getChildren().addAll(titre, partner, statut, dateFin, actions);
-            container.getChildren().add(row);
+            collaborationRowsContainer.getChildren().add(row);
         }
     }
 

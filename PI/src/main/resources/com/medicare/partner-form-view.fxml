@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
@@ -11,8 +12,13 @@
         <Insets top="30" right="30" bottom="30" left="30"/>
     </padding>
 
-    <Label text="Ajouter/Modifier Partenaire" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #7c3aed;"/>
+    <Label fx:id="formTitle" text="Ajouter/Modifier Partenaire" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #7c3aed;"/>
     <Separator/>
+
+    <VBox alignment="CENTER" spacing="10">
+        <ImageView fx:id="partnerImageView" fitHeight="150" fitWidth="150" preserveRatio="true" style="-fx-border-color: #e5e7eb; -fx-border-width: 1; -fx-border-radius: 8;"/>
+        <Button text="Choisir une image" onAction="#handleChooseImage"/>
+    </VBox>
 
     <GridPane hgap="10" vgap="10">
         <columnConstraints>

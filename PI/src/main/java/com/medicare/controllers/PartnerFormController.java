@@ -6,90 +6,138 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.collections.FXCollections;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.function.Consumer;
+import javafx.collections.FXCollections;
 
 public class PartnerFormController {
 
+    @FXML private Label formTitle;
+    @FXML private ImageView partnerImageView;
     @FXML private TextField nomField;
     @FXML private ComboBox<String> typeComboBox;
+    @FXML private ComboBox<String> statutComboBox;
     @FXML private TextField emailField;
     @FXML private TextField phoneField;
     @FXML private TextField adresseField;
-    @FXML private ComboBox<String> statutComboBox;
     @FXML private DatePicker datePicker;
     @FXML private Button saveBtn;
 
-    private PartnerService partnerService = new PartnerService();
     private Partner currentPartner;
+    private PartnerService partnerService = new PartnerService();
+    private Consumer<Partner> saveHandler;
+    private File selectedImageFile;
     private Runnable onSaveCallback;
 
+
     @FXML
-    private void initialize() {
-        typeComboBox.setItems(FXCollections.observableArrayList("Hôpital", "Clinique", "Laboratoire", "Pharmacie", "Association"));
-        statutComboBox.setItems(FXCollections.observableArrayList("Actif", "Inactif"));
+    public void initialize() {
+        typeComboBox.setItems(FXCollections.observableArrayList("Fournisseur", "Sponsor", "Organisme de santé"));
+        statutComboBox.setItems(FXCollections.observableArrayList("Actif", "Inactif", "En attente"));
+    }
+
+    public void setPartner(Partner partner) {
+        this.currentPartner = partner;
+        if (partner != null) {
+            formTitle.setText("Modifier le Partenaire : " + partner.getName());
+            nomField.setText(partner.getName());
+            typeComboBox.setValue(partner.getTypePartenaire());
+            statutComboBox.setValue(partner.getStatut());
+            emailField.setText(partner.getEmail());
+            phoneField.setText(partner.getTelephone());
+            adresseField.setText(partner.getAdresse());
+            datePicker.setValue(partner.getDatePartenariat());
+
+            if (partner.getImageName() != null && !partner.getImageName().isEmpty()) {
+                try {
+                    Path imagePath = Paths.get("src/main/resources/uploads/partners", partner.getImageName());
+                    if (Files.exists(imagePath)) {
+                        Image image = new Image(imagePath.toUri().toString());
+                        partnerImageView.setImage(image);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Could not load image: " + e.getMessage());
+                }
+            }
+
+        } else {
+            formTitle.setText("Ajouter un Partenaire");
+            this.currentPartner = new Partner();
+        }
     }
 
     public void setOnSave(Runnable callback) {
         this.onSaveCallback = callback;
     }
 
-    public void setPartner(Partner partner) {
-        this.currentPartner = partner;
-        if (partner != null) {
-            nomField.setText(partner.getName());
-            typeComboBox.setValue(partner.getTypePartenaire());
-            emailField.setText(partner.getEmail());
-            phoneField.setText(partner.getTelephone());
-            adresseField.setText(partner.getAdresse());
-            statutComboBox.setValue(partner.getStatut());
-            if (partner.getDatePartenariat() != null) {
-                datePicker.setValue(partner.getDatePartenariat());
+    @FXML
+    private void handleChooseImage() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Choisir une image");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.gif")
+        );
+        selectedImageFile = fileChooser.showOpenDialog(formTitle.getScene().getWindow());
+        if (selectedImageFile != null) {
+            try {
+                Image image = new Image(selectedImageFile.toURI().toString());
+                partnerImageView.setImage(image);
+            } catch (Exception e) {
+                System.err.println("Error loading selected image: " + e.getMessage());
             }
         }
     }
 
     @FXML
     private void handleSave() {
-        String nom = nomField.getText();
-        String type = typeComboBox.getValue();
-        String email = emailField.getText();
-        String phone = phoneField.getText();
-        String adresse = adresseField.getText();
-        String statut = statutComboBox.getValue();
-        LocalDate date = datePicker.getValue();
+        currentPartner.setName(nomField.getText());
+        currentPartner.setTypePartenaire(typeComboBox.getValue());
+        currentPartner.setStatut(statutComboBox.getValue());
+        currentPartner.setEmail(emailField.getText());
+        currentPartner.setTelephone(phoneField.getText());
+        currentPartner.setAdresse(adresseField.getText());
+        currentPartner.setDatePartenariat(datePicker.getValue());
 
+        if (selectedImageFile != null) {
+            try {
+                Path uploadDir = Paths.get("src/main/resources/uploads/partners");
+                if (!Files.exists(uploadDir)) {
+                    Files.createDirectories(uploadDir);
+                }
+                String fileName = System.currentTimeMillis() + "_" + selectedImageFile.getName();
+                Path dest = uploadDir.resolve(fileName);
+                Files.copy(selectedImageFile.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
+                currentPartner.setImageName(fileName);
+            } catch (IOException e) {
+                e.printStackTrace();
+                // Handle error (e.g., show an alert)
+                return;
+            }
+        }
 
-        if (currentPartner == null) {
-            // Create new partner
-            Partner newPartner = new Partner();
-            newPartner.setName(nom);
-            newPartner.setTypePartenaire(type);
-            newPartner.setEmail(email);
-            newPartner.setTelephone(phone);
-            newPartner.setAdresse(adresse);
-            newPartner.setStatut(statut);
-            newPartner.setDatePartenariat(date);
-            partnerService.add(newPartner);
+        if (currentPartner.getId() == 0) { // Assuming 0 is the default for a new partner
+            partnerService.add(currentPartner);
         } else {
-            // Update existing partner
-            currentPartner.setName(nom);
-            currentPartner.setTypePartenaire(type);
-            currentPartner.setEmail(email);
-            currentPartner.setTelephone(phone);
-            currentPartner.setAdresse(adresse);
-            currentPartner.setStatut(statut);
-            currentPartner.setDatePartenariat(date);
             partnerService.update(currentPartner);
         }
 
         if (onSaveCallback != null) {
             onSaveCallback.run();
         }
-        
+
         closeStage();
     }
 

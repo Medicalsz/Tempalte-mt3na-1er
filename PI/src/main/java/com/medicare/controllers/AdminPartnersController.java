@@ -32,6 +32,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
@@ -51,6 +52,7 @@ public class AdminPartnersController {
 
     private final PartnerService partnerService = new PartnerService();
     private TextField searchField;
+    private VBox partnerRowsContainer; // VBox for scrollable partner rows
 
     @FXML
     private void initialize() {
@@ -119,13 +121,21 @@ public class AdminPartnersController {
             colLabel("Actions", 120)
         );
         container.getChildren().add(tableHeader);
+
+        // ScrollPane for partner list
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS); // Make scroll pane grow
+
+        partnerRowsContainer = new VBox(); // This will hold the partner rows
+        scrollPane.setContent(partnerRowsContainer);
+
+        container.getChildren().add(scrollPane);
     }
 
     private void loadPartners(String searchTerm) {
-        // Clear only the rows, not the header
-        container.getChildren().removeIf(node -> node.getStyleClass().contains("partner-row"));
-        container.getChildren().removeIf(node -> node instanceof Label && ((Label)node).getText().startsWith("Aucun"));
-
+        // Clear only the rows
+        partnerRowsContainer.getChildren().clear();
 
         List<Partner> partners;
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
@@ -137,7 +147,7 @@ public class AdminPartnersController {
         if (partners.isEmpty()) {
             Label empty = new Label("Aucun partenaire trouvé.");
             empty.setStyle("-fx-font-size: 14px; -fx-text-fill: #888; -fx-padding: 20;");
-            container.getChildren().add(empty);
+            partnerRowsContainer.getChildren().add(empty);
             return;
         }
 
@@ -166,18 +176,22 @@ public class AdminPartnersController {
             actions.setAlignment(Pos.CENTER);
             actions.setPrefWidth(120);
 
-            Button btnVoir = actionBtn(FontAwesomeSolid.EYE, "#7c3aed", "#ede9fe");
-            btnVoir.setTooltip(new Tooltip("Modifier les détails"));
-            btnVoir.setOnAction(e -> showPartnerForm(p));
+            Button btnDetail = actionBtn(FontAwesomeSolid.EYE, "#3b82f6", "#dbeafe");
+            btnDetail.setTooltip(new Tooltip("Voir les détails"));
+            btnDetail.setOnAction(e -> showPartnerDetail(p));
+
+            Button btnModifier = actionBtn(FontAwesomeSolid.PENCIL_ALT, "#f59e0b", "#fef3c7");
+            btnModifier.setTooltip(new Tooltip("Modifier le partenaire"));
+            btnModifier.setOnAction(e -> showPartnerForm(p));
 
             Button btnDelete = actionBtn(FontAwesomeSolid.TRASH_ALT, "#dc2626", "#fee2e2");
-            btnDelete.setTooltip(new Tooltip("Supprimer"));
+            btnDelete.setTooltip(new Tooltip("Supprimer le partenaire"));
             btnDelete.setOnAction(e -> showDeleteConfirm(p));
 
-            actions.getChildren().addAll(btnVoir, btnDelete);
+            actions.getChildren().addAll(btnDetail, btnModifier, btnDelete);
 
             row.getChildren().addAll(nom, type, email, actions);
-            container.getChildren().add(row);
+            partnerRowsContainer.getChildren().add(row);
         }
     }
 
@@ -209,8 +223,26 @@ public class AdminPartnersController {
 
             Stage stage = new Stage();
             stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle(partner == null ? "Ajouter un Partenaire" : "Modifier le Partenaire");
+            stage.setTitle(partner == null ? "Ajouter un Partenaire" : "Modifier le Partenaire : " + partner.getName());
             stage.setScene(new Scene(formRoot));
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void showPartnerDetail(Partner partner) {
+        try {
+            FXMLLoader loader = new FXMLLoader(AdminPartnersController.class.getResource("/com/medicare/partner-detail-view.fxml"));
+            Parent detailRoot = loader.load();
+
+            PartnerDetailController controller = loader.getController();
+            controller.setPartner(partner);
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle("Détails du Partenaire : " + partner.getName());
+            stage.setScene(new Scene(detailRoot, 600, 750)); // Set default size
             stage.show();
         } catch (IOException e) {
             e.printStackTrace();
