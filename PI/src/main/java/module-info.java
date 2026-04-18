@@ -6,6 +6,10 @@ module com.medicare.medicarejavafx {
     requires jbcrypt;
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.fontawesome5;
+    requires commons.csv;
+    requires org.apache.pdfbox;
+    requires java.desktop;
+    requires org.apache.fontbox;
 
 
     opens com.medicare to javafx.fxml;

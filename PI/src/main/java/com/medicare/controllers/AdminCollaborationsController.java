@@ -1,14 +1,21 @@
 package com.medicare.controllers;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import com.medicare.controllers.CollaborationFormController;
 import com.medicare.models.Collaboration;
 import com.medicare.services.CollaborationService;
 
@@ -16,19 +23,25 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.print.PrinterJob;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -39,11 +52,13 @@ public class AdminCollaborationsController {
 
     private final CollaborationService collaborationService = new CollaborationService();
     private TextField searchField;
+    private String currentSortColumn = "date_debut"; // Default sort
+    private boolean sortAscending = false;
 
     @FXML
     private void initialize() {
         setupUI();
-        loadCollaborations(null);
+        loadCollaborations(null, currentSortColumn, sortAscending);
     }
 
     private void setupUI() {
@@ -65,15 +80,34 @@ public class AdminCollaborationsController {
         searchField.setPromptText("Rechercher par titre...");
         searchField.setPrefWidth(250);
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            loadCollaborations(newValue);
+            loadCollaborations(newValue, currentSortColumn, sortAscending);
         });
+
+        // Export MenuButton
+        MenuButton exportMenuBtn = new MenuButton("Exporter");
+        exportMenuBtn.setGraphic(new FontIcon(FontAwesomeSolid.DOWNLOAD));
+        exportMenuBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;");
+
+        MenuItem pdfItem = new MenuItem("Exporter en PDF");
+        pdfItem.setGraphic(new FontIcon(FontAwesomeSolid.FILE_PDF));
+        pdfItem.setOnAction(e -> exportToPdf());
+
+        MenuItem csvItem = new MenuItem("Exporter en CSV");
+        csvItem.setGraphic(new FontIcon(FontAwesomeSolid.FILE_CSV));
+        csvItem.setOnAction(e -> exportToCsv());
+
+        MenuItem printItem = new MenuItem("Imprimer la liste");
+        printItem.setGraphic(new FontIcon(FontAwesomeSolid.PRINT));
+        printItem.setOnAction(e -> printCollaborations());
+
+        exportMenuBtn.getItems().addAll(pdfItem, csvItem, printItem);
 
         Button addBtn = new Button("Ajouter Collaboration");
         addBtn.setGraphic(new FontIcon(FontAwesomeSolid.PLUS));
         addBtn.setStyle("-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;");
         addBtn.setOnAction(e -> showCollaborationForm(null));
 
-        header.getChildren().addAll(title, spacer, searchField, addBtn);
+        header.getChildren().addAll(title, spacer, exportMenuBtn, searchField, addBtn);
         container.getChildren().add(header);
 
         // Table header
@@ -82,25 +116,25 @@ public class AdminCollaborationsController {
         tableHeader.setPadding(new Insets(10, 15, 10, 15));
         tableHeader.setStyle("-fx-background-color: #7c3aed; -fx-background-radius: 8 8 0 0;");
         tableHeader.getChildren().addAll(
-            colLabel("Titre", 200),
-            colLabel("Partenaire", 150),
-            colLabel("Statut", 100),
-            colLabel("Date Fin", 120),
-            colLabel("Actions", 120)
+            createSortableColumn("Titre", "titre", 200),
+            createSortableColumn("Partenaire", "partner_name", 150),
+            createSortableColumn("Statut", "statut", 100),
+            createSortableColumn("Date Fin", "date_fin", 120),
+            colLabel("Actions", 120) // Actions column is not sortable
         );
         container.getChildren().add(tableHeader);
     }
 
-    private void loadCollaborations(String searchTerm) {
+    private void loadCollaborations(String searchTerm, String sortColumn, boolean ascending) {
         // Clear only the rows, not the header
         container.getChildren().removeIf(node -> node.getStyleClass().contains("collaboration-row"));
         container.getChildren().removeIf(node -> node instanceof Label && ((Label)node).getText().startsWith("Aucune"));
 
         List<Collaboration> collaborations;
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
-            collaborations = collaborationService.getAll();
+            collaborations = collaborationService.getAllSorted(sortColumn, ascending);
         } else {
-            collaborations = collaborationService.searchByTitre(searchTerm);
+            collaborations = collaborationService.searchByTitre(searchTerm); // Note: search might not be sorted by the same column
         }
         if (collaborations.isEmpty()) {
             Label empty = new Label("Aucune collaboration trouvée.");
@@ -163,6 +197,42 @@ public class AdminCollaborationsController {
         return l;
     }
 
+    private HBox createSortableColumn(String labelText, String dbColumnName, double width) {
+        HBox headerBox = new HBox(5);
+        headerBox.setPrefWidth(width);
+        headerBox.setAlignment(Pos.CENTER_LEFT);
+        headerBox.setStyle("-fx-cursor: hand;");
+
+        Label label = new Label(labelText);
+        label.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+        FontIcon sortIcon = new FontIcon();
+        sortIcon.setIconSize(12);
+        sortIcon.setIconColor(Color.WHITE);
+
+        if (dbColumnName.equals(currentSortColumn)) {
+            sortIcon.setIconCode(sortAscending ? FontAwesomeSolid.SORT_UP : FontAwesomeSolid.SORT_DOWN);
+        } else {
+            sortIcon.setIconCode(FontAwesomeSolid.SORT);
+        }
+        
+        headerBox.getChildren().addAll(label, sortIcon);
+
+        headerBox.setOnMouseClicked(e -> {
+            if (dbColumnName.equals(currentSortColumn)) {
+                sortAscending = !sortAscending;
+            } else {
+                currentSortColumn = dbColumnName;
+                sortAscending = true;
+            }
+            // Rebuild the header and reload data
+            setupUI(); 
+            loadCollaborations(searchField.getText(), currentSortColumn, sortAscending);
+        });
+        
+        return headerBox;
+    }
+
     private Button actionBtn(FontAwesomeSolid iconType, String iconColor, String bgColor) {
         Button btn = new Button();
         FontIcon icon = new FontIcon(iconType);
@@ -182,7 +252,7 @@ public class AdminCollaborationsController {
             controller.setCollaboration(collaboration);
             controller.setOnFormClose(updated -> {
                 if (updated) {
-                    loadCollaborations(searchField.getText());
+                    loadCollaborations(searchField.getText(), currentSortColumn, sortAscending);
                 }
             });
 
@@ -207,7 +277,7 @@ public class AdminCollaborationsController {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             collaborationService.delete(collaboration.getId());
-            loadCollaborations(searchField.getText());
+            loadCollaborations(searchField.getText(), currentSortColumn, sortAscending);
             showAlert(Alert.AlertType.INFORMATION, "Succès", "La collaboration a été supprimée avec succès.");
         }
     }
@@ -218,5 +288,168 @@ public class AdminCollaborationsController {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private void exportToCsv() {
+        List<Collaboration> collaborations = collaborationService.getAllSorted(currentSortColumn, sortAscending);
+        if (collaborations.isEmpty()) {
+            showAlert(Alert.AlertType.INFORMATION, "Information", "Aucune collaboration à exporter.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Enregistrer le fichier CSV");
+        fileChooser.setInitialFileName("collaborations.csv");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Fichiers CSV", "*.csv"));
+        File file = fileChooser.showSaveDialog(container.getScene().getWindow());
+
+        if (file != null) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            try (FileWriter writer = new FileWriter(file);
+                 CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT
+                         .withHeader("ID", "Titre", "Partenaire", "Statut", "Date Début", "Date Fin", "Description"))) {
+
+                for (Collaboration c : collaborations) {
+                    csvPrinter.printRecord(
+                        c.getId(),
+                        c.getTitre(),
+                        c.getPartnerName(),
+                        c.getStatut(),
+                        c.getDateDebut() != null ? c.getDateDebut().format(formatter) : "",
+                        c.getDateFin() != null ? c.getDateFin().format(formatter) : "",
+                        c.getDescription()
+                    );
+                }
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Les données ont été exportées avec succès dans " + file.getName());
+            } catch (IOException e) {
+                e.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Une erreur est survenue lors de l'exportation du fichier CSV.");
+            }
+        }
+    }
+
+    private void exportToPdf() {
+        List<Collaboration> collaborations = collaborationService.getAllSorted(currentSortColumn, sortAscending);
+        if (collaborations.isEmpty()) {
+            showAlert(Alert.AlertType.INFORMATION, "Information", "Aucune collaboration à exporter.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Enregistrer le fichier PDF");
+        fileChooser.setInitialFileName("collaborations.pdf");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Fichiers PDF", "*.pdf"));
+        File file = fileChooser.showSaveDialog(container.getScene().getWindow());
+
+        if (file != null) {
+            try (PDDocument document = new PDDocument()) {
+                PDPage page = new PDPage();
+                document.addPage(page);
+
+                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                    drawPdfTable(contentStream, collaborations);
+                }
+
+                document.save(file);
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Les données ont été exportées avec succès dans " + file.getName());
+            } catch (IOException e) {
+                e.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Erreur", "Une erreur est survenue lors de l'exportation du fichier PDF.");
+            }
+        }
+    }
+
+    private void drawPdfTable(PDPageContentStream contentStream, List<Collaboration> collaborations) throws IOException {
+        final int rows = collaborations.size() + 1;
+        final int cols = 4;
+        final float rowHeight = 20f;
+        final float tableWidth = 500f;
+        final float tableHeight = rowHeight * rows;
+        final float startX = 50f;
+        final float startY = 750f;
+
+        // Headers
+        String[] headers = {"Titre", "Partenaire", "Statut", "Date Fin"};
+        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
+
+        float nextX = startX;
+        float nextY = startY;
+
+        for (String header : headers) {
+            contentStream.beginText();
+            contentStream.newLineAtOffset(nextX, nextY);
+            contentStream.showText(header);
+            contentStream.endText();
+            nextX += tableWidth / cols;
+        }
+
+        // Data
+        contentStream.setFont(PDType1Font.HELVETICA, 10);
+        nextY -= rowHeight;
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        for (Collaboration c : collaborations) {
+            nextX = startX;
+            String[] rowData = {
+                c.getTitre(),
+                c.getPartnerName(),
+                c.getStatut(),
+                c.getDateFin() != null ? c.getDateFin().format(formatter) : "N/A"
+            };
+
+            for (String data : rowData) {
+                contentStream.beginText();
+                contentStream.newLineAtOffset(nextX, nextY);
+                contentStream.showText(data != null ? data : "");
+                contentStream.endText();
+                nextX += tableWidth / cols;
+            }
+            nextY -= rowHeight;
+        }
+    }
+
+    private void printCollaborations() {
+        PrinterJob job = PrinterJob.createPrinterJob();
+        if (job != null && job.showPrintDialog(container.getScene().getWindow())) {
+            List<Collaboration> collaborations = collaborationService.getAllSorted(currentSortColumn, sortAscending);
+            if (collaborations.isEmpty()) {
+                showAlert(Alert.AlertType.INFORMATION, "Information", "Aucune collaboration à imprimer.");
+                return;
+            }
+            
+            Node printableArea = createPrintableTable(collaborations);
+            boolean success = job.printPage(printableArea);
+            if (success) {
+                job.endJob();
+            }
+        }
+    }
+
+    private Node createPrintableTable(List<Collaboration> collaborations) {
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(5);
+        grid.setPadding(new Insets(10));
+
+        // Headers
+        String[] headers = {"Titre", "Partenaire", "Statut", "Date Fin"};
+        for (int i = 0; i < headers.length; i++) {
+            Label label = new Label(headers[i]);
+            label.setStyle("-fx-font-weight: bold;");
+            grid.add(label, i, 0);
+        }
+
+        // Data
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        int row = 1;
+        for (Collaboration c : collaborations) {
+            grid.add(new Label(c.getTitre()), 0, row);
+            grid.add(new Label(c.getPartnerName()), 1, row);
+            grid.add(new Label(c.getStatut()), 2, row);
+            grid.add(new Label(c.getDateFin() != null ? c.getDateFin().format(formatter) : "N/A"), 3, row);
+            row++;
+        }
+        return grid;
     }
 }

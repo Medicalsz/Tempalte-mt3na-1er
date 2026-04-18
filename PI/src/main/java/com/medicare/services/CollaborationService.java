@@ -113,10 +113,25 @@ public class CollaborationService implements Crud<Collaboration> {
     }
 
     public List<Collaboration> getAll() {
+        return getAllSorted("date_debut", false); // Default sort
+    }
+
+    public List<Collaboration> getAllSorted(String sortColumn, boolean ascending) {
         List<Collaboration> collaborations = new ArrayList<>();
+        
+        // Whitelist columns to prevent SQL injection
+        List<String> allowedColumns = List.of("titre", "partner_name", "statut", "date_fin", "date_debut");
+        if (!allowedColumns.contains(sortColumn)) {
+            sortColumn = "date_debut"; // Default to a safe column
+        }
+
+        String sortDirection = ascending ? "ASC" : "DESC";
+
         String query = "SELECT c.*, p.name as partner_name, u.nom as user_name FROM collaboration c " +
                        "LEFT JOIN partner p ON c.partner_id = p.id " +
-                       "LEFT JOIN user u ON c.user_id = u.id";
+                       "LEFT JOIN user u ON c.user_id = u.id " +
+                       "ORDER BY " + sortColumn + " " + sortDirection;
+
         try (Connection cnx = MyConnection.getInstance().getCnx();
              Statement st = cnx.createStatement();
              ResultSet rs = st.executeQuery(query)) {
@@ -153,7 +168,7 @@ public class CollaborationService implements Crud<Collaboration> {
                 collaborations.add(collaboration);
             }
         } catch (SQLException e) {
-            System.err.println("Error getting collaborations: " + e.getMessage());
+            System.err.println("Error getting sorted collaborations: " + e.getMessage());
         }
         return collaborations;
     }

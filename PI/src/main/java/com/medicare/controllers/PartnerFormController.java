@@ -4,26 +4,34 @@ import com.medicare.models.Partner;
 import com.medicare.services.PartnerService;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
+import javafx.collections.FXCollections;
 
 import java.time.LocalDate;
 
 public class PartnerFormController {
 
     @FXML private TextField nomField;
-    @FXML private TextField typeField;
+    @FXML private ComboBox<String> typeComboBox;
     @FXML private TextField emailField;
     @FXML private TextField phoneField;
     @FXML private TextField adresseField;
-    @FXML private TextField statutField;
+    @FXML private ComboBox<String> statutComboBox;
     @FXML private DatePicker datePicker;
     @FXML private Button saveBtn;
 
     private PartnerService partnerService = new PartnerService();
     private Partner currentPartner;
     private Runnable onSaveCallback;
+
+    @FXML
+    private void initialize() {
+        typeComboBox.setItems(FXCollections.observableArrayList("Hôpital", "Clinique", "Laboratoire", "Pharmacie", "Association"));
+        statutComboBox.setItems(FXCollections.observableArrayList("Actif", "Inactif"));
+    }
 
     public void setOnSave(Runnable callback) {
         this.onSaveCallback = callback;
@@ -33,11 +41,11 @@ public class PartnerFormController {
         this.currentPartner = partner;
         if (partner != null) {
             nomField.setText(partner.getName());
-            typeField.setText(partner.getTypePartenaire());
+            typeComboBox.setValue(partner.getTypePartenaire());
             emailField.setText(partner.getEmail());
             phoneField.setText(partner.getTelephone());
             adresseField.setText(partner.getAdresse());
-            statutField.setText(partner.getStatut());
+            statutComboBox.setValue(partner.getStatut());
             if (partner.getDatePartenariat() != null) {
                 datePicker.setValue(partner.getDatePartenariat());
             }
@@ -47,12 +55,13 @@ public class PartnerFormController {
     @FXML
     private void handleSave() {
         String nom = nomField.getText();
-        String type = typeField.getText();
+        String type = typeComboBox.getValue();
         String email = emailField.getText();
         String phone = phoneField.getText();
         String adresse = adresseField.getText();
-        String statut = statutField.getText();
+        String statut = statutComboBox.getValue();
         LocalDate date = datePicker.getValue();
+
 
         if (currentPartner == null) {
             // Create new partner
