@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Separator?>
+
+<BorderPane prefWidth="900" prefHeight="600"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.medicare.controllers.DashboardPatientController">
+
+    <!-- ========== SIDEBAR ========== -->
+    <left>
+        <VBox prefWidth="220" spacing="5"
+              style="-fx-background-color: #1a73e8;">
+            <padding>
+                <Insets top="20" bottom="20" left="10" right="10"/>
+            </padding>
+
+            <!-- Nom du user connecté -->
+            <Label fx:id="userNameLabel" text="Patient"
+                   style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 5 10;"/>
+            <Label fx:id="userEmailLabel" text=""
+                   style="-fx-text-fill: #b3d4fc; -fx-font-size: 11px; -fx-padding: 0 0 10 10;"/>
+
+            <Separator style="-fx-background-color: #4a9af5;"/>
+
+            <!-- Boutons navigation -->
+            <Button fx:id="btnAccueil" text="  Accueil" onAction="#onAccueilClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: #4a9af5; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnRendezVous" text="  Mes Rendez-vous" onAction="#onRendezVousClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnDonation" text="  Faire un don" onAction="#onDonationClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnProduit" text="  Nos Produits" onAction="#onProduitClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnCollaboration" text="  Collaborer" onAction="#onCollaborationClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnForum" text="  Forum" onAction="#onForumClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnDevenirMedecin" text="  Devenir Medecin" onAction="#onDevenirMedecinClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: #ffd700; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <!-- Spacer pour pousser Déconnexion en bas -->
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Separator style="-fx-background-color: #4a9af5;"/>
+
+            <Button fx:id="btnLogout" text="  Deconnexion" onAction="#onLogoutClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: #ffcccb; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+        </VBox>
+    </left>
+
+    <!-- ========== ZONE DE CONTENU ========== -->
+    <center>
+        <StackPane fx:id="contentArea"
+                   style="-fx-background-color: #f0f4f8;">
+            <padding>
+                <Insets top="20" bottom="20" left="20" right="20"/>
+            </padding>
+            <!-- Le contenu de chaque section sera chargé ici dynamiquement -->
+            <Label text="Bienvenue sur votre espace patient !"
+                   style="-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;"/>
+        </StackPane>
+    </center>
+
+</BorderPane>
