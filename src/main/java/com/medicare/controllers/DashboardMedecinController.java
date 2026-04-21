@@ -2,26 +2,36 @@ package com.medicare.controllers;
 
 import com.medicare.HelloApplication;
 import com.medicare.models.User;
+import com.medicare.ui.UserSectionFactory;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
+
+import java.nio.file.Path;
 
 public class DashboardMedecinController {
 
     @FXML private Label userNameLabel;
     @FXML private Label userEmailLabel;
+    @FXML private Label userRoleLabel;
+    @FXML private ImageView userAvatarView;
+    @FXML private Button userProfileButton;
     @FXML private StackPane contentArea;
 
     @FXML private Button btnRendezVous;
     @FXML private Button btnPlanning;
+    @FXML private Button btnSettings;
     @FXML private Button btnLogout;
 
     private static User currentUser;
@@ -34,17 +44,19 @@ public class DashboardMedecinController {
 
     @FXML
     private void initialize() {
-        if (currentUser != null) {
-            userNameLabel.setText("Dr. " + currentUser.getPrenom() + " " + currentUser.getNom());
-            userEmailLabel.setText(currentUser.getEmail());
-        }
+        initAvatar();
+        refreshUserHeader();
 
         btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
         btnPlanning.setGraphic(icon(FontAwesomeSolid.CLOCK));
+        btnSettings.setGraphic(icon(FontAwesomeSolid.COG, Color.web("#ccfbf1")));
         btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#fecaca")));
 
-        highlightButton(btnRendezVous);
         onRendezVousClick();
+    }
+
+    private void initAvatar() {
+        userAvatarView.setClip(new Circle(28, 28, 28));
     }
 
     private FontIcon icon(FontAwesomeSolid type) { return icon(type, Color.WHITE); }
@@ -54,6 +66,12 @@ public class DashboardMedecinController {
         fi.setIconSize(16);
         fi.setIconColor(color);
         return fi;
+    }
+
+    @FXML
+    private void onProfileClick() {
+        highlightButton(btnSettings);
+        openProfilePage();
     }
 
     @FXML
@@ -82,14 +100,61 @@ public class DashboardMedecinController {
     }
 
     @FXML
+    private void onSettingsClick() {
+        highlightButton(btnSettings);
+        openProfilePage();
+    }
+
+    @FXML
     private void onLogoutClick() {
+        logoutToAccueil();
+    }
+
+    private void refreshUserHeader() {
+        if (currentUser != null) {
+            userNameLabel.setText("Dr. " + currentUser.getPrenom() + " " + currentUser.getNom());
+            userEmailLabel.setText(currentUser.getEmail());
+            userRoleLabel.setText("Medecin");
+            updateAvatar(currentUser.getPhoto());
+        }
+    }
+
+    private void updateAvatar(String photoPath) {
+        try {
+            if (photoPath == null || photoPath.isBlank()) {
+                userAvatarView.setImage(new Image(HelloApplication.class.getResource("images/logo.png").toExternalForm(), true));
+                return;
+            }
+            String source = photoPath.startsWith("file:/") ? photoPath : Path.of(photoPath).toUri().toString();
+            userAvatarView.setImage(new Image(source, true));
+        } catch (Exception e) {
+            userAvatarView.setImage(new Image(HelloApplication.class.getResource("images/logo.png").toExternalForm(), true));
+        }
+    }
+
+    private void openProfilePage() {
+        contentArea.getChildren().clear();
+        contentArea.getChildren().add(UserSectionFactory.createProfileSection(
+            currentUser,
+            contentArea.getScene().getWindow(),
+            user -> {
+                currentUser = user;
+                refreshUserHeader();
+            },
+            this::logoutToAccueil
+        ));
+    }
+
+    private void logoutToAccueil() {
         currentUser = null;
         try {
             FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("accueil-view.fxml"));
             Stage stage = (Stage) contentArea.getScene().getWindow();
             stage.setScene(new Scene(loader.load()));
             stage.setTitle("Medicare");
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void highlightButton(Button active) {
@@ -97,7 +162,8 @@ public class DashboardMedecinController {
         String activeS = "-fx-background-color: #14b8a6; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
         btnRendezVous.setStyle(normal);
         btnPlanning.setStyle(normal);
+        btnSettings.setStyle(normal);
+        userProfileButton.setStyle("-fx-background-color: rgba(255,255,255,0.12); -fx-background-radius: 16; -fx-cursor: hand; -fx-padding: 12;");
         active.setStyle(activeS);
     }
 }
-

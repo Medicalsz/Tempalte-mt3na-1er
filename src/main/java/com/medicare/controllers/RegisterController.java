@@ -21,7 +21,13 @@ import javafx.util.Duration;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.util.regex.Pattern;
+
 public class RegisterController {
+
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+    private static final Pattern NAME_PATTERN = Pattern.compile("^[A-Za-zA-ZÀ-ÿ\\s'-]{2,}$");
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^[0-9+\\s]{8,15}$");
 
     @FXML private TextField nomField;
     @FXML private TextField prenomField;
@@ -38,40 +44,66 @@ public class RegisterController {
     private void onRegisterClick() {
         String nom = nomField.getText().trim();
         String prenom = prenomField.getText().trim();
-        String email = emailField.getText().trim();
+        String email = emailField.getText().trim().toLowerCase();
         String password = passwordField.getText();
         String confirm = confirmPasswordField.getText();
         String numero = numeroField.getText().trim();
         String adresse = adresseField.getText().trim();
 
-        // Validations
-        if (nom.isEmpty() || prenom.isEmpty() || email.isEmpty() || password.isEmpty() || numero.isEmpty()) {
-            showError("Veuillez remplir tous les champs obligatoires.");
-            return;
-        }
-        if (!email.contains("@")) {
-            showError("Email invalide.");
-            return;
-        }
-        if (password.length() < 6) {
-            showError("Le mot de passe doit contenir au moins 6 caracteres.");
-            return;
-        }
-        if (!password.equals(confirm)) {
-            showError("Les mots de passe ne correspondent pas.");
+        String validationError = validateForm(nom, prenom, email, password, confirm, numero);
+        if (validationError != null) {
+            showError(validationError);
             return;
         }
 
-        User user = new User(nom, prenom, email, password, numero,
-                             adresse.isEmpty() ? null : adresse, null, "[\"ROLE_USER\"]", false);
+        User user = new User(
+            nom,
+            prenom,
+            email,
+            password,
+            numero,
+            adresse.isEmpty() ? null : adresse,
+            null,
+            "[\"ROLE_USER\"]",
+            false
+        );
 
         boolean success = userService.register(user);
 
         if (success) {
+            errorLabel.setText("");
             showSuccessAndRedirect();
         } else {
             showError("Cet email est deja utilise.");
         }
+    }
+
+    private String validateForm(String nom, String prenom, String email, String password, String confirm, String numero) {
+        if (nom.isEmpty() || prenom.isEmpty() || email.isEmpty() || password.isEmpty() || confirm.isEmpty() || numero.isEmpty()) {
+            return "Veuillez remplir tous les champs obligatoires.";
+        }
+        if (!NAME_PATTERN.matcher(nom).matches() || !NAME_PATTERN.matcher(prenom).matches()) {
+            return "Le nom et le prenom doivent contenir au moins 2 lettres.";
+        }
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            return "Email invalide.";
+        }
+        if (!PHONE_PATTERN.matcher(numero).matches()) {
+            return "Numero invalide. Utilisez entre 8 et 15 chiffres.";
+        }
+        if (password.length() < 6) {
+            return "Le mot de passe doit contenir au moins 6 caracteres.";
+        }
+        if (!password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*")) {
+            return "Le mot de passe doit contenir au moins une lettre et un chiffre.";
+        }
+        if (!password.equals(confirm)) {
+            return "Les mots de passe ne correspondent pas.";
+        }
+        if (userService.emailExists(email)) {
+            return "Cet email est deja utilise.";
+        }
+        return null;
     }
 
     private void showError(String msg) {
@@ -80,7 +112,6 @@ public class RegisterController {
     }
 
     private void showSuccessAndRedirect() {
-        // Popup stylée
         Stage popup = new Stage();
         popup.initStyle(StageStyle.UNDECORATED);
         popup.initModality(Modality.APPLICATION_MODAL);
@@ -100,14 +131,13 @@ public class RegisterController {
         VBox box = new VBox(15, checkIcon, title, msg);
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(30));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
-                     "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 16; "
+            + "-fx-border-color: #e0e0e0; -fx-border-radius: 16; "
+            + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
 
         popup.setScene(new Scene(box, 340, 220));
         popup.show();
 
-        // Ferme la popup après 2s et redirige vers connexion
         PauseTransition pause = new PauseTransition(Duration.seconds(2));
         pause.setOnFinished(e -> {
             popup.close();
@@ -137,4 +167,3 @@ public class RegisterController {
         }
     }
 }
-

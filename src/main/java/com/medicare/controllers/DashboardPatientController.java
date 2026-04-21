@@ -3,22 +3,31 @@ package com.medicare.controllers;
 import com.medicare.HelloApplication;
 import com.medicare.models.User;
 import com.medicare.services.RendezVousService;
+import com.medicare.ui.UserSectionFactory;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
+
+import java.nio.file.Path;
 
 public class DashboardPatientController {
 
     @FXML private Label userNameLabel;
     @FXML private Label userEmailLabel;
+    @FXML private Label userRoleLabel;
+    @FXML private ImageView userAvatarView;
+    @FXML private Button userProfileButton;
     @FXML private StackPane contentArea;
 
     @FXML private Button btnAccueil;
@@ -28,6 +37,7 @@ public class DashboardPatientController {
     @FXML private Button btnCollaboration;
     @FXML private Button btnForum;
     @FXML private Button btnDevenirMedecin;
+    @FXML private Button btnSettings;
     @FXML private Button btnLogout;
 
     private static User currentUser;
@@ -37,12 +47,9 @@ public class DashboardPatientController {
 
     @FXML
     private void initialize() {
-        if (currentUser != null) {
-            userNameLabel.setText(currentUser.getPrenom() + " " + currentUser.getNom());
-            userEmailLabel.setText(currentUser.getEmail());
-        }
+        initAvatar();
+        refreshUserHeader();
 
-        // Icônes FontAwesome sur chaque bouton
         btnAccueil.setGraphic(icon(FontAwesomeSolid.HOME));
         btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
         btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
@@ -50,9 +57,15 @@ public class DashboardPatientController {
         btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
         btnDevenirMedecin.setGraphic(icon(FontAwesomeSolid.USER_MD, Color.web("#ffd700")));
+        btnSettings.setGraphic(icon(FontAwesomeSolid.COG, Color.web("#dbeafe")));
         btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#ffcccb")));
 
-        highlightButton(btnAccueil);
+        onAccueilClick();
+    }
+
+    private void initAvatar() {
+        Circle clip = new Circle(28, 28, 28);
+        userAvatarView.setClip(clip);
     }
 
     private FontIcon icon(FontAwesomeSolid type) {
@@ -66,23 +79,30 @@ public class DashboardPatientController {
         return fi;
     }
 
-    // ========== NAVIGATION SIDEBAR ==========
-
-    @FXML private void onAccueilClick() {
-        highlightButton(btnAccueil);
-        setContent(new Label("Bienvenue sur votre espace patient !") {{
-            setStyle("-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;");
-        }});
+    @FXML
+    private void onProfileClick() {
+        highlightButton(btnSettings);
+        openProfilePage();
     }
 
-    @FXML private void onRendezVousClick() {
+    @FXML
+    private void onAccueilClick() {
+        highlightButton(btnAccueil);
+        setContent(UserSectionFactory.createWelcomeSection(
+            "Bienvenue sur votre espace patient",
+            "Consultez vos rendez-vous, mettez a jour votre compte et envoyez votre demande pour devenir medecin.",
+            "#bfdbfe"
+        ));
+    }
+
+    @FXML
+    private void onRendezVousClick() {
         highlightButton(btnRendezVous);
         try {
             FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("rendez-vous-list-view.fxml"));
             Node view = loader.load();
             RendezVousListController ctrl = loader.getController();
             ctrl.setContentArea(contentArea);
-            // Trouver le patient_id à partir du user_id
             RendezVousService rvService = new RendezVousService();
             int patientId = rvService.getPatientIdByUserId(currentUser.getId());
             ctrl.setPatientId(patientId);
@@ -95,43 +115,90 @@ public class DashboardPatientController {
         }
     }
 
-    @FXML private void onDonationClick() {
+    @FXML
+    private void onDonationClick() {
         highlightButton(btnDonation);
         setContent(new Label("Faire un don") {{
             setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
         }});
     }
 
-    @FXML private void onProduitClick() {
+    @FXML
+    private void onProduitClick() {
         highlightButton(btnProduit);
         setContent(new Label("Nos Produits") {{
             setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
         }});
     }
 
-    @FXML private void onCollaborationClick() {
+    @FXML
+    private void onCollaborationClick() {
         highlightButton(btnCollaboration);
         setContent(new Label("Collaborer") {{
             setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
         }});
     }
 
-    @FXML private void onForumClick() {
+    @FXML
+    private void onForumClick() {
         highlightButton(btnForum);
         setContent(new Label("Forum") {{
             setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
         }});
     }
 
-    @FXML private void onDevenirMedecinClick() {
+    @FXML
+    private void onDevenirMedecinClick() {
         highlightButton(btnDevenirMedecin);
-        setContent(new Label("Devenir Medecin") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
-        // TODO : formulaire de demande pour devenir médecin
+        setContent(UserSectionFactory.createDoctorRequestSection(currentUser, contentArea.getScene().getWindow()));
     }
 
-    @FXML private void onLogoutClick() {
+    @FXML
+    private void onSettingsClick() {
+        highlightButton(btnSettings);
+        openProfilePage();
+    }
+
+    @FXML
+    private void onLogoutClick() {
+        logoutToAccueil();
+    }
+
+    private void refreshUserHeader() {
+        if (currentUser != null) {
+            userNameLabel.setText(currentUser.getPrenom() + " " + currentUser.getNom());
+            userEmailLabel.setText(currentUser.getEmail());
+            userRoleLabel.setText("Patient");
+            updateAvatar(currentUser.getPhoto());
+        }
+    }
+
+    private void updateAvatar(String photoPath) {
+        try {
+            if (photoPath == null || photoPath.isBlank()) {
+                userAvatarView.setImage(new Image(HelloApplication.class.getResource("images/logo.png").toExternalForm(), true));
+                return;
+            }
+            String source = photoPath.startsWith("file:/") ? photoPath : Path.of(photoPath).toUri().toString();
+            userAvatarView.setImage(new Image(source, true));
+        } catch (Exception e) {
+            userAvatarView.setImage(new Image(HelloApplication.class.getResource("images/logo.png").toExternalForm(), true));
+        }
+    }
+
+    private void openProfilePage() {
+        setContent(UserSectionFactory.createProfileSection(
+            currentUser,
+            contentArea.getScene().getWindow(),
+            user -> {
+                currentUser = user;
+                refreshUserHeader();
+            },
+            this::logoutToAccueil
+        ));
+    }
+
+    private void logoutToAccueil() {
         currentUser = null;
         try {
             FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("accueil-view.fxml"));
@@ -142,8 +209,6 @@ public class DashboardPatientController {
             e.printStackTrace();
         }
     }
-
-    // ========== UTILITAIRES ==========
 
     private void setContent(Node node) {
         contentArea.getChildren().clear();
@@ -161,7 +226,9 @@ public class DashboardPatientController {
         btnProduit.setStyle(normalStyle);
         btnCollaboration.setStyle(normalStyle);
         btnForum.setStyle(normalStyle);
+        btnSettings.setStyle(normalStyle);
         btnDevenirMedecin.setStyle(normalGoldStyle);
+        userProfileButton.setStyle("-fx-background-color: rgba(255,255,255,0.12); -fx-background-radius: 16; -fx-cursor: hand; -fx-padding: 12;");
 
         active.setStyle(activeStyle);
     }

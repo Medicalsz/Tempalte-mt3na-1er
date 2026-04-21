@@ -14,7 +14,7 @@ public class MyConnection {
             cnx = DriverManager.getConnection(
                     "jdbc:mysql://localhost:3306/medicare",
                     "root",
-                    "2003"
+                    ""
             );
             System.out.println("Connexion OK !");
         } catch (SQLException e) {

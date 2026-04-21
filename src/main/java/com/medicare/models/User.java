@@ -10,6 +10,9 @@ public class User {
     private String adresse;
     private String photo;
     private String roles;
+    private String emailPrivacy;
+    private String phonePrivacy;
+    private String adressePrivacy;
     private boolean isVerified;
 
     public User() {}
@@ -53,6 +56,15 @@ public class User {
 
     public String getRoles() { return roles; }
     public void setRoles(String roles) { this.roles = roles; }
+
+    public String getEmailPrivacy() { return emailPrivacy; }
+    public void setEmailPrivacy(String emailPrivacy) { this.emailPrivacy = emailPrivacy; }
+
+    public String getPhonePrivacy() { return phonePrivacy; }
+    public void setPhonePrivacy(String phonePrivacy) { this.phonePrivacy = phonePrivacy; }
+
+    public String getAdressePrivacy() { return adressePrivacy; }
+    public void setAdressePrivacy(String adressePrivacy) { this.adressePrivacy = adressePrivacy; }
 
     public boolean isVerified() { return isVerified; }
     public void setIsVerified(boolean isVerified) { this.isVerified = isVerified; }
