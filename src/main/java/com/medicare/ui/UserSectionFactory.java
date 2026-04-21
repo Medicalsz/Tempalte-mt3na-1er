@@ -185,7 +185,9 @@ public final class UserSectionFactory {
         Label role = new Label(resolveRole(currentUser));
         role.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4b5563;");
 
-        VBox box = new VBox(10, profileImage, fullName, role);
+        HBox verificationField = createVerificationField(currentUser.isVerified());
+
+        VBox box = new VBox(10, profileImage, fullName, role, verificationField);
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(28));
         box.setStyle("-fx-background-color: white; -fx-background-radius: 22; -fx-border-color: #e5e7eb; -fx-border-radius: 22;");
@@ -458,6 +460,27 @@ public final class UserSectionFactory {
         Label label = new Label(labelText);
         label.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         return new VBox(8, label, button, valueLabel);
+    }
+
+    private static HBox createVerificationField(boolean verified) {
+        FontIcon icon = new FontIcon(verified ? FontAwesomeSolid.CHECK_CIRCLE : FontAwesomeSolid.TIMES_CIRCLE);
+        icon.setIconSize(16);
+        icon.setIconColor(Color.web(verified ? "#16a34a" : "#dc2626"));
+
+        TextField field = new TextField(verified ? "Verified" : "Not verified");
+        field.setEditable(false);
+        field.setFocusTraversable(false);
+        field.setPrefWidth(170);
+        field.setStyle(
+            "-fx-background-radius: 10; -fx-border-radius: 10; -fx-font-size: 13px; -fx-font-weight: bold;"
+                + (verified
+                ? "-fx-text-fill: #16a34a; -fx-background-color: #f0fdf4; -fx-border-color: #86efac;"
+                : "-fx-text-fill: #dc2626; -fx-background-color: #fef2f2; -fx-border-color: #fca5a5;")
+        );
+
+        HBox box = new HBox(8, icon, field);
+        box.setAlignment(Pos.CENTER);
+        return box;
     }
 
     private static Button primaryButton(String text, String color) {

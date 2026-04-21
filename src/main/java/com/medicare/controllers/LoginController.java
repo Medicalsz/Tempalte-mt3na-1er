@@ -1,6 +1,7 @@
 package com.medicare.controllers;
 
 import com.medicare.HelloApplication;
+import com.medicare.models.LoginResult;
 import com.medicare.models.User;
 import com.medicare.services.RendezVousService;
 import com.medicare.services.UserService;
@@ -30,28 +31,27 @@ public class LoginController {
             return;
         }
 
-        User user = userService.login(email, password);
+        LoginResult loginResult = userService.loginByAccountType(email, password);
 
-        if (user != null) {
+        if (loginResult != null) {
+            User user = loginResult.getUser();
             System.out.println("Connexion reussie : " + user);
 
-            if (user.getRoles().contains("ROLE_ADMIN")) {
-                // Admin
+            if (loginResult.isAdmin()) {
                 DashboardAdminController.setCurrentUser(user);
                 navigateTo("dashboard-admin-view.fxml", "Medicare - Administration");
-            } else {
-                // Vérifier si c'est un médecin
-                RendezVousService rvService = new RendezVousService();
-                int medecinId = rvService.getMedecinIdByUserId(user.getId());
-
-                if (medecinId > 0 && user.getRoles().contains("ROLE_MEDECIN")) {
-                    DashboardMedecinController.setCurrentUser(user);
-                    DashboardMedecinController.setMedecinId(medecinId);
-                    navigateTo("dashboard-medecin-view.fxml", "Medicare - Espace Medecin");
-                } else {
-                    DashboardPatientController.setCurrentUser(user);
-                    navigateTo("dashboard-patient-view.fxml", "Medicare - Dashboard");
+            } else if (loginResult.isMedecin()) {
+                int medecinId = loginResult.getMedecinId();
+                if (medecinId <= 0) {
+                    RendezVousService rvService = new RendezVousService();
+                    medecinId = rvService.getMedecinIdByUserId(user.getId());
                 }
+                DashboardMedecinController.setCurrentUser(user);
+                DashboardMedecinController.setMedecinId(medecinId);
+                navigateTo("dashboard-medecin-view.fxml", "Medicare - Espace Medecin");
+            } else {
+                DashboardPatientController.setCurrentUser(user);
+                navigateTo("dashboard-patient-view.fxml", "Medicare - Dashboard");
             }
         } else {
             errorLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 13px;");
@@ -80,4 +80,3 @@ public class LoginController {
         }
     }
 }
-

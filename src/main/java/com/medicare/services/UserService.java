@@ -1,6 +1,7 @@
 package com.medicare.services;
 
 import com.medicare.interfaces.Crud;
+import com.medicare.models.LoginResult;
 import com.medicare.models.User;
 import com.medicare.utils.MyConnection;
 import org.mindrot.jbcrypt.BCrypt;
@@ -19,29 +20,130 @@ import java.util.Map;
 import java.util.Set;
 
 public class UserService implements Crud<User> {
+    private static final String DEFAULT_ADMIN_EMAIL = "admin@medicare.com";
+    private static final String DEFAULT_ADMIN_PASSWORD = "admin123";
+    private static final String DEFAULT_ADMIN_ROLES = "[\"ROLE_ADMIN\"]";
 
     private final Connection cnx;
 
     public UserService() {
         cnx = MyConnection.getInstance().getCnx();
+        ensureDefaultAdminAccount();
     }
 
     public User login(String email, String password) {
+        LoginResult result = loginByAccountType(email, password);
+        return result != null ? result.getUser() : null;
+    }
+
+    public LoginResult loginByAccountType(String email, String password) {
+        LoginResult adminResult = loginFromAdminTable(email, password);
+        if (adminResult != null) {
+            return adminResult;
+        }
+
+        LoginResult userResult = loginFromUserTable(email, password);
+        if (userResult != null) {
+            return userResult;
+        }
+
+        return loginFromMedecinTable(email, password);
+    }
+
+    private LoginResult loginFromAdminTable(String email, String password) {
+        Set<String> columns = getTableColumnsSafely("admin");
+        if (columns.isEmpty() || !columns.contains("email") || !columns.contains("password")) {
+            return null;
+        }
+
+        String query = "SELECT * FROM admin WHERE email = ?";
+        try (PreparedStatement ps = cnx.prepareStatement(query)) {
+            ps.setString(1, email);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next() && passwordMatches(password, rs.getString("password"))) {
+                User user = new User();
+                user.setId(columns.contains("id") ? rs.getInt("id") : 0);
+                user.setNom(readFirstAvailable(rs, columns, "nom", "last_name", "lastname", "name", "username"));
+                user.setPrenom(readFirstAvailable(rs, columns, "prenom", "first_name", "firstname"));
+                user.setEmail(rs.getString("email"));
+                user.setPassword(rs.getString("password"));
+                user.setNumero(readFirstAvailable(rs, columns, "numero", "phone", "telephone"));
+                user.setAdresse(readFirstAvailable(rs, columns, "adresse", "address"));
+                user.setPhoto(readFirstAvailable(rs, columns, "photo", "avatar", "image"));
+                user.setRoles(DEFAULT_ADMIN_ROLES);
+                user.setIsVerified(true);
+                return new LoginResult(user, "admin", -1);
+            }
+        } catch (SQLException e) {
+            System.out.println("Erreur login admin: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private LoginResult loginFromUserTable(String email, String password) {
         String query = "SELECT * FROM user WHERE email = ?";
         try (PreparedStatement ps = cnx.prepareStatement(query)) {
             ps.setString(1, email);
             ResultSet rs = ps.executeQuery();
 
-            if (rs.next()) {
-                String storedHash = rs.getString("password");
-                String javaHash = storedHash.replace("$2y$", "$2a$");
-
-                if (BCrypt.checkpw(password, javaHash)) {
-                    return mapUser(rs);
-                }
+            if (rs.next() && passwordMatches(password, rs.getString("password"))) {
+                return new LoginResult(mapUser(rs), "user", -1);
             }
         } catch (SQLException e) {
-            System.out.println("Erreur login: " + e.getMessage());
+            System.out.println("Erreur login user: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private LoginResult loginFromMedecinTable(String email, String password) {
+        Set<String> columns = getTableColumnsSafely("medecin");
+        if (columns.isEmpty()) {
+            return null;
+        }
+
+        if (columns.contains("user_id")) {
+            String query = "SELECT m.id AS medecin_id, u.* FROM medecin m " +
+                "JOIN user u ON m.user_id = u.id WHERE u.email = ?";
+            try (PreparedStatement ps = cnx.prepareStatement(query)) {
+                ps.setString(1, email);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next() && passwordMatches(password, rs.getString("password"))) {
+                    User user = mapUser(rs);
+                    if (user.getRoles() == null || !user.getRoles().contains("ROLE_MEDECIN")) {
+                        user.setRoles("[\"ROLE_MEDECIN\"]");
+                    }
+                    return new LoginResult(user, "medecin", rs.getInt("medecin_id"));
+                }
+            } catch (SQLException e) {
+                System.out.println("Erreur login medecin via user: " + e.getMessage());
+            }
+        }
+
+        if (!columns.contains("email") || !columns.contains("password")) {
+            return null;
+        }
+
+        String query = "SELECT * FROM medecin WHERE email = ?";
+        try (PreparedStatement ps = cnx.prepareStatement(query)) {
+            ps.setString(1, email);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next() && passwordMatches(password, rs.getString("password"))) {
+                User user = new User();
+                user.setId(columns.contains("id") ? rs.getInt("id") : 0);
+                user.setNom(readFirstAvailable(rs, columns, "nom", "last_name", "lastname", "name"));
+                user.setPrenom(readFirstAvailable(rs, columns, "prenom", "first_name", "firstname"));
+                user.setEmail(rs.getString("email"));
+                user.setPassword(rs.getString("password"));
+                user.setNumero(readFirstAvailable(rs, columns, "numero", "phone", "telephone"));
+                user.setAdresse(readFirstAvailable(rs, columns, "adresse", "address"));
+                user.setPhoto(readFirstAvailable(rs, columns, "photo", "avatar", "image"));
+                user.setRoles("[\"ROLE_MEDECIN\"]");
+                user.setIsVerified(true);
+                int medecinId = columns.contains("id") ? rs.getInt("id") : -1;
+                return new LoginResult(user, "medecin", medecinId);
+            }
+        } catch (SQLException e) {
+            System.out.println("Erreur login medecin: " + e.getMessage());
         }
         return null;
     }
@@ -361,9 +463,142 @@ public class UserService implements Crud<User> {
         }
     }
 
+    private void ensureDefaultAdminAccount() {
+        if (cnx == null) {
+            return;
+        }
+
+        ensureDefaultAdminInAdminTable();
+        ensureDefaultAdminInUserTable();
+    }
+
+    private void ensureDefaultAdminInUserTable() {
+        String selectQuery = "SELECT id, password, roles, is_verified FROM user WHERE email = ?";
+        try (PreparedStatement select = cnx.prepareStatement(selectQuery)) {
+            select.setString(1, DEFAULT_ADMIN_EMAIL);
+            ResultSet rs = select.executeQuery();
+
+            if (rs.next()) {
+                int userId = rs.getInt("id");
+                String storedHash = rs.getString("password");
+                String storedRoles = rs.getString("roles");
+                boolean verified = rs.getBoolean("is_verified");
+                boolean passwordMatches = storedHash != null
+                    && BCrypt.checkpw(DEFAULT_ADMIN_PASSWORD, storedHash.replace("$2y$", "$2a$"));
+                boolean rolesMatch = storedRoles != null && storedRoles.contains("ROLE_ADMIN");
+
+                if (!passwordMatches || !rolesMatch || !verified) {
+                    try (PreparedStatement update = cnx.prepareStatement(
+                        "UPDATE user SET nom = ?, prenom = ?, password = ?, roles = ?, is_verified = ? WHERE id = ?"
+                    )) {
+                        update.setString(1, "Admin");
+                        update.setString(2, "Medicare");
+                        update.setString(3, hashPassword(DEFAULT_ADMIN_PASSWORD));
+                        update.setString(4, DEFAULT_ADMIN_ROLES);
+                        update.setBoolean(5, true);
+                        update.setInt(6, userId);
+                        update.executeUpdate();
+                    }
+                }
+                return;
+            }
+
+            try (PreparedStatement insert = cnx.prepareStatement(
+                "INSERT INTO user (nom, prenom, email, password, numero, adresse, photo, roles, is_verified) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                Statement.RETURN_GENERATED_KEYS
+            )) {
+                insert.setString(1, "Admin");
+                insert.setString(2, "Medicare");
+                insert.setString(3, DEFAULT_ADMIN_EMAIL);
+                insert.setString(4, hashPassword(DEFAULT_ADMIN_PASSWORD));
+                insert.setString(5, "");
+                insert.setString(6, "");
+                insert.setString(7, null);
+                insert.setString(8, DEFAULT_ADMIN_ROLES);
+                insert.setBoolean(9, true);
+                insert.executeUpdate();
+
+                ResultSet keys = insert.getGeneratedKeys();
+                if (keys.next()) {
+                    createPatientIfMissing(keys.getInt(1));
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("Erreur ensureDefaultAdminAccount: " + e.getMessage());
+        }
+    }
+
+    private void ensureDefaultAdminInAdminTable() {
+        Set<String> columns = getTableColumnsSafely("admin");
+        if (columns.isEmpty() || !columns.contains("email") || !columns.contains("password")) {
+            return;
+        }
+
+        try (PreparedStatement select = cnx.prepareStatement("SELECT * FROM admin WHERE email = ?")) {
+            select.setString(1, DEFAULT_ADMIN_EMAIL);
+            ResultSet rs = select.executeQuery();
+            if (rs.next()) {
+                if (!passwordMatches(DEFAULT_ADMIN_PASSWORD, rs.getString("password"))) {
+                    String updateQuery = "UPDATE admin SET password = ? WHERE email = ?";
+                    try (PreparedStatement update = cnx.prepareStatement(updateQuery)) {
+                        update.setString(1, hashPassword(DEFAULT_ADMIN_PASSWORD));
+                        update.setString(2, DEFAULT_ADMIN_EMAIL);
+                        update.executeUpdate();
+                    }
+                }
+                return;
+            }
+
+            StringBuilder query = new StringBuilder("INSERT INTO admin (");
+            StringBuilder values = new StringBuilder(" VALUES (");
+            List<Object> params = new ArrayList<>();
+            boolean first = true;
+
+            first = appendColumnValue(query, values, params, first, "email", DEFAULT_ADMIN_EMAIL);
+            first = appendColumnValue(query, values, params, first, "password", hashPassword(DEFAULT_ADMIN_PASSWORD));
+            if (columns.contains("nom")) {
+                first = appendColumnValue(query, values, params, first, "nom", "Admin");
+            }
+            if (columns.contains("prenom")) {
+                first = appendColumnValue(query, values, params, first, "prenom", "Medicare");
+            }
+            if (columns.contains("role")) {
+                first = appendColumnValue(query, values, params, first, "role", "ROLE_ADMIN");
+            }
+            if (columns.contains("roles")) {
+                first = appendColumnValue(query, values, params, first, "roles", DEFAULT_ADMIN_ROLES);
+            }
+            if (columns.contains("is_verified")) {
+                first = appendColumnValue(query, values, params, first, "is_verified", true);
+            }
+
+            query.append(")");
+            values.append(")");
+            query.append(values);
+
+            try (PreparedStatement insert = cnx.prepareStatement(query.toString())) {
+                int index = 1;
+                for (Object param : params) {
+                    insert.setObject(index++, param);
+                }
+                insert.executeUpdate();
+            }
+        } catch (SQLException e) {
+            System.out.println("Erreur ensureDefaultAdminInAdminTable: " + e.getMessage());
+        }
+    }
+
     private String hashPassword(String password) {
         String hash = BCrypt.hashpw(password, BCrypt.gensalt(13));
         return hash.replace("$2a$", "$2y$");
+    }
+
+    private boolean passwordMatches(String plainPassword, String storedHash) {
+        if (storedHash == null || storedHash.isBlank()) {
+            return false;
+        }
+        return BCrypt.checkpw(plainPassword, storedHash.replace("$2y$", "$2a$"));
     }
 
     private String normalizeRoles(String roles) {
@@ -391,6 +626,14 @@ public class UserService implements Crud<User> {
         return columns;
     }
 
+    private Set<String> getTableColumnsSafely(String tableName) {
+        try {
+            return getTableColumns(tableName);
+        } catch (SQLException e) {
+            return new LinkedHashSet<>();
+        }
+    }
+
     private String findFirstMatching(Set<String> columns, String... candidates) {
         for (String candidate : candidates) {
             if (columns.contains(candidate.toLowerCase())) {
@@ -406,6 +649,33 @@ public class UserService implements Crud<User> {
                 return true;
             }
         }
+        return false;
+    }
+
+    private String readFirstAvailable(ResultSet rs, Set<String> columns, String... candidates) throws SQLException {
+        for (String candidate : candidates) {
+            if (columns.contains(candidate.toLowerCase())) {
+                return rs.getString(candidate);
+            }
+        }
+        return null;
+    }
+
+    private boolean appendColumnValue(
+        StringBuilder query,
+        StringBuilder values,
+        List<Object> params,
+        boolean first,
+        String column,
+        Object value
+    ) {
+        if (!first) {
+            query.append(", ");
+            values.append(", ");
+        }
+        query.append(column);
+        values.append("?");
+        params.add(value);
         return false;
     }
 
