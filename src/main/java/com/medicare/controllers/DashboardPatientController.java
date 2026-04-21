@@ -36,6 +36,7 @@ public class DashboardPatientController {
     @FXML private Button btnProduit;
     @FXML private Button btnCollaboration;
     @FXML private Button btnForum;
+    @FXML private Button btnNotifications;
     @FXML private Button btnDevenirMedecin;
     @FXML private Button btnSettings;
     @FXML private Button btnLogout;
@@ -56,6 +57,7 @@ public class DashboardPatientController {
         btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
         btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
+        btnNotifications.setGraphic(icon(FontAwesomeSolid.BELL, Color.web("#fef3c7")));
         btnDevenirMedecin.setGraphic(icon(FontAwesomeSolid.USER_MD, Color.web("#ffd700")));
         btnSettings.setGraphic(icon(FontAwesomeSolid.COG, Color.web("#dbeafe")));
         btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#ffcccb")));
@@ -148,6 +150,12 @@ public class DashboardPatientController {
     }
 
     @FXML
+    private void onNotificationsClick() {
+        highlightButton(btnNotifications);
+        setContent(UserSectionFactory.createNotificationsSection(currentUser));
+    }
+
+    @FXML
     private void onDevenirMedecinClick() {
         highlightButton(btnDevenirMedecin);
         setContent(UserSectionFactory.createDoctorRequestSection(currentUser, contentArea.getScene().getWindow()));
@@ -226,6 +234,7 @@ public class DashboardPatientController {
         btnProduit.setStyle(normalStyle);
         btnCollaboration.setStyle(normalStyle);
         btnForum.setStyle(normalStyle);
+        btnNotifications.setStyle(normalStyle);
         btnSettings.setStyle(normalStyle);
         btnDevenirMedecin.setStyle(normalGoldStyle);
         userProfileButton.setStyle("-fx-background-color: rgba(255,255,255,0.12); -fx-background-radius: 16; -fx-cursor: hand; -fx-padding: 12;");

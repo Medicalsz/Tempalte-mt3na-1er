@@ -8,18 +8,14 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -32,14 +28,8 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
-import java.util.regex.Pattern;
 
 public final class UserSectionFactory {
-
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
-    private static final Pattern NAME_PATTERN = Pattern.compile("^[A-Za-zA-ZÀ-ÿ\\s'-]{2,}$");
-    private static final Pattern PHONE_PATTERN = Pattern.compile("^[0-9+\\s]{8,15}$");
 
     private UserSectionFactory() {
     }
@@ -63,13 +53,20 @@ public final class UserSectionFactory {
     public static Node createProfileSection(
         User currentUser,
         Window owner,
-        Consumer<User> onUpdated,
+        java.util.function.Consumer<User> onUpdated,
         Runnable onDeleteAccount
     ) {
         VBox page = new VBox(24,
             buildProfileHeader(currentUser),
-            buildSettingsCard(currentUser, owner, onUpdated, onDeleteAccount)
+            buildPublicInfoCard(currentUser),
+            buildEmptyPostsCard()
         );
+        page.setPadding(new Insets(6));
+        return wrap(page);
+    }
+
+    public static Node createNotificationsSection(User currentUser) {
+        VBox page = new VBox(24, buildNotificationCard(currentUser));
         page.setPadding(new Insets(6));
         return wrap(page);
     }
@@ -194,182 +191,100 @@ public final class UserSectionFactory {
         return box;
     }
 
-    private static VBox buildSettingsCard(
-        User currentUser,
-        Window owner,
-        Consumer<User> onUpdated,
-        Runnable onDeleteAccount
-    ) {
-        UserService userService = new UserService();
-
-        Label title = sectionTitle("Parametres du compte", FontAwesomeSolid.COG, "#2563eb");
-        Label helper = new Label("Modifiez vos informations, votre photo, votre mot de passe et vos regles de confidentialite.");
+    private static VBox buildPublicInfoCard(User currentUser) {
+        Label title = sectionTitle("Informations publiques", FontAwesomeSolid.ID_CARD, "#2563eb");
+        Label helper = new Label("Seules les informations marquees publiques sont affichees ici.");
         helper.setStyle("-fx-font-size: 13px; -fx-text-fill: #6b7280;");
 
-        ImageView preview = createCircularPreview(92);
-        updatePreview(preview, currentUser.getPhoto());
+        VBox infoList = new VBox(14);
+        boolean hasPublicInfo = false;
 
-        TextField nomField = styledTextField(currentUser.getNom(), "Nom");
-        TextField prenomField = styledTextField(currentUser.getPrenom(), "Prenom");
-        TextField emailField = styledTextField(currentUser.getEmail(), "Email");
-        TextField numeroField = styledTextField(currentUser.getNumero(), "Numero de telephone");
-        TextField adresseField = styledTextField(currentUser.getAdresse(), "Adresse");
-        PasswordField passwordField = styledPasswordField("Nouveau mot de passe");
-        PasswordField confirmPasswordField = styledPasswordField("Confirmer le mot de passe");
+        if (isPublic(currentUser.getPhonePrivacy()) && hasValue(currentUser.getNumero())) {
+            infoList.getChildren().add(createPublicInfoRow("Telephone", currentUser.getNumero(), FontAwesomeSolid.PHONE, "#2563eb"));
+            hasPublicInfo = true;
+        }
+        if (isPublic(currentUser.getAdressePrivacy()) && hasValue(currentUser.getAdresse())) {
+            infoList.getChildren().add(createPublicInfoRow("Adresse", currentUser.getAdresse(), FontAwesomeSolid.MAP_MARKER_ALT, "#2563eb"));
+            hasPublicInfo = true;
+        }
+        if (isPublic(currentUser.getEmailPrivacy()) && hasValue(currentUser.getEmail())) {
+            infoList.getChildren().add(createPublicInfoRow("Email", currentUser.getEmail(), FontAwesomeSolid.ENVELOPE, "#2563eb"));
+            hasPublicInfo = true;
+        }
 
-        ComboBox<String> emailPrivacyBox = privacyBox(currentUser.getEmailPrivacy());
-        ComboBox<String> phonePrivacyBox = privacyBox(currentUser.getPhonePrivacy());
-        ComboBox<String> adressePrivacyBox = privacyBox(currentUser.getAdressePrivacy());
+        if (!hasPublicInfo) {
+            Label empty = new Label("Aucune information publique a afficher.");
+            empty.setStyle("-fx-font-size: 14px; -fx-text-fill: #6b7280;");
+            infoList.getChildren().add(empty);
+        }
 
-        Label photoPathLabel = new Label(currentUser.getPhoto() == null ? "Aucune photo selectionnee." : currentUser.getPhoto());
-        photoPathLabel.setWrapText(true);
-        photoPathLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #6b7280;");
-
-        final Path[] selectedPhotoPath = {null};
-
-        Button choosePhotoBtn = secondaryButton("Choisir une photo", "#2563eb");
-        choosePhotoBtn.setOnAction(event -> {
-            FileChooser chooser = new FileChooser();
-            chooser.setTitle("Choisir une photo");
-            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"));
-            File file = chooser.showOpenDialog(owner);
-            if (file != null) {
-                selectedPhotoPath[0] = file.toPath();
-                photoPathLabel.setText(file.getAbsolutePath());
-                updatePreview(preview, file.toURI().toString());
-            }
-        });
-
-        Label statusLabel = new Label();
-        statusLabel.setWrapText(true);
-        statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #dc2626;");
-
-        Button saveBtn = primaryButton("Enregistrer", "#2563eb");
-        saveBtn.setOnAction(event -> {
-            String validationError = validateProfileFields(
-                nomField.getText(), prenomField.getText(), emailField.getText(), numeroField.getText(),
-                passwordField.getText(), confirmPasswordField.getText()
-            );
-            if (validationError != null) {
-                statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #dc2626;");
-                statusLabel.setText(validationError);
-                return;
-            }
-
-            try {
-                User updatedUser = new User();
-                updatedUser.setId(currentUser.getId());
-                updatedUser.setNom(nomField.getText().trim());
-                updatedUser.setPrenom(prenomField.getText().trim());
-                updatedUser.setEmail(emailField.getText().trim().toLowerCase());
-                updatedUser.setNumero(numeroField.getText().trim());
-                updatedUser.setAdresse(adresseField.getText().trim().isEmpty() ? null : adresseField.getText().trim());
-                updatedUser.setRoles(currentUser.getRoles());
-                updatedUser.setIsVerified(currentUser.isVerified());
-                updatedUser.setPhoto(currentUser.getPhoto());
-                updatedUser.setEmailPrivacy(emailPrivacyBox.getValue());
-                updatedUser.setPhonePrivacy(phonePrivacyBox.getValue());
-                updatedUser.setAdressePrivacy(adressePrivacyBox.getValue());
-
-                if (selectedPhotoPath[0] != null) {
-                    updatedUser.setPhoto(FileStorageUtil.copyToUploads(selectedPhotoPath[0], "profiles"));
-                }
-
-                boolean updated = userService.updateProfile(updatedUser, passwordField.getText().trim());
-                if (!updated) {
-                    statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #dc2626;");
-                    statusLabel.setText("Impossible d'enregistrer. Email deja utilise ou erreur base.");
-                    return;
-                }
-
-                currentUser.setNom(updatedUser.getNom());
-                currentUser.setPrenom(updatedUser.getPrenom());
-                currentUser.setEmail(updatedUser.getEmail());
-                currentUser.setNumero(updatedUser.getNumero());
-                currentUser.setAdresse(updatedUser.getAdresse());
-                currentUser.setPhoto(updatedUser.getPhoto());
-                currentUser.setEmailPrivacy(updatedUser.getEmailPrivacy());
-                currentUser.setPhonePrivacy(updatedUser.getPhonePrivacy());
-                currentUser.setAdressePrivacy(updatedUser.getAdressePrivacy());
-
-                passwordField.clear();
-                confirmPasswordField.clear();
-                selectedPhotoPath[0] = null;
-                photoPathLabel.setText(currentUser.getPhoto() == null ? "Aucune photo selectionnee." : currentUser.getPhoto());
-                updatePreview(preview, currentUser.getPhoto());
-                onUpdated.accept(currentUser);
-
-                statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #16a34a;");
-                statusLabel.setText("Profil mis a jour avec succes.");
-            } catch (Exception ex) {
-                statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #dc2626;");
-                statusLabel.setText("Erreur lors de l'enregistrement: " + ex.getMessage());
-            }
-        });
-
-        Button deleteBtn = new Button("Supprimer mon compte");
-        deleteBtn.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 14px; "
-            + "-fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 0 24;");
-        deleteBtn.setPrefHeight(40);
-        deleteBtn.setOnAction(event -> {
-            boolean deleted = userService.deleteUser(currentUser.getId());
-            if (!deleted) {
-                statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #dc2626;");
-                statusLabel.setText("Impossible de supprimer le compte.");
-                return;
-            }
-            onDeleteAccount.run();
-        });
-
-        HBox photoRow = new HBox(16, preview, buildPhotoPickerBox(photoPathLabel, choosePhotoBtn));
-        photoRow.setAlignment(Pos.CENTER_LEFT);
-
-        HBox actions = new HBox(12, saveBtn, deleteBtn);
-        actions.setAlignment(Pos.CENTER_LEFT);
-
-        VBox card = new VBox(16,
-            title,
-            helper,
-            new Separator(),
-            photoRow,
-            twoColumns(nomField, prenomField),
-            emailField,
-            twoColumns(numeroField, adresseField),
-            privacyRow("Confidentialite email", emailPrivacyBox, "Confidentialite telephone", phonePrivacyBox),
-            privacyRow("Confidentialite adresse", adressePrivacyBox, "", null),
-            passwordField,
-            confirmPasswordField,
-            statusLabel,
-            actions
-        );
+        VBox card = new VBox(16, title, helper, new Separator(), infoList);
         card.setPadding(new Insets(28));
         card.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-border-color: #dbeafe; -fx-border-radius: 20;");
         return card;
     }
 
-    private static String validateProfileFields(String nom, String prenom, String email, String numero, String password, String confirmPassword) {
-        if (nom == null || prenom == null || email == null || numero == null
-            || nom.trim().isEmpty() || prenom.trim().isEmpty() || email.trim().isEmpty() || numero.trim().isEmpty()) {
-            return "Veuillez remplir tous les champs obligatoires.";
-        }
-        if (!NAME_PATTERN.matcher(nom.trim()).matches() || !NAME_PATTERN.matcher(prenom.trim()).matches()) {
-            return "Le nom et le prenom doivent contenir au moins 2 lettres.";
-        }
-        if (!EMAIL_PATTERN.matcher(email.trim()).matches()) {
-            return "Email invalide.";
-        }
-        if (!PHONE_PATTERN.matcher(numero.trim()).matches()) {
-            return "Numero invalide. Utilisez entre 8 et 15 chiffres.";
-        }
-        if (!password.isBlank()) {
-            if (password.length() < 6) {
-                return "Le mot de passe doit contenir au moins 6 caracteres.";
-            }
-            if (!password.equals(confirmPassword)) {
-                return "Les mots de passe ne correspondent pas.";
-            }
-        }
-        return null;
+    private static VBox buildNotificationCard(User currentUser) {
+        Label title = sectionTitle("Notifications", FontAwesomeSolid.BELL, "#f59e0b");
+        Label helper = new Label("Dernieres nouvelles de votre compte.");
+        helper.setStyle("-fx-font-size: 13px; -fx-text-fill: #6b7280;");
+
+        FontIcon stateIcon = new FontIcon(currentUser.isVerified() ? FontAwesomeSolid.CHECK_CIRCLE : FontAwesomeSolid.CLOCK);
+        stateIcon.setIconSize(18);
+        stateIcon.setIconColor(Color.web(currentUser.isVerified() ? "#16a34a" : "#f59e0b"));
+
+        Label headline = new Label(currentUser.isVerified()
+            ? "Votre compte a ete verifie par l'administrateur."
+            : "Votre compte est en attente de verification.");
+        headline.setWrapText(true);
+        headline.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #111827;");
+
+        Label subline = new Label(currentUser.isVerified()
+            ? "Vous pouvez maintenant utiliser votre compte avec le statut verifie."
+            : "Vous recevrez ici une notification des que l'administrateur valide votre compte.");
+        subline.setWrapText(true);
+        subline.setStyle("-fx-font-size: 13px; -fx-text-fill: #6b7280;");
+
+        HBox notification = new HBox(12, stateIcon, new VBox(4, headline, subline));
+        notification.setAlignment(Pos.TOP_LEFT);
+        notification.setPadding(new Insets(16));
+        notification.setStyle(
+            "-fx-background-radius: 16; -fx-border-radius: 16;"
+                + (currentUser.isVerified()
+                ? "-fx-background-color: #f0fdf4; -fx-border-color: #86efac;"
+                : "-fx-background-color: #fffbeb; -fx-border-color: #fcd34d;")
+        );
+
+        VBox card = new VBox(16, title, helper, new Separator(), notification);
+        card.setPadding(new Insets(28));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-border-color: #fde68a; -fx-border-radius: 20;");
+        return card;
+    }
+
+    private static VBox buildEmptyPostsCard() {
+        Label title = sectionTitle("Posts", FontAwesomeSolid.COMMENTS, "#7c3aed");
+        Label helper = new Label("Votre activite publique apparaitra ici.");
+        helper.setStyle("-fx-font-size: 13px; -fx-text-fill: #6b7280;");
+
+        FontIcon emptyIcon = new FontIcon(FontAwesomeSolid.COMMENT_SLASH);
+        emptyIcon.setIconSize(72);
+        emptyIcon.setIconColor(Color.web("#c4b5fd"));
+
+        Label emptyTitle = new Label("Empty");
+        emptyTitle.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #6d28d9;");
+
+        Label emptyText = new Label("No post yet");
+        emptyText.setStyle("-fx-font-size: 15px; -fx-text-fill: #7c3aed;");
+
+        VBox emptyState = new VBox(12, emptyIcon, emptyTitle, emptyText);
+        emptyState.setAlignment(Pos.CENTER);
+        emptyState.setPadding(new Insets(34, 12, 34, 12));
+        emptyState.setStyle("-fx-background-color: linear-gradient(to bottom, #faf5ff, #f5f3ff); -fx-background-radius: 18;");
+
+        VBox card = new VBox(16, title, helper, new Separator(), emptyState);
+        card.setPadding(new Insets(28));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-border-color: #ddd6fe; -fx-border-radius: 20;");
+        return card;
     }
 
     private static ScrollPane wrap(Node node) {
@@ -390,72 +305,6 @@ public final class UserSectionFactory {
         return title;
     }
 
-    private static TextField styledTextField(String value, String prompt) {
-        TextField field = new TextField(value == null ? "" : value);
-        field.setPromptText(prompt);
-        field.setPrefHeight(38);
-        field.setStyle("-fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #d1d5db; -fx-font-size: 13px;");
-        return field;
-    }
-
-    private static PasswordField styledPasswordField(String prompt) {
-        PasswordField field = new PasswordField();
-        field.setPromptText(prompt);
-        field.setPrefHeight(38);
-        field.setStyle("-fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #d1d5db; -fx-font-size: 13px;");
-        return field;
-    }
-
-    private static ComboBox<String> privacyBox(String currentValue) {
-        ComboBox<String> box = new ComboBox<>();
-        box.getItems().addAll("public", "private");
-        box.setValue(normalizePrivacy(currentValue));
-        box.setPrefHeight(38);
-        box.setMaxWidth(Double.MAX_VALUE);
-        box.setStyle("-fx-background-radius: 10; -fx-font-size: 13px;");
-        return box;
-    }
-
-    private static HBox twoColumns(Node left, Node right) {
-        HBox row = new HBox(14, left, right);
-        HBox.setHgrow(left, Priority.ALWAYS);
-        HBox.setHgrow(right, Priority.ALWAYS);
-        if (left instanceof Region leftRegion) {
-            leftRegion.setMaxWidth(Double.MAX_VALUE);
-        }
-        if (right instanceof Region rightRegion) {
-            rightRegion.setMaxWidth(Double.MAX_VALUE);
-        }
-        return row;
-    }
-
-    private static HBox privacyRow(String leftText, ComboBox<String> leftBox, String rightText, ComboBox<String> rightBox) {
-        VBox left = new VBox(6, privacyLabel(leftText), leftBox);
-        HBox.setHgrow(left, Priority.ALWAYS);
-        left.setMaxWidth(Double.MAX_VALUE);
-
-        if (rightBox == null) {
-            return new HBox(14, left);
-        }
-
-        VBox right = new VBox(6, privacyLabel(rightText), rightBox);
-        HBox.setHgrow(right, Priority.ALWAYS);
-        right.setMaxWidth(Double.MAX_VALUE);
-        return new HBox(14, left, right);
-    }
-
-    private static Label privacyLabel(String text) {
-        Label label = new Label(text);
-        label.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #374151;");
-        return label;
-    }
-
-    private static VBox buildPhotoPickerBox(Label photoPathLabel, Button choosePhotoBtn) {
-        VBox box = new VBox(10, choosePhotoBtn, photoPathLabel);
-        box.setAlignment(Pos.CENTER_LEFT);
-        return box;
-    }
-
     private static VBox pickerRow(String labelText, Label valueLabel, Button button) {
         Label label = new Label(labelText);
         label.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
@@ -471,16 +320,34 @@ public final class UserSectionFactory {
         field.setEditable(false);
         field.setFocusTraversable(false);
         field.setPrefWidth(170);
+        field.setAlignment(Pos.CENTER);
         field.setStyle(
-            "-fx-background-radius: 10; -fx-border-radius: 10; -fx-font-size: 13px; -fx-font-weight: bold;"
-                + (verified
-                ? "-fx-text-fill: #16a34a; -fx-background-color: #f0fdf4; -fx-border-color: #86efac;"
-                : "-fx-text-fill: #dc2626; -fx-background-color: #fef2f2; -fx-border-color: #fca5a5;")
+            "-fx-font-size: 13px; -fx-font-weight: bold; -fx-background-color: transparent; "
+                + "-fx-border-color: transparent; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;"
+                + (verified ? "-fx-text-fill: #16a34a;" : "-fx-text-fill: #dc2626;")
         );
 
         HBox box = new HBox(8, icon, field);
         box.setAlignment(Pos.CENTER);
         return box;
+    }
+
+    private static HBox createPublicInfoRow(String labelText, String valueText, FontAwesomeSolid iconName, String color) {
+        FontIcon icon = new FontIcon(iconName);
+        icon.setIconSize(15);
+        icon.setIconColor(Color.web(color));
+
+        Label label = new Label(labelText);
+        label.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #374151;");
+
+        Label value = new Label(valueText);
+        value.setWrapText(true);
+        value.setStyle("-fx-font-size: 14px; -fx-text-fill: #111827;");
+
+        VBox textBox = new VBox(4, label, value);
+        HBox row = new HBox(12, icon, textBox);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
     }
 
     private static Button primaryButton(String text, String color) {
@@ -528,7 +395,11 @@ public final class UserSectionFactory {
         return "Patient";
     }
 
-    private static String normalizePrivacy(String value) {
-        return "public".equalsIgnoreCase(value) ? "public" : "private";
+    private static boolean isPublic(String value) {
+        return "public".equalsIgnoreCase(value);
+    }
+
+    private static boolean hasValue(String value) {
+        return value != null && !value.isBlank();
     }
 }

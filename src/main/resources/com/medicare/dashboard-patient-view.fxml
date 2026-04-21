@@ -66,6 +66,10 @@
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
+            <Button fx:id="btnNotifications" text="  Notifications" onAction="#onNotificationsClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
             <Button fx:id="btnDevenirMedecin" text="  Devenir Medecin" onAction="#onDevenirMedecinClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: #ffd700; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
