@@ -329,7 +329,34 @@ public class AdminRdvListController {
             applyFilters();
         });
 
-        header.getChildren().addAll(title, filters, spacer, searchField);
+        // Bouton Export (menu PDF / CSV)
+        MenuButton btnExport = new MenuButton("  Exporter");
+        FontIcon exportIcon = new FontIcon(FontAwesomeSolid.DOWNLOAD);
+        exportIcon.setIconSize(13);
+        exportIcon.setIconColor(Color.WHITE);
+        btnExport.setGraphic(exportIcon);
+        btnExport.setStyle("-fx-background-color: linear-gradient(to right, #7c3aed, #6d28d9); " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 4 14; " +
+                "-fx-effect: dropshadow(gaussian, rgba(124,58,237,0.3), 8, 0, 0, 2);");
+
+        MenuItem itemPdf = new MenuItem("Exporter en PDF");
+        FontIcon pdfIc = new FontIcon(FontAwesomeSolid.FILE_PDF);
+        pdfIc.setIconSize(13);
+        pdfIc.setIconColor(Color.web("#dc2626"));
+        itemPdf.setGraphic(pdfIc);
+        itemPdf.setOnAction(e -> exportRdvsTo("pdf"));
+
+        MenuItem itemCsv = new MenuItem("Exporter en CSV");
+        FontIcon csvIc = new FontIcon(FontAwesomeSolid.FILE_CSV);
+        csvIc.setIconSize(13);
+        csvIc.setIconColor(Color.web("#16a34a"));
+        itemCsv.setGraphic(csvIc);
+        itemCsv.setOnAction(e -> exportRdvsTo("csv"));
+
+        btnExport.getItems().addAll(itemPdf, itemCsv);
+
+        header.getChildren().addAll(title, filters, spacer, searchField, btnExport);
         container.getChildren().add(header);
     }
 
@@ -512,6 +539,76 @@ public class AdminRdvListController {
         scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
         popup.setScene(scene);
         popup.show();
+    }
+
+    // ==================== EXPORT (PDF / CSV) ====================
+
+    private List<RendezVous> getFilteredRdvs() {
+        return allRdvs.stream()
+                .filter(r -> "all".equals(currentFilter) || currentFilter.equals(r.getStatut()))
+                .filter(r -> {
+                    if (searchQuery == null || searchQuery.isEmpty()) return true;
+                    String s = searchQuery;
+                    return (r.getPatientFullName() != null && r.getPatientFullName().toLowerCase().contains(s))
+                        || (r.getMedecinFullName() != null && r.getMedecinFullName().toLowerCase().contains(s))
+                        || (r.getSpecialite() != null && r.getSpecialite().toLowerCase().contains(s));
+                })
+                .collect(Collectors.toList());
+    }
+
+    private void exportRdvsTo(String format) {
+        boolean isPdf = "pdf".equalsIgnoreCase(format);
+        javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+        chooser.setTitle("Exporter les rendez-vous");
+        String date = java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        chooser.setInitialFileName("rendez_vous_" + date + (isPdf ? ".pdf" : ".csv"));
+        chooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter(
+                isPdf ? "Fichier PDF" : "Fichier CSV", isPdf ? "*.pdf" : "*.csv"));
+
+        java.io.File file = chooser.showSaveDialog(container.getScene().getWindow());
+        if (file == null) return;
+
+        List<RendezVous> list = getFilteredRdvs();
+        boolean ok = isPdf
+                ? com.medicare.utils.PDFExporter.exportRendezVous(list, file)
+                : com.medicare.utils.CSVExporter.exportRendezVous(list, file);
+
+        // Feedback utilisateur via popup modal léger
+        Stage popup = new Stage();
+        popup.initStyle(StageStyle.UNDECORATED);
+        popup.initModality(Modality.APPLICATION_MODAL);
+        popup.initOwner(container.getScene().getWindow());
+
+        FontIcon icon = new FontIcon(ok
+                ? (isPdf ? FontAwesomeSolid.FILE_PDF : FontAwesomeSolid.FILE_CSV)
+                : FontAwesomeSolid.EXCLAMATION_TRIANGLE);
+        icon.setIconSize(44);
+        icon.setIconColor(Color.web(ok ? "#16a34a" : "#dc2626"));
+
+        Label titleLbl = new Label(ok ? "Export " + format.toUpperCase() + " reussi" : "Erreur export");
+        titleLbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        Label msgLbl = new Label(ok
+                ? list.size() + " rendez-vous exporte(s) avec succes."
+                : "Impossible d'exporter le fichier.");
+        msgLbl.setStyle("-fx-font-size: 13px; -fx-text-fill: #64748b;");
+
+        VBox box = new VBox(12, icon, titleLbl, msgLbl);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(26));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 14; " +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 18, 0, 0, 4);");
+
+        popup.setScene(new Scene(box, 340, 220));
+        popup.show();
+
+        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1.8));
+        pause.setOnFinished(e -> popup.close());
+        pause.play();
+
+        if (ok) {
+            try { java.awt.Desktop.getDesktop().open(file); } catch (Exception ex) { ex.printStackTrace(); }
+        }
     }
 }
 

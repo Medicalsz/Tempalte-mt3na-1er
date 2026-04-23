@@ -2,7 +2,10 @@ package com.medicare.controllers;
 
 import com.medicare.HelloApplication;
 import com.medicare.models.*;
+import com.medicare.services.EmailService;
+import com.medicare.services.ListeAttenteService;
 import com.medicare.services.RendezVousService;
+import com.medicare.services.UserService;
 import javafx.animation.PauseTransition;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -37,7 +40,10 @@ public class RendezVousFormController {
     @FXML private Label errorLabel;
     @FXML private Label formTitle;
 
-    private final RendezVousService service = new RendezVousService();
+    private final RendezVousService   service             = new RendezVousService();
+    private final EmailService        emailService        = new EmailService();
+    private final UserService         userService         = new UserService();
+    private final ListeAttenteService listeAttenteService = new ListeAttenteService();
     private StackPane contentArea;
     private int patientId;
     private LocalTime selectedHeure;
@@ -45,6 +51,24 @@ public class RendezVousFormController {
 
     public void setContentArea(StackPane contentArea) { this.contentArea = contentArea; }
     public void setPatientId(int patientId) { this.patientId = patientId; }
+
+    /**
+     * Pre-selectionne une specialite par son nom (appele par le chatbot).
+     * Le combo reste modifiable.
+     */
+    public void preselectSpecialite(String nomSpecialite) {
+        if (nomSpecialite == null) return;
+        for (Specialite s : specialiteCombo.getItems()) {
+            if (s.getNom() != null && s.getNom().equalsIgnoreCase(nomSpecialite)) {
+                specialiteCombo.setValue(s);
+                // Déclencher le chargement des médecins
+                List<Medecin> medecins = service.getMedecinsBySpecialite(s.getId());
+                medecinCombo.setItems(FXCollections.observableArrayList(medecins));
+                medecinCombo.setDisable(false);
+                return;
+            }
+        }
+    }
 
     public void setRendezVousToEdit(RendezVous rv) {
         this.rvToEdit = rv;
@@ -146,6 +170,38 @@ public class RendezVousFormController {
             return;
         }
 
+        // Vérifier si tous les créneaux sont pris
+        boolean tousOccupes = prises.containsAll(tousCreneaux);
+        if (tousOccupes && rvToEdit == null) {
+            Label complet = new Label("Tous les créneaux sont pris ce jour.");
+            complet.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 13px; -fx-font-weight: bold;");
+
+            // Vérifier si déjà en attente
+            boolean dejaEnAttente = listeAttenteService.estDejaEnAttente(patientId, medecin.getId(), date);
+
+            if (dejaEnAttente) {
+                Label dejaLabel = new Label("✅ Vous êtes déjà inscrit en liste d'attente pour ce jour.");
+                dejaLabel.setStyle("-fx-text-fill: #16a34a; -fx-font-size: 13px;");
+                creneauxPane.getChildren().addAll(complet, dejaLabel);
+            } else {
+                javafx.scene.control.Button btnAttente = new javafx.scene.control.Button("📋 M'inscrire en liste d'attente");
+                btnAttente.setStyle("-fx-background-color: linear-gradient(to right, #f59e0b, #d97706); " +
+                        "-fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold; " +
+                        "-fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 8 20;");
+                final Medecin medecinFinal = medecin;
+                final LocalDate dateFinal = date;
+                btnAttente.setOnAction(ev -> {
+                    listeAttenteService.inscrire(patientId, medecinFinal.getId(), dateFinal, null);
+                    btnAttente.setDisable(true);
+                    btnAttente.setText("✅ Inscrit en liste d'attente !");
+                    btnAttente.setStyle("-fx-background-color: #16a34a; -fx-text-fill: white; " +
+                            "-fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 8 20;");
+                });
+                creneauxPane.getChildren().addAll(complet, btnAttente);
+            }
+            return;
+        }
+
         for (LocalTime creneau : tousCreneaux) {
             Button btn = new Button(creneau.toString());
             btn.setPrefWidth(85);
@@ -190,13 +246,37 @@ public class RendezVousFormController {
         Medecin medecin = medecinCombo.getValue();
 
         if (rvToEdit != null) {
+            // Bloqué si RDV actif avec le même médecin ce jour (sauf le RDV en cours de modif)
+            if (service.patientADejaRdvCeJour(patientId, rvToEdit.getMedecinId(), datePicker.getValue(), rvToEdit.getId())) {
+                showError("Vous avez déjà un rendez-vous avec ce médecin ce jour.");
+                return;
+            }
+            String ancienneDate = rvToEdit.getDate().toString();
             rvToEdit.setDate(datePicker.getValue());
             rvToEdit.setHeure(selectedHeure);
             service.update(rvToEdit);
+            // Email de notification au médecin
+            User medecinUser = userService.getUserByMedecinId(rvToEdit.getMedecinId());
+            User patient = userService.getUserByPatientId(patientId);
+            if (medecinUser != null && medecinUser.getEmail() != null && patient != null) {
+                emailService.envoyerReportParPatient(
+                        medecinUser.getEmail(),
+                        medecinUser.getPrenom() + " " + medecinUser.getNom(),
+                        patient.getPrenom() + " " + patient.getNom(),
+                        ancienneDate,
+                        datePicker.getValue().toString(),
+                        selectedHeure.toString()
+                );
+            }
             showSuccessPopup("Rendez-vous modifie",
                     "Votre rendez-vous a ete modifie avec succes.",
                     FontAwesomeSolid.CALENDAR_CHECK, "#f59e0b");
         } else {
+            // Bloqué si RDV actif avec le même médecin ce jour
+            if (service.patientADejaRdvCeJour(patientId, medecin.getId(), datePicker.getValue(), -1)) {
+                showError("Vous avez déjà un rendez-vous avec ce médecin ce jour.");
+                return;
+            }
             RendezVous rv = new RendezVous(medecin.getId(), patientId,
                     datePicker.getValue(), selectedHeure, "en_attente");
             service.create(rv);

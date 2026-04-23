@@ -1,7 +1,12 @@
 package com.medicare.controllers;
 
+import com.medicare.models.ListeAttente;
 import com.medicare.models.RendezVous;
+import com.medicare.models.User;
+import com.medicare.services.EmailService;
+import com.medicare.services.ListeAttenteService;
 import com.medicare.services.RendezVousService;
+import com.medicare.services.UserService;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -11,36 +16,55 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.effect.GaussianBlur;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.Window;
 import javafx.util.Duration;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class RendezVousListController {
 
     @FXML private VBox container;
 
-    private final RendezVousService service = new RendezVousService();
+    private final RendezVousService   service             = new RendezVousService();
+    private final EmailService        emailService        = new EmailService();
+    private final UserService         userService         = new UserService();
+    private final ListeAttenteService listeAttenteService = new ListeAttenteService();
     private int patientId;
     private StackPane contentArea;
     private List<RendezVous> allRdvs;
     private String currentFilter = "all";
     private String searchQuery = "";
     private Button btnAll, btnAccepte, btnAttente, btnAnnule;
+    private Button btnCalendrier;
 
     public void setContentArea(StackPane contentArea) { this.contentArea = contentArea; }
 
     public void setPatientId(int patientId) {
         this.patientId = patientId;
         loadRendezVous();
+        // Attacher le chatbot flottant (differe apres le rendu)
+        javafx.application.Platform.runLater(() -> {
+            if (contentArea != null) {
+                com.medicare.utils.ChatBotWidget.attachTo(contentArea, patientId, this::reloadFullList);
+            }
+        });
     }
 
     private void reloadFullList() {
@@ -74,6 +98,18 @@ public class RendezVousListController {
         HBox filters = new HBox(8, btnAll, btnAccepte, btnAttente, btnAnnule);
         filters.setAlignment(Pos.CENTER_LEFT);
 
+        // Bouton calendrier
+        btnCalendrier = new Button("  Calendrier");
+        FontIcon calIcon = new FontIcon(FontAwesomeSolid.CALENDAR_ALT);
+        calIcon.setIconSize(14);
+        calIcon.setIconColor(Color.WHITE);
+        btnCalendrier.setGraphic(calIcon);
+        btnCalendrier.setStyle("-fx-background-color: linear-gradient(to right, #0ea5e9, #2563eb); " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 16; " +
+                "-fx-effect: dropshadow(gaussian, rgba(37,99,235,0.25), 6, 0, 0, 2);");
+        btnCalendrier.setOnAction(e -> showCalendarModal());
+
         // Barre de recherche
         javafx.scene.control.TextField searchField = new javafx.scene.control.TextField();
         searchField.setPromptText("Rechercher par medecin ou specialite...");
@@ -100,7 +136,7 @@ public class RendezVousListController {
                         "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 20;");
         btnNew.setOnAction(e -> openForm(null));
 
-        header.getChildren().addAll(filters, searchField, spacer, btnNew);
+        header.getChildren().addAll(filters, btnCalendrier, searchField, spacer, btnNew);
         container.getChildren().add(header);
 
         allRdvs = service.getByPatient(patientId);
@@ -259,6 +295,302 @@ public class RendezVousListController {
         return card;
     }
 
+    private Stage calendarStage;
+
+    // Applique un flou sur la fenêtre parente pendant l'affichage du popup
+    private void attachBlur(Stage popup, Window owner) {
+        Node ownerRoot = (owner != null && owner instanceof Stage)
+                ? ((Stage) owner).getScene().getRoot()
+                : (owner != null ? owner.getScene().getRoot() : null);
+        if (ownerRoot == null) return;
+        GaussianBlur blur = new GaussianBlur(12);
+        ownerRoot.setEffect(blur);
+        popup.setOnHidden(ev -> ownerRoot.setEffect(null));
+    }
+
+    private void showCalendarModal() {
+        List<RendezVous> rdvs = service.getByPatient(patientId);
+        Map<LocalDate, List<RendezVous>> byDate = groupByDate(rdvs);
+
+        Stage popup = new Stage();
+        popup.initStyle(StageStyle.TRANSPARENT);
+        popup.initModality(Modality.APPLICATION_MODAL);
+        popup.initOwner(container.getScene().getWindow());
+        calendarStage = popup;
+
+        VBox modal = new VBox(16);
+        modal.setPadding(new Insets(28));
+        modal.setStyle("-fx-background-color: white; -fx-background-radius: 20; " +
+                "-fx-border-color: #e2e8f0; -fx-border-radius: 20; -fx-border-width: 1; " +
+                "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.35), 40, 0, 0, 12);");
+        modal.setMaxWidth(900);
+
+        HBox header = new HBox(10);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        Label title = new Label("Calendrier des rendez-vous");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button btnClose = new Button();
+        FontIcon closeIcon = new FontIcon(FontAwesomeSolid.TIMES);
+        closeIcon.setIconSize(12);
+        closeIcon.setIconColor(Color.web("#1e293b"));
+        btnClose.setGraphic(closeIcon);
+        btnClose.setStyle("-fx-background-color: #e2e8f0; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 10;");
+        btnClose.setTooltip(new Tooltip("Fermer"));
+        btnClose.setOnAction(e -> popup.close());
+
+        header.getChildren().addAll(title, spacer, btnClose);
+
+        HBox nav = new HBox(10);
+        nav.setAlignment(Pos.CENTER_LEFT);
+
+        Button prev = new Button("<");
+        prev.setStyle("-fx-background-color: #f1f5f9; -fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 12;");
+        Button next = new Button(">");
+        next.setStyle("-fx-background-color: #f1f5f9; -fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 12;");
+
+        Label monthLabel = new Label();
+        monthLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+
+        nav.getChildren().addAll(prev, monthLabel, next);
+
+        GridPane calendarGrid = new GridPane();
+        calendarGrid.setHgap(8);
+        calendarGrid.setVgap(8);
+        calendarGrid.setPadding(new Insets(10, 0, 0, 0));
+
+        YearMonth[] currentMonth = new YearMonth[] { YearMonth.now() };
+        renderCalendar(calendarGrid, monthLabel, currentMonth[0], byDate);
+
+        prev.setOnAction(e -> {
+            currentMonth[0] = currentMonth[0].minusMonths(1);
+            renderCalendar(calendarGrid, monthLabel, currentMonth[0], byDate);
+        });
+        next.setOnAction(e -> {
+            currentMonth[0] = currentMonth[0].plusMonths(1);
+            renderCalendar(calendarGrid, monthLabel, currentMonth[0], byDate);
+        });
+
+        modal.getChildren().addAll(header, nav, calendarGrid);
+
+        StackPane overlay = new StackPane(modal);
+        overlay.setStyle("-fx-background-color: transparent;");
+        overlay.setPadding(new Insets(20));
+
+        Scene scene = new Scene(overlay, 980, 680);
+        scene.setFill(Color.TRANSPARENT);
+        popup.setScene(scene);
+        attachBlur(popup, container.getScene().getWindow());
+        popup.show();
+    }
+
+    private void renderCalendar(GridPane grid, Label monthLabel, YearMonth month, Map<LocalDate, List<RendezVous>> byDate) {
+        grid.getChildren().clear();
+
+        DateTimeFormatter monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.FRENCH);
+        monthLabel.setText(month.atDay(1).format(monthFmt));
+
+        String[] days = {"Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"};
+        for (int i = 0; i < days.length; i++) {
+            Label d = new Label(days[i]);
+            d.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b; -fx-font-weight: bold;");
+            grid.add(d, i, 0);
+        }
+
+        LocalDate first = month.atDay(1);
+        int startCol = (first.getDayOfWeek().getValue() + 6) % 7; // lundi=0
+        int dayCount = month.lengthOfMonth();
+
+        int row = 1;
+        int col = startCol;
+
+        for (int day = 1; day <= dayCount; day++) {
+            LocalDate date = month.atDay(day);
+            VBox cell = new VBox(4);
+            cell.setPadding(new Insets(8));
+            cell.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 10; -fx-cursor: hand;");
+
+            Label dayLabel = new Label(String.valueOf(day));
+            dayLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+            cell.getChildren().add(dayLabel);
+
+            List<RendezVous> list = byDate.getOrDefault(date, new ArrayList<>());
+            if (!list.isEmpty()) {
+                HBox dots = new HBox(3);
+                dots.setAlignment(Pos.CENTER_LEFT);
+                int shown = Math.min(list.size(), 4);
+                for (int i = 0; i < shown; i++) {
+                    RendezVous rv = list.get(i);
+                    String color = switch (rv.getStatut()) {
+                        case "confirme" -> "#16a34a";
+                        case "annule" -> "#dc2626";
+                        default -> "#f59e0b";
+                    };
+                    Region dot = new Region();
+                    dot.setPrefSize(8, 8);
+                    dot.setMinSize(8, 8);
+                    dot.setMaxSize(8, 8);
+                    dot.setStyle("-fx-background-color: " + color + "; -fx-background-radius: 8;");
+                    dots.getChildren().add(dot);
+                }
+                cell.getChildren().add(dots);
+                if (list.size() > 4) {
+                    Label more = new Label("+" + (list.size() - 4));
+                    more.setStyle("-fx-font-size: 10px; -fx-text-fill: #64748b;");
+                    cell.getChildren().add(more);
+                }
+            }
+
+            cell.setOnMouseClicked(e -> {
+                if (!list.isEmpty()) {
+                    showDayDetailsModal(date, list);
+                }
+            });
+
+            grid.add(cell, col, row);
+            col++;
+            if (col == 7) { col = 0; row++; }
+        }
+    }
+
+    private Map<LocalDate, List<RendezVous>> groupByDate(List<RendezVous> rdvs) {
+        Map<LocalDate, List<RendezVous>> map = new HashMap<>();
+        for (RendezVous rv : rdvs) {
+            map.computeIfAbsent(rv.getDate(), k -> new ArrayList<>()).add(rv);
+        }
+        return map;
+    }
+
+    private void showDayDetailsModal(LocalDate date, List<RendezVous> list) {
+        Stage popup = new Stage();
+        popup.initStyle(StageStyle.TRANSPARENT);
+        popup.initModality(Modality.APPLICATION_MODAL);
+        // Ouvrir par-dessus le modal calendrier s'il est ouvert
+        Window owner = (calendarStage != null && calendarStage.isShowing())
+                ? calendarStage
+                : container.getScene().getWindow();
+        popup.initOwner(owner);
+
+        VBox modal = new VBox(14);
+        modal.setPadding(new Insets(26));
+        modal.setStyle("-fx-background-color: white; -fx-background-radius: 18; " +
+                "-fx-border-color: #e2e8f0; -fx-border-radius: 18; -fx-border-width: 1; " +
+                "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.35), 35, 0, 0, 10);");
+        modal.setMaxWidth(520);
+
+        // En-tête avec icône + titre + bouton fermer
+        HBox header = new HBox(12);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        StackPane iconWrap = new StackPane();
+        iconWrap.setStyle("-fx-background-color: #dbeafe; -fx-background-radius: 12; " +
+                "-fx-pref-width: 40; -fx-pref-height: 40; -fx-min-width: 40; -fx-min-height: 40;");
+        FontIcon calIcon = new FontIcon(FontAwesomeSolid.CALENDAR_DAY);
+        calIcon.setIconSize(18);
+        calIcon.setIconColor(Color.web("#3b82f6"));
+        iconWrap.getChildren().add(calIcon);
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale.FRENCH);
+        VBox titleBox = new VBox(2);
+        Label title = new Label("Rendez-vous du jour");
+        title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+        Label subtitle = new Label(date.format(fmt));
+        subtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
+        titleBox.getChildren().addAll(title, subtitle);
+
+        Region hSpacer = new Region();
+        HBox.setHgrow(hSpacer, Priority.ALWAYS);
+
+        Button btnCloseTop = new Button();
+        FontIcon closeIc = new FontIcon(FontAwesomeSolid.TIMES);
+        closeIc.setIconSize(14);
+        closeIc.setIconColor(Color.web("#1e293b"));
+        btnCloseTop.setGraphic(closeIc);
+        String closeBaseStyle = "-fx-background-color: #e2e8f0; -fx-background-radius: 20; -fx-cursor: hand; " +
+                "-fx-min-width: 32; -fx-min-height: 32; -fx-pref-width: 32; -fx-pref-height: 32; -fx-padding: 0;";
+        String closeHoverStyle = "-fx-background-color: #fecaca; -fx-background-radius: 20; -fx-cursor: hand; " +
+                "-fx-min-width: 32; -fx-min-height: 32; -fx-pref-width: 32; -fx-pref-height: 32; -fx-padding: 0;";
+        btnCloseTop.setStyle(closeBaseStyle);
+        btnCloseTop.setOnMouseEntered(e -> {
+            btnCloseTop.setStyle(closeHoverStyle);
+            closeIc.setIconColor(Color.web("#dc2626"));
+        });
+        btnCloseTop.setOnMouseExited(e -> {
+            btnCloseTop.setStyle(closeBaseStyle);
+            closeIc.setIconColor(Color.web("#1e293b"));
+        });
+        btnCloseTop.setTooltip(new Tooltip("Fermer"));
+        btnCloseTop.setOnAction(e -> popup.close());
+
+        header.getChildren().addAll(iconWrap, titleBox, hSpacer, btnCloseTop);
+
+        VBox listBox = new VBox(10);
+        for (RendezVous rv : list) {
+            HBox row = new HBox(12);
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.setPadding(new Insets(12));
+            row.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 12; " +
+                    "-fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-border-width: 1;");
+
+            StackPane timeWrap = new StackPane();
+            timeWrap.setStyle("-fx-background-color: #eff6ff; -fx-background-radius: 10; -fx-padding: 6 10;");
+            Label time = new Label(rv.getHeure().toString().substring(0, 5));
+            time.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #2563eb;");
+            timeWrap.getChildren().add(time);
+
+            VBox info = new VBox(2);
+            Label name = new Label("Dr. " + rv.getMedecinFullName());
+            name.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+            info.getChildren().add(name);
+
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+            Label status = new Label(rv.getStatut());
+            String color = switch (rv.getStatut()) {
+                case "confirme" -> "#16a34a";
+                case "annule" -> "#dc2626";
+                default -> "#f59e0b";
+            };
+            status.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-size: 10px; " +
+                    "-fx-font-weight: bold; -fx-padding: 4 10; -fx-background-radius: 10;");
+
+            row.getChildren().addAll(timeWrap, info, spacer, status);
+            listBox.getChildren().add(row);
+        }
+
+        Button close = new Button("Fermer");
+        close.setStyle("-fx-background-color: linear-gradient(to right, #1e293b, #0f172a); -fx-text-fill: white; " +
+                "-fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 10 28;");
+        close.setOnAction(e -> popup.close());
+        HBox closeRow = new HBox(close);
+        closeRow.setAlignment(Pos.CENTER_RIGHT);
+
+        ScrollPane scroll = new ScrollPane(listBox);
+        scroll.setFitToWidth(true);
+        scroll.setPrefViewportHeight(320);
+        scroll.setMaxHeight(320);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;");
+
+        modal.getChildren().addAll(header, scroll, closeRow);
+
+        StackPane overlay = new StackPane(modal);
+        overlay.setStyle("-fx-background-color: transparent;");
+        overlay.setPadding(new Insets(20));
+
+        Scene scene = new Scene(overlay, 620, 520);
+        scene.setFill(Color.TRANSPARENT);
+        popup.setScene(scene);
+        attachBlur(popup, owner);
+        popup.show();
+    }
+
     private Button createActionBtn(FontAwesomeSolid iconType, String iconColor, String bgColor, String tooltipText) {
         Button btn = new Button();
         FontIcon icon = new FontIcon(iconType);
@@ -311,21 +643,54 @@ public class RendezVousListController {
         VBox box = new VBox(18, iconCircle, titleLbl, msgLbl, buttons);
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(35));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
+        box.setMaxWidth(420);
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 20; " +
+                     "-fx-border-color: #e2e8f0; -fx-border-radius: 20; -fx-border-width: 1; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.35), 35, 0, 0, 10);");
 
         StackPane overlay = new StackPane(box);
-        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+        overlay.setStyle("-fx-background-color: transparent;");
+        overlay.setPadding(new Insets(20));
 
-        Scene scene = new Scene(overlay, 420, 300);
+        Scene scene = new Scene(overlay, 460, 340);
         scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
         popup.setScene(scene);
+        attachBlur(popup, container.getScene().getWindow());
         popup.show();
 
         btnNon.setOnAction(e -> popup.close());
         btnOui.setOnAction(e -> {
             popup.close();
             service.cancel(rv.getId());
+            // Email de notification au médecin
+            User medecin = userService.getUserByMedecinId(rv.getMedecinId());
+            User patient = userService.getUserByPatientId(patientId);
+            if (medecin != null && medecin.getEmail() != null && patient != null) {
+                emailService.envoyerAnnulationParPatient(
+                        medecin.getEmail(),
+                        medecin.getPrenom() + " " + medecin.getNom(),
+                        patient.getPrenom() + " " + patient.getNom(),
+                        rv.getDate().toString(),
+                        rv.getHeure().toString()
+                );
+            }
+            // Notifier le 1er patient en liste d'attente pour ce médecin ce jour
+            ListeAttente premierEnAttente = listeAttenteService.getPremierEnAttente(rv.getMedecinId(), rv.getDate());
+            if (premierEnAttente != null) {
+                User patientAttente = userService.getUserByPatientId(premierEnAttente.getPatientId());
+                if (patientAttente != null && patientAttente.getEmail() != null) {
+                    String nomMedecin = medecin != null ? medecin.getPrenom() + " " + medecin.getNom() : "votre médecin";
+                    emailService.envoyerCreneauLibere(
+                            patientAttente.getEmail(),
+                            patientAttente.getPrenom() + " " + patientAttente.getNom(),
+                            nomMedecin,
+                            rv.getDate().toString(),
+                            rv.getHeure().toString()
+                    );
+                    listeAttenteService.marquerNotifie(premierEnAttente.getId());
+                    System.out.println("✅ Créneau libéré notifié à : " + patientAttente.getEmail());
+                }
+            }
             showSuccessPopup("Rendez-vous annule",
                     "Votre rendez-vous a ete annule avec succes.",
                     FontAwesomeSolid.CALENDAR_TIMES, "#ef4444");

@@ -42,7 +42,7 @@ public class OrdonnancePDF {
             doc.add(Chunk.NEWLINE);
 
             // Info médecin (gauche)
-            PdfPTable infoTable = new PdfPTable(2);
+            PdfPTable infoTable = new PdfPTable(new float[]{3f, 2f, 1.2f});
             infoTable.setWidthPercentage(100);
             infoTable.setSpacingBefore(10);
             infoTable.setSpacingAfter(15);
@@ -69,6 +69,34 @@ public class OrdonnancePDF {
             creePar.setAlignment(Element.ALIGN_RIGHT);
             dateCell.addElement(creePar);
             infoTable.addCell(dateCell);
+
+            // Colonne QR Code (vérification d'authenticité)
+            PdfPCell qrCell = new PdfPCell();
+            qrCell.setBorder(Rectangle.NO_BORDER);
+            qrCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            try {
+                String hash = com.medicare.utils.QRCodeGenerator.buildOrdonnanceHash(
+                        ord.getId(), ord.getRendezVousId(),
+                        ord.getPatientFullName(), ord.getMedecinFullName());
+                String qrContent = "MEDICARE-ORDONNANCE\n" +
+                        "ID: " + ord.getId() + "\n" +
+                        "RDV: " + ord.getRendezVousId() + "\n" +
+                        "Patient: " + ord.getPatientFullName() + "\n" +
+                        "Medecin: Dr. " + ord.getMedecinFullName() + "\n" +
+                        "Date: " + ord.getDateRdv() + "\n" +
+                        "Code: " + hash;
+                byte[] qrBytes = com.medicare.utils.QRCodeGenerator.generatePNG(qrContent, 220);
+                Image qrImage = Image.getInstance(qrBytes);
+                qrImage.scaleAbsolute(75, 75);
+                qrImage.setAlignment(Image.ALIGN_RIGHT);
+                qrCell.addElement(qrImage);
+                Paragraph codeLbl = new Paragraph("Code: " + hash, smallFont);
+                codeLbl.setAlignment(Element.ALIGN_RIGHT);
+                qrCell.addElement(codeLbl);
+            } catch (Exception qrEx) {
+                System.out.println("Erreur QR: " + qrEx.getMessage());
+            }
+            infoTable.addCell(qrCell);
 
             doc.add(infoTable);
 
@@ -114,6 +142,19 @@ public class OrdonnancePDF {
             Paragraph sigName = new Paragraph("Dr. " + ord.getMedecinFullName(), headerFont);
             sigName.setAlignment(Element.ALIGN_RIGHT);
             doc.add(sigName);
+
+            // Mention QR code (pied de page)
+            doc.add(Chunk.NEWLINE);
+            LineSeparator footerLine = new LineSeparator();
+            footerLine.setLineColor(new BaseColor(226, 232, 240));
+            footerLine.setLineWidth(0.5f);
+            doc.add(new Chunk(footerLine));
+            Paragraph qrNote = new Paragraph(
+                    "Ce document est authentifie par un QR code. Scannez-le pour verifier l'origine de l'ordonnance.",
+                    smallFont);
+            qrNote.setAlignment(Element.ALIGN_CENTER);
+            qrNote.setSpacingBefore(6);
+            doc.add(qrNote);
 
             doc.close();
             return outputPath;

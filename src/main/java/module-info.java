@@ -7,6 +7,9 @@ module com.medicare.medicarejavafx {
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.fontawesome5;
     requires itextpdf;
+    requires jakarta.mail;
+    requires com.google.zxing;
+    requires com.google.zxing.javase;
 
 
     opens com.medicare to javafx.fxml;

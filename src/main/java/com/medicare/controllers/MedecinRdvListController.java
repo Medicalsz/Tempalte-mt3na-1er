@@ -1,7 +1,12 @@
 package com.medicare.controllers;
 
+import com.medicare.models.ListeAttente;
 import com.medicare.models.RendezVous;
+import com.medicare.models.User;
+import com.medicare.services.EmailService;
+import com.medicare.services.ListeAttenteService;
 import com.medicare.services.RendezVousService;
+import com.medicare.services.UserService;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -28,13 +33,16 @@ public class MedecinRdvListController {
 
     @FXML private VBox container;
 
-    private final RendezVousService service = new RendezVousService();
+    private final RendezVousService   service             = new RendezVousService();
+    private final EmailService        emailService        = new EmailService();
+    private final UserService         userService         = new UserService();
+    private final ListeAttenteService listeAttenteService = new ListeAttenteService();
     private int medecinId;
     private StackPane contentArea;
     private List<RendezVous> allRdvs;
     private String currentFilter = "all";
     private String searchQuery = "";
-    private Button btnAll, btnAttente, btnAccepte, btnAnnule;
+    private Button btnAll, btnAttente, btnAccepte, btnAnnule, btnListeAttente;
 
     public void setContentArea(StackPane contentArea) { this.contentArea = contentArea; }
 
@@ -74,6 +82,21 @@ public class MedecinRdvListController {
         HBox filters = new HBox(8, btnAll, btnAttente, btnAccepte, btnAnnule);
         filters.setAlignment(Pos.CENTER_LEFT);
 
+        // Bouton Liste d'attente avec badge
+        int nbAttente = listeAttenteService.countByMedecin(medecinId);
+        String badgeText = nbAttente > 0 ? "Liste d'attente  +" + nbAttente : "Liste d'attente";
+        btnListeAttente = new Button(badgeText);
+        FontIcon waitIcon = new FontIcon(FontAwesomeSolid.HOURGLASS_HALF);
+        waitIcon.setIconSize(14);
+        waitIcon.setIconColor(Color.WHITE);
+        btnListeAttente.setGraphic(waitIcon);
+        btnListeAttente.setStyle(
+                "-fx-background-color: " + (nbAttente > 0 ? "linear-gradient(to right,#f59e0b,#d97706)" : "#94a3b8") + "; " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 16; " +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);");
+        btnListeAttente.setOnAction(e -> showListeAttenteView());
+
         // Barre de recherche
         TextField searchField = new TextField();
         searchField.setPromptText("Rechercher un patient...");
@@ -88,7 +111,7 @@ public class MedecinRdvListController {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        header.getChildren().addAll(filters, searchField, spacer);
+        header.getChildren().addAll(filters, searchField, spacer, btnListeAttente);
         container.getChildren().add(header);
 
         allRdvs = service.getByMedecin(medecinId);
@@ -109,10 +132,8 @@ public class MedecinRdvListController {
     }
 
     private void highlightFilter(Button active) {
-        String normal = "-fx-background-color: #e5e7eb; -fx-text-fill: #555; -fx-font-size: 12px; " +
-                        "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;";
-        String selected = "-fx-background-color: #0d9488; -fx-text-fill: white; -fx-font-size: 12px; " +
-                          "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;";
+        String normal   = "-fx-background-color: #e5e7eb; -fx-text-fill: #555; -fx-font-size: 12px; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;";
+        String selected = "-fx-background-color: #0d9488; -fx-text-fill: white; -fx-font-size: 12px; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;";
         btnAll.setStyle(normal);
         btnAttente.setStyle(normal);
         btnAccepte.setStyle(normal);
@@ -202,6 +223,19 @@ public class MedecinRdvListController {
             Button btnAccept = actionBtn(FontAwesomeSolid.CHECK, "#16a34a", "#dcfce7", "Accepter");
             btnAccept.setOnAction(e -> {
                 service.accept(rv.getId());
+                // Email de confirmation au patient
+                User patient = userService.getUserByPatientId(rv.getPatientId());
+                if (patient != null && patient.getEmail() != null) {
+                    String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                            + " " + DashboardMedecinController.getCurrentUser().getNom();
+                    emailService.envoyerConfirmationRdv(
+                            patient.getEmail(),
+                            patient.getPrenom() + " " + patient.getNom(),
+                            nomMedecin,
+                            rv.getDate().toString(),
+                            rv.getHeure().toString()
+                    );
+                }
                 showPopup("Rendez-vous accepte", "Le rendez-vous a ete confirme.",
                           FontAwesomeSolid.CHECK_CIRCLE, "#16a34a");
             });
@@ -313,6 +347,20 @@ public class MedecinRdvListController {
             }
             popup.close();
             service.refuse(rv.getId(), motif);
+            // Email d'annulation au patient
+            User patient = userService.getUserByPatientId(rv.getPatientId());
+            if (patient != null && patient.getEmail() != null) {
+                String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                        + " " + DashboardMedecinController.getCurrentUser().getNom();
+                emailService.envoyerAnnulationRdv(
+                        patient.getEmail(),
+                        patient.getPrenom() + " " + patient.getNom(),
+                        nomMedecin,
+                        rv.getDate().toString(),
+                        rv.getHeure().toString(),
+                        motif
+                );
+            }
             showPopup("Rendez-vous refuse", "Le rendez-vous a ete refuse.",
                       FontAwesomeSolid.TIMES_CIRCLE, "#dc2626");
         });
@@ -392,9 +440,206 @@ public class MedecinRdvListController {
             }
             popup.close();
             service.proposeReport(rv.getId(), dp.getValue(), LocalTime.parse(heureCombo.getValue()));
+            // Email de report au patient
+            User patient = userService.getUserByPatientId(rv.getPatientId());
+            if (patient != null && patient.getEmail() != null) {
+                String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                        + " " + DashboardMedecinController.getCurrentUser().getNom();
+                emailService.envoyerReportRdv(
+                        patient.getEmail(),
+                        patient.getPrenom() + " " + patient.getNom(),
+                        nomMedecin,
+                        rv.getDate().toString(),
+                        dp.getValue().toString(),
+                        heureCombo.getValue()
+                );
+            }
             showPopup("Report propose", "Le nouveau creneau a ete propose au patient.",
                       FontAwesomeSolid.CALENDAR_CHECK, "#f59e0b");
         });
+    }
+
+    // ========== LISTE D'ATTENTE ==========
+
+    private void showListeAttenteView() {
+        if (container.getChildren().size() > 1)
+            container.getChildren().remove(1, container.getChildren().size());
+
+        List<ListeAttente> liste = listeAttenteService.getByMedecin(medecinId);
+
+        // Titre section
+        HBox titleRow = new HBox(10);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        titleRow.setPadding(new Insets(15, 0, 5, 0));
+        FontIcon titleIcon = new FontIcon(FontAwesomeSolid.HOURGLASS_HALF);
+        titleIcon.setIconSize(18);
+        titleIcon.setIconColor(Color.web("#f59e0b"));
+        Label titleLbl = new Label("Patients en liste d'attente");
+        titleLbl.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button btnClose = new Button();
+        FontIcon closeIcon = new FontIcon(FontAwesomeSolid.ARROW_LEFT);
+        closeIcon.setIconSize(12);
+        closeIcon.setIconColor(Color.web("#1e293b"));
+        btnClose.setGraphic(closeIcon);
+        btnClose.setStyle("-fx-background-color: #e2e8f0; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 10;");
+        btnClose.setTooltip(new Tooltip("Retour aux rendez-vous"));
+        btnClose.setOnAction(e -> loadRendezVous());
+
+        titleRow.getChildren().addAll(titleIcon, titleLbl, spacer, btnClose);
+        container.getChildren().add(titleRow);
+
+        if (liste.isEmpty()) {
+            VBox emptyBox = new VBox(8);
+            emptyBox.setAlignment(Pos.CENTER);
+            emptyBox.setPadding(new Insets(40));
+            FontIcon emptyIcon = new FontIcon(FontAwesomeSolid.CHECK_CIRCLE);
+            emptyIcon.setIconSize(48);
+            emptyIcon.setIconColor(Color.web("#94a3b8"));
+            Label emptyLbl = new Label("Aucun patient en liste d'attente");
+            emptyLbl.setStyle("-fx-font-size: 15px; -fx-text-fill: #94a3b8;");
+            emptyBox.getChildren().addAll(emptyIcon, emptyLbl);
+            container.getChildren().add(emptyBox);
+            return;
+        }
+
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        for (ListeAttente la : liste) {
+            HBox card = new HBox(15);
+            card.setAlignment(Pos.CENTER_LEFT);
+            card.setPadding(new Insets(16));
+            card.setStyle(
+                "-fx-background-color: white; -fx-background-radius: 12; " +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 3); " +
+                "-fx-border-color: #fde68a; -fx-border-radius: 12; -fx-border-width: 1.5;");
+
+            // Icône patient
+            StackPane iconCircle = new StackPane();
+            iconCircle.setStyle("-fx-background-color: #fef3c7; -fx-background-radius: 50; -fx-min-width: 48; -fx-min-height: 48;");
+            FontIcon userIcon = new FontIcon(FontAwesomeSolid.USER);
+            userIcon.setIconSize(20);
+            userIcon.setIconColor(Color.web("#f59e0b"));
+            iconCircle.getChildren().add(userIcon);
+
+            VBox infos = new VBox(4);
+            HBox.setHgrow(infos, Priority.ALWAYS);
+
+            User patient = userService.getUserByPatientId(la.getPatientId());
+            String nomPatient = patient != null ? patient.getPrenom() + " " + patient.getNom() : "Patient #" + la.getPatientId();
+
+            Label nomLabel = new Label(nomPatient);
+            nomLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+            HBox metaRow = new HBox(10);
+            metaRow.setAlignment(Pos.CENTER_LEFT);
+
+            // Date badge
+            HBox dateBadge = new HBox(5);
+            dateBadge.setAlignment(Pos.CENTER_LEFT);
+            dateBadge.setStyle("-fx-background-color: #f0f9ff; -fx-padding: 3 10; -fx-background-radius: 20;");
+            FontIcon calIcon = new FontIcon(FontAwesomeSolid.CALENDAR_ALT);
+            calIcon.setIconSize(11); calIcon.setIconColor(Color.web("#0ea5e9"));
+            Label dateLabel = new Label(la.getDate().format(dateFmt));
+            dateLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #0ea5e9;");
+            dateBadge.getChildren().addAll(calIcon, dateLabel);
+
+            // Position badge
+            HBox posBadge = new HBox(5);
+            posBadge.setAlignment(Pos.CENTER_LEFT);
+            posBadge.setStyle("-fx-background-color: #fef3c7; -fx-padding: 3 10; -fx-background-radius: 20;");
+            FontIcon posIcon = new FontIcon(FontAwesomeSolid.SORT_NUMERIC_UP);
+            posIcon.setIconSize(11); posIcon.setIconColor(Color.web("#f59e0b"));
+            Label posLabel = new Label("Position #" + la.getPosition());
+            posLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #b45309; -fx-font-weight: bold;");
+            posBadge.getChildren().addAll(posIcon, posLabel);
+
+            metaRow.getChildren().addAll(dateBadge, posBadge);
+            infos.getChildren().addAll(nomLabel, metaRow);
+
+            // Boutons
+            Button btnAccepter = new Button("Accepter");
+            FontIcon checkIc = new FontIcon(FontAwesomeSolid.CHECK);
+            checkIc.setIconSize(12); checkIc.setIconColor(Color.WHITE);
+            btnAccepter.setGraphic(checkIc);
+            btnAccepter.setStyle(
+                "-fx-background-color: linear-gradient(to right,#16a34a,#15803d); " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 16;");
+            btnAccepter.setOnAction(e -> accepterListeAttente(la, patient));
+
+            Button btnRefuser = new Button("Refuser");
+            FontIcon timesIc = new FontIcon(FontAwesomeSolid.TIMES);
+            timesIc.setIconSize(12); timesIc.setIconColor(Color.WHITE);
+            btnRefuser.setGraphic(timesIc);
+            btnRefuser.setStyle(
+                "-fx-background-color: linear-gradient(to right,#ef4444,#dc2626); " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 16;");
+            btnRefuser.setOnAction(e -> refuserListeAttente(la, patient));
+
+            VBox actions = new VBox(8, btnAccepter, btnRefuser);
+            actions.setAlignment(Pos.CENTER);
+
+            card.getChildren().addAll(iconCircle, infos, actions);
+            container.getChildren().add(card);
+        }
+    }
+
+    private void accepterListeAttente(ListeAttente la, User patient) {
+        // Trouver le premier créneau libre ce jour
+        List<LocalTime> tousCreneaux  = service.getCreneauxDisponibles(la.getMedecinId(), la.getDate());
+        List<LocalTime> heuresPrises  = service.getHeuresPrises(la.getMedecinId(), la.getDate());
+        LocalTime heureLibre = tousCreneaux.stream()
+                .filter(h -> !heuresPrises.contains(h))
+                .findFirst().orElse(null);
+
+        if (heureLibre == null) {
+            showPopup("Aucun créneau libre", "Il n'y a plus de créneau disponible ce jour.",
+                      FontAwesomeSolid.EXCLAMATION_TRIANGLE, "#f59e0b");
+            return;
+        }
+
+        // Créer le RDV
+        com.medicare.models.RendezVous rv = new com.medicare.models.RendezVous(
+                la.getMedecinId(), la.getPatientId(), la.getDate(), heureLibre, "confirme");
+        service.create(rv);
+        listeAttenteService.supprimer(la.getId());
+
+        // Email au patient
+        if (patient != null && patient.getEmail() != null) {
+            String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                    + " " + DashboardMedecinController.getCurrentUser().getNom();
+            emailService.envoyerConfirmationRdv(
+                    patient.getEmail(),
+                    patient.getPrenom() + " " + patient.getNom(),
+                    nomMedecin,
+                    la.getDate().toString(),
+                    heureLibre.toString()
+            );
+        }
+        showPopup("RDV créé", "Le rendez-vous a été créé et le patient notifié.",
+                  FontAwesomeSolid.CHECK_CIRCLE, "#16a34a");
+    }
+
+    private void refuserListeAttente(ListeAttente la, User patient) {
+        listeAttenteService.supprimer(la.getId());
+        // Email au patient
+        if (patient != null && patient.getEmail() != null) {
+            String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                    + " " + DashboardMedecinController.getCurrentUser().getNom();
+            emailService.envoyerAttenteExpiree(
+                    patient.getEmail(),
+                    patient.getPrenom() + " " + patient.getNom(),
+                    nomMedecin,
+                    la.getDate().toString()
+            );
+        }
+        showPopup("Patient retiré", "Le patient a été retiré de la liste d'attente.",
+                  FontAwesomeSolid.TIMES_CIRCLE, "#dc2626");
     }
 
     // ========== DETAILS MODAL ==========

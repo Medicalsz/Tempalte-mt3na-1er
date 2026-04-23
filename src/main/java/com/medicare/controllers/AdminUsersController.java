@@ -50,7 +50,34 @@ public class AdminUsersController {
         searchField.setStyle("-fx-background-radius: 8; -fx-font-size: 13px;");
         searchField.textProperty().addListener((obs, old, val) -> filterUsers(val));
 
-        header.getChildren().addAll(title, spacer, searchField);
+        // Bouton Export (menu PDF / CSV)
+        MenuButton btnExport = new MenuButton("  Exporter");
+        FontIcon exportIcon = new FontIcon(FontAwesomeSolid.DOWNLOAD);
+        exportIcon.setIconSize(14);
+        exportIcon.setIconColor(Color.WHITE);
+        btnExport.setGraphic(exportIcon);
+        btnExport.setStyle("-fx-background-color: linear-gradient(to right, #7c3aed, #6d28d9); " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 14; " +
+                "-fx-effect: dropshadow(gaussian, rgba(124,58,237,0.3), 8, 0, 0, 2);");
+
+        MenuItem itemPdf = new MenuItem("Exporter en PDF");
+        FontIcon pdfIc = new FontIcon(FontAwesomeSolid.FILE_PDF);
+        pdfIc.setIconSize(13);
+        pdfIc.setIconColor(Color.web("#dc2626"));
+        itemPdf.setGraphic(pdfIc);
+        itemPdf.setOnAction(e -> exportUsersTo("pdf"));
+
+        MenuItem itemCsv = new MenuItem("Exporter en CSV");
+        FontIcon csvIc = new FontIcon(FontAwesomeSolid.FILE_CSV);
+        csvIc.setIconSize(13);
+        csvIc.setIconColor(Color.web("#16a34a"));
+        itemCsv.setGraphic(csvIc);
+        itemCsv.setOnAction(e -> exportUsersTo("csv"));
+
+        btnExport.getItems().addAll(itemPdf, itemCsv);
+
+        header.getChildren().addAll(title, spacer, searchField, btnExport);
         container.getChildren().add(header);
 
         // Tableau header
@@ -308,6 +335,37 @@ public class AdminUsersController {
             loadUsers();
         });
         pause.play();
+    }
+
+    // ========== EXPORT (PDF / CSV) ==========
+
+    private void exportUsersTo(String format) {
+        boolean isPdf = "pdf".equalsIgnoreCase(format);
+        javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+        chooser.setTitle("Exporter les utilisateurs");
+        String date = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        chooser.setInitialFileName("utilisateurs_" + date + (isPdf ? ".pdf" : ".csv"));
+        chooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter(
+                isPdf ? "Fichier PDF" : "Fichier CSV", isPdf ? "*.pdf" : "*.csv"));
+
+        java.io.File file = chooser.showSaveDialog(container.getScene().getWindow());
+        if (file == null) return;
+
+        List<User> users = userService.getAllUsers();
+        boolean ok = isPdf
+                ? com.medicare.utils.PDFExporter.exportUsers(users, file)
+                : com.medicare.utils.CSVExporter.exportUsers(users, file);
+
+        if (ok) {
+            showPopup("Export " + format.toUpperCase() + " reussi",
+                    users.size() + " utilisateur(s) exporte(s).",
+                    isPdf ? FontAwesomeSolid.FILE_PDF : FontAwesomeSolid.FILE_CSV,
+                    "#16a34a");
+            try { java.awt.Desktop.getDesktop().open(file); } catch (Exception ex) { ex.printStackTrace(); }
+        } else {
+            showPopup("Erreur export", "Impossible d'exporter le fichier.",
+                    FontAwesomeSolid.EXCLAMATION_TRIANGLE, "#dc2626");
+        }
     }
 }
 

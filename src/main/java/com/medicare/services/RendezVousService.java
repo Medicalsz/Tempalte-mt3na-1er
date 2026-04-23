@@ -501,6 +501,65 @@ public class RendezVousService {
         return list;
     }
 
+    // ==================== RAPPEL EMAIL ====================
+
+    public boolean patientADejaRdvCeJour(int patientId, int medecinId, LocalDate date, int excludeRdvId) {
+        String q = "SELECT COUNT(*) FROM rendez_vous WHERE patient_id = ? AND medecin_id = ? AND date = ? " +
+                   "AND statut != 'annule' AND id != ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, patientId);
+            ps.setInt(2, medecinId);
+            ps.setDate(3, Date.valueOf(date));
+            ps.setInt(4, excludeRdvId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1) > 0;
+        } catch (SQLException e) { System.out.println("Erreur check rdv jour: " + e.getMessage()); }
+        return false;
+    }
+
+    public List<RendezVous> getRendezVousConfirmesParDate(LocalDate date) {
+        List<RendezVous> list = new ArrayList<>();
+        String q = "SELECT rv.*, " +
+                   "um.nom AS med_nom, um.prenom AS med_prenom, " +
+                   "up.nom AS pat_nom, up.prenom AS pat_prenom " +
+                   "FROM rendez_vous rv " +
+                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN user um ON m.user_id = um.id " +
+                   "JOIN patient p ON rv.patient_id = p.id " +
+                   "JOIN user up ON p.user_id = up.id " +
+                   "WHERE rv.date = ? AND rv.statut = 'confirme' AND rv.rappel_envoye = 0";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setDate(1, Date.valueOf(date));
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                RendezVous rv = new RendezVous();
+                rv.setId(rs.getInt("id"));
+                rv.setMedecinId(rs.getInt("medecin_id"));
+                rv.setPatientId(rs.getInt("patient_id"));
+                rv.setDate(rs.getDate("date").toLocalDate());
+                rv.setHeure(rs.getTime("heure").toLocalTime());
+                rv.setStatut(rs.getString("statut"));
+                rv.setMedecinNom(rs.getString("med_nom"));
+                rv.setMedecinPrenom(rs.getString("med_prenom"));
+                rv.setPatientNom(rs.getString("pat_nom"));
+                rv.setPatientPrenom(rs.getString("pat_prenom"));
+                list.add(rv);
+            }
+        } catch (SQLException e) { System.out.println("Erreur getRendezVousConfirmesParDate: " + e.getMessage()); }
+        return list;
+    }
+
+    public void markRappelEnvoye(int rdvId) {
+        String q = "UPDATE rendez_vous SET rappel_envoye = 1 WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, rdvId);
+            ps.executeUpdate();
+        } catch (SQLException e) { System.out.println("Erreur markRappelEnvoye: " + e.getMessage()); }
+    }
+
     // ==================== ORDONNANCE ====================
 
     public boolean createOrdonnance(int rendezVousId, String contenu) {

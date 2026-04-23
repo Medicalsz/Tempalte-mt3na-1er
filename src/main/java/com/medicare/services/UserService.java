@@ -113,6 +113,39 @@ public class UserService {
         return u;
     }
 
+    public User getUserById(int id) {
+        String q = "SELECT * FROM user WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapUser(rs);
+        } catch (SQLException e) { System.out.println("Erreur getUserById: " + e.getMessage()); }
+        return null;
+    }
+
+    public User getUserByPatientId(int patientId) {
+        String q = "SELECT u.* FROM user u JOIN patient p ON p.user_id = u.id WHERE p.id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, patientId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapUser(rs);
+        } catch (SQLException e) { System.out.println("Erreur getUserByPatientId: " + e.getMessage()); }
+        return null;
+    }
+
+    public User getUserByMedecinId(int medecinId) {
+        String q = "SELECT u.* FROM user u JOIN medecin m ON m.user_id = u.id WHERE m.id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, medecinId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapUser(rs);
+        } catch (SQLException e) { System.out.println("Erreur getUserByMedecinId: " + e.getMessage()); }
+        return null;
+    }
+
     // ==================== ADMIN ====================
 
     public java.util.List<User> getAllUsers() {
