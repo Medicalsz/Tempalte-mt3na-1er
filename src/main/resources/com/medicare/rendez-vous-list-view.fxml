@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<ScrollPane fitToWidth="true" style="-fx-background-color: transparent;"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.medicare.controllers.RendezVousListController">
+    <VBox fx:id="container" spacing="15" style="-fx-background-color: transparent;">
+        <padding>
+            <Insets top="10" bottom="10" left="10" right="10"/>
+        </padding>
+    </VBox>
+</ScrollPane>
+

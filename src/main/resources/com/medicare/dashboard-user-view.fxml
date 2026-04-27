@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import java.net.URL?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.medicare.controllers.DashboardUserController"
+            prefHeight="700.0" prefWidth="1200.0">
+
+    <stylesheets>
+        <URL value="@dashboard-admin-style.css"/>
+    </stylesheets>
+
+    <left>
+        <VBox fx:id="sidebar" spacing="8" prefWidth="240" styleClass="sidebar">
+            <padding>
+                <Insets bottom="10"/>
+            </padding>
+
+            <VBox styleClass="sidebar-user-profile">
+                <Label text="user" styleClass="sidebar-user-name"/>
+                <Label text="user@user.com" styleClass="sidebar-user-email"/>
+            </VBox>
+
+            <Button fx:id="btnAccueil" text="Accueil" onAction="#onAccueilClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
+            <Button fx:id="btnRendezVous" text="Mes Rendez-vous" onAction="#onRendezVousClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
+            <Button fx:id="btnDon" text="Faire un don" onAction="#onDonClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
+            <Button fx:id="btnProduits" text="Nos Produits" onAction="#onProduitsClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
+            <Button fx:id="btnCollaborer" text="Collaborer" onAction="#onCollaborerClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
+            <Button fx:id="btnForum" text="Forum" onAction="#onForumClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
+            <Button fx:id="btnDevenirMedecin" text="Devenir Medecin" onAction="#onDevenirMedecinClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Separator style="-fx-background-color: #6366f1;"/>
+
+            <Button fx:id="btnLogout" text="Deconnexion" onAction="#onLogoutClick" prefWidth="200" prefHeight="40" styleClass="logout-button"/>
+        </VBox>
+    </left>
+
+    <center>
+        <StackPane fx:id="contentArea" style="-fx-background-color: #f3f4f6; -fx-padding: 10;"/>
+    </center>
+
+</BorderPane>

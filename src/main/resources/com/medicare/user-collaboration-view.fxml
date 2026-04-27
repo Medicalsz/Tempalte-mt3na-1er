@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.layout.VBox?>
+<?import java.net.URL?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.medicare.controllers.UserCollaborationController"
+      styleClass="main-container">
+
+    <stylesheets>
+        <URL value="@user-collaboration-style.css"/>
+    </stylesheets>
+
+    <Label text="Nos Partenaires" styleClass="title"/>
+
+    <ScrollPane fx:id="scrollPane" styleClass="scroll-pane" fitToWidth="true">
+        <TilePane fx:id="tilePane" styleClass="tile-pane"/>
+    </ScrollPane>
+
+</VBox>

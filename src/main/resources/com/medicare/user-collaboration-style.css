@@ -1,0 +1,73 @@
+.main-container {
+    -fx-background-color: #f9fafb; /* A very light gray */
+    -fx-padding: 20px;
+}
+
+.title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #111827; /* Dark gray */
+    -fx-padding: 0 0 20px 0;
+}
+
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-fit-to-width: true;
+}
+
+.tile-pane {
+    -fx-hgap: 20px;
+    -fx-vgap: 20px;
+    -fx-padding: 10px;
+}
+
+/* --- Partner Card --- */
+.partner-card {
+    -fx-background-color: white;
+    -fx-background-radius: 12px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 15, 0, 0, 3);
+    -fx-alignment: top-center;
+    -fx-padding: 20px;
+    -fx-spacing: 12px;
+    -fx-pref-width: 220px; /* Fixed width for uniform cards */
+}
+
+.partner-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 20, 0, 0, 5);
+    -fx-border-color: #4f46e5; /* Purple border on hover */
+    -fx-border-width: 1px;
+    -fx-border-radius: 12px;
+}
+
+.partner-image {
+    -fx-border-radius: 50%;
+    -fx-background-radius: 50%;
+}
+
+.partner-name {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2937;
+}
+
+.partner-type {
+    -fx-font-size: 13px;
+    -fx-text-fill: #6b7280;
+    -fx-background-color: #f3f4f6;
+    -fx-padding: 4px 10px;
+    -fx-background-radius: 15px;
+}
+
+.details-button {
+    -fx-background-color: #4f46e5; /* Purple */
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 16px;
+    -fx-background-radius: 8px;
+    -fx-cursor: hand;
+}
+
+.details-button:hover {
+    -fx-background-color: #4338ca; /* Darker purple */
+}

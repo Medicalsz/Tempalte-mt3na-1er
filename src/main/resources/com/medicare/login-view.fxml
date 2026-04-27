@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+
+<VBox alignment="CENTER" spacing="20" prefWidth="450" prefHeight="400"
+      style="-fx-background-color: #f0f4f8;"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.medicare.controllers.LoginController">
+    <padding>
+        <Insets bottom="40" left="50" right="50" top="40"/>
+    </padding>
+
+    <Label text="Connexion"
+           style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;"/>
+
+    <TextField fx:id="emailField" promptText="Email" prefHeight="38"
+               style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
+
+    <PasswordField fx:id="passwordField" promptText="Mot de passe" prefHeight="38"
+                   style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
+
+    <Label fx:id="errorLabel" text=""
+           style="-fx-text-fill: #dc2626; -fx-font-size: 13px;"/>
+
+    <Button text="Se connecter" onAction="#onLoginClick" prefWidth="250" prefHeight="40"
+            style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 15px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+    <HBox alignment="CENTER" spacing="5">
+        <Label text="Pas encore de compte ?"
+               style="-fx-font-size: 13px; -fx-text-fill: #666;"/>
+        <Hyperlink text="Creer un compte" onAction="#onGoToRegister"
+                   style="-fx-font-size: 13px; -fx-text-fill: #1a73e8;"/>
+    </HBox>
+
+    <Hyperlink text="Retour a l'accueil" onAction="#onGoToAccueil"
+               style="-fx-font-size: 12px; -fx-text-fill: #999;"/>
+</VBox>
+
