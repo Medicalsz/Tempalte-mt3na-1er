@@ -1,4 +1,10 @@
 target/
+<<<<<<< HEAD
+
+# Ignore environment variables
+.env
+=======
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

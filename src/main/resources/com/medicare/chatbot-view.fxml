@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.medicare.controllers.ChatbotController"
+            prefWidth="350" prefHeight="500"
+            styleClass="chatbot-container">
+
+    <center>
+        <ScrollPane fx:id="scrollPane" fitToWidth="true" styleClass="chat-scroll-pane">
+            <VBox fx:id="chatArea" spacing="10" styleClass="chat-area"/>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <HBox fx:id="inputArea" spacing="10" styleClass="input-area">
+            <TextField fx:id="inputField" HBox.hgrow="ALWAYS" promptText="Type a message..." onAction="#onSendMessage" styleClass="text-field"/>
+            <Button text="Send" onAction="#onSendMessage" styleClass="send-button"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>

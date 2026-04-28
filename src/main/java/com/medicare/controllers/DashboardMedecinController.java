@@ -1,7 +1,16 @@
 package com.medicare.controllers;
 
+<<<<<<< HEAD
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import org.kordamp.ikonli.javafx.FontIcon;
+
 import com.medicare.HelloApplication;
 import com.medicare.models.User;
+
+=======
+import com.medicare.HelloApplication;
+import com.medicare.models.User;
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -11,8 +20,11 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+<<<<<<< HEAD
+=======
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 
 public class DashboardMedecinController {
 
@@ -35,7 +47,11 @@ public class DashboardMedecinController {
     @FXML
     private void initialize() {
         if (currentUser != null) {
+<<<<<<< HEAD
+            userNameLabel.setText("Dr. " + currentUser.getNom());
+=======
             userNameLabel.setText("Dr. " + currentUser.getPrenom() + " " + currentUser.getNom());
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             userEmailLabel.setText(currentUser.getEmail());
         }
 
@@ -99,5 +115,9 @@ public class DashboardMedecinController {
         btnPlanning.setStyle(normal);
         active.setStyle(activeS);
     }
+<<<<<<< HEAD
+}
+=======
 }
 
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
