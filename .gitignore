@@ -1,4 +1,6 @@
 target/
+
+# Ignore environment variables
 .env
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
