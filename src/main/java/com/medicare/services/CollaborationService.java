@@ -1,5 +1,6 @@
 package com.medicare.services;
 
+<<<<<<< HEAD
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -211,3 +212,7 @@ public class CollaborationService implements Crud<Collaboration> {
         return collaborations;
     }
 }
+=======
+public class CollaborationService {
+}
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

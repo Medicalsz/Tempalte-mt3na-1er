@@ -9,6 +9,7 @@ public class MyConnection {
     private static MyConnection instance;
     private Connection cnx;
 
+<<<<<<< HEAD
     // Default values for local development
     private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/medicare";
     private static final String DEFAULT_USER = "root";
@@ -16,6 +17,19 @@ public class MyConnection {
 
     private MyConnection() {
         // The constructor is kept private for the singleton pattern.
+=======
+    private MyConnection() {
+        try {
+            cnx = DriverManager.getConnection(
+                    "jdbc:mysql://localhost:3306/medicare",
+                    "root",
+                    "2003"
+            );
+            System.out.println("Connexion OK !");
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
     }
 
     public static MyConnection getInstance() {
@@ -26,6 +40,7 @@ public class MyConnection {
     }
 
     public Connection getCnx() {
+<<<<<<< HEAD
         try {
             if (cnx == null || cnx.isClosed()) {
                 // Read from environment variables, or use defaults if not found
@@ -39,6 +54,8 @@ public class MyConnection {
         } catch (SQLException e) {
             System.err.println("Erreur de connexion DB: " + e.getMessage());
         }
+=======
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         return cnx;
     }
 }

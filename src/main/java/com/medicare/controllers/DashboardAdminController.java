@@ -1,5 +1,6 @@
 package com.medicare.controllers;
 
+<<<<<<< HEAD
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -7,6 +8,10 @@ import com.medicare.models.User;
 
 import java.io.IOException;
 
+=======
+import com.medicare.HelloApplication;
+import com.medicare.models.User;
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -16,6 +21,11 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+<<<<<<< HEAD
+=======
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import org.kordamp.ikonli.javafx.FontIcon;
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 
 public class DashboardAdminController {
 
@@ -29,16 +39,23 @@ public class DashboardAdminController {
     @FXML private Button btnDonation;
     @FXML private Button btnProduit;
     @FXML private Button btnCollaboration;
+<<<<<<< HEAD
     @FXML private Button btnPartenaire;
+=======
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
     @FXML private Button btnForum;
     @FXML private Button btnLogout;
 
     private static User currentUser;
+<<<<<<< HEAD
     private Button selectedButton;
+=======
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 
     public static void setCurrentUser(User user) { currentUser = user; }
     public static User getCurrentUser() { return currentUser; }
 
+<<<<<<< HEAD
     @FXML
     private void initialize() {
         if (currentUser != null) {
@@ -60,12 +77,46 @@ public class DashboardAdminController {
         btnPartenaire.setGraphic(new FontIcon(FontAwesomeSolid.BUILDING));
         btnForum.setGraphic(new FontIcon(FontAwesomeSolid.COMMENTS));
         btnLogout.setGraphic(new FontIcon(FontAwesomeSolid.SIGN_OUT_ALT));
+=======
+    private Button[] allButtons() {
+        return new Button[]{btnAccueil, btnUtilisateurs, btnRendezVous,
+                            btnDonation, btnProduit, btnCollaboration, btnForum};
+    }
+
+    @FXML
+    private void initialize() {
+        if (currentUser != null) {
+            userNameLabel.setText(currentUser.getPrenom() + " " + currentUser.getNom());
+            userEmailLabel.setText(currentUser.getEmail());
+        }
+
+        btnAccueil.setGraphic(icon(FontAwesomeSolid.HOME));
+        btnUtilisateurs.setGraphic(icon(FontAwesomeSolid.USERS));
+        btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
+        btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
+        btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
+        btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
+        btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
+        btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#fecaca")));
+
+        highlightButton(btnAccueil);
+    }
+
+    private FontIcon icon(FontAwesomeSolid type) { return icon(type, Color.WHITE); }
+
+    private FontIcon icon(FontAwesomeSolid type, Color color) {
+        FontIcon fi = new FontIcon(type);
+        fi.setIconSize(16);
+        fi.setIconColor(color);
+        return fi;
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
     }
 
     // ========== NAVIGATION ==========
 
     @FXML private void onAccueilClick() {
         highlightButton(btnAccueil);
+<<<<<<< HEAD
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/admin-home-view.fxml"));
             Node view = loader.load();
@@ -77,12 +128,21 @@ public class DashboardAdminController {
                 setStyle("-fx-font-size: 18px; -fx-text-fill: #ef4444;");
             }});
         }
+=======
+        setContent(new Label("Bienvenue sur le panneau d'administration !") {{
+            setStyle("-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;");
+        }});
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
     }
 
     @FXML private void onUtilisateursClick() {
         highlightButton(btnUtilisateurs);
         try {
+<<<<<<< HEAD
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/admin-users-view.fxml"));
+=======
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("admin-users-view.fxml"));
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             Node view = loader.load();
             setContent(view);
         } catch (Exception e) {
@@ -96,7 +156,11 @@ public class DashboardAdminController {
     @FXML private void onRendezVousClick() {
         highlightButton(btnRendezVous);
         try {
+<<<<<<< HEAD
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/admin-rdv-list-view.fxml"));
+=======
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("admin-rdv-list-view.fxml"));
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             Node view = loader.load();
             setContent(view);
         } catch (Exception e) {
@@ -123,6 +187,7 @@ public class DashboardAdminController {
 
     @FXML private void onCollaborationClick() {
         highlightButton(btnCollaboration);
+<<<<<<< HEAD
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/admin-collaborations-view.fxml"));
             Node view = loader.load();
@@ -147,6 +212,11 @@ public class DashboardAdminController {
                 setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
             }});
         }
+=======
+        setContent(new Label("Gestion des Collaborations") {{
+            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
+        }});
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
     }
 
     @FXML private void onForumClick() {
@@ -159,7 +229,11 @@ public class DashboardAdminController {
     @FXML private void onLogoutClick() {
         currentUser = null;
         try {
+<<<<<<< HEAD
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/accueil-view.fxml"));
+=======
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("accueil-view.fxml"));
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             Stage stage = (Stage) contentArea.getScene().getWindow();
             stage.setScene(new Scene(loader.load()));
             stage.setTitle("Medicare");
@@ -169,6 +243,7 @@ public class DashboardAdminController {
     // ========== UTILITAIRES ==========
 
     private void setContent(Node node) {
+<<<<<<< HEAD
         contentArea.getChildren().setAll(node);
     }
 
@@ -180,3 +255,17 @@ public class DashboardAdminController {
         selectedButton = button;
     }
 }
+=======
+        contentArea.getChildren().clear();
+        contentArea.getChildren().add(node);
+    }
+
+    private void highlightButton(Button active) {
+        String normal = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
+        String activeS = "-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
+        for (Button b : allButtons()) b.setStyle(normal);
+        active.setStyle(activeS);
+    }
+}
+
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

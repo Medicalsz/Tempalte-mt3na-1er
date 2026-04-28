@@ -1,5 +1,6 @@
 package com.medicare.controllers;
 
+<<<<<<< HEAD
 import com.medicare.HelloApplication;
 import com.medicare.models.Collaboration;
 import com.medicare.models.User;
@@ -57,3 +58,7 @@ public class CollaborationController implements Initializable {
         }
     }
 }
+=======
+public class CollaborationController {
+}
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

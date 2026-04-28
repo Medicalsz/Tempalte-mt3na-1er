@@ -58,6 +58,7 @@
             <artifactId>ikonli-fontawesome5-pack</artifactId>
             <version>12.3.1</version>
         </dependency>
+<<<<<<< HEAD
 
         <!-- PDF Generation -->
         <dependency>
@@ -98,6 +99,11 @@
                 </includes>
             </resource>
         </resources>
+=======
+    </dependencies>
+
+    <build>
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -128,6 +134,7 @@
                     </execution>
                 </executions>
             </plugin>
+<<<<<<< HEAD
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -148,6 +155,8 @@
                     </execution>
                 </executions>
             </plugin>
+=======
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         </plugins>
     </build>
 </project>

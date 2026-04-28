@@ -1,5 +1,6 @@
 package com.medicare.models;
 
+<<<<<<< HEAD
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -135,3 +136,7 @@ public class Collaboration {
         this.updatedAt = updatedAt;
     }
 }
+=======
+public class Collaboration {
+}
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

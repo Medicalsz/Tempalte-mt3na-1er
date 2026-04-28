@@ -4,8 +4,11 @@ import com.medicare.HelloApplication;
 import com.medicare.models.User;
 import com.medicare.services.RendezVousService;
 import com.medicare.services.UserService;
+<<<<<<< HEAD
 import com.medicare.utils.Session;
 
+=======
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -37,9 +40,12 @@ public class LoginController {
         if (user != null) {
             System.out.println("Connexion reussie : " + user);
 
+<<<<<<< HEAD
             // Set the user in the global session
             Session.getInstance().setCurrentUser(user);
 
+=======
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             if (user.getRoles().contains("ROLE_ADMIN")) {
                 // Admin
                 DashboardAdminController.setCurrentUser(user);
@@ -84,4 +90,9 @@ public class LoginController {
             e.printStackTrace();
         }
     }
+<<<<<<< HEAD
 }
+=======
+}
+
+>>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
