@@ -4,6 +4,8 @@ import com.medicare.HelloApplication;
 import com.medicare.models.User;
 import com.medicare.services.RendezVousService;
 import com.medicare.services.UserService;
+import com.medicare.utils.Session;
+
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -34,6 +36,9 @@ public class LoginController {
 
         if (user != null) {
             System.out.println("Connexion reussie : " + user);
+
+            // Set the user in the global session
+            Session.getInstance().setCurrentUser(user);
 
             if (user.getRoles().contains("ROLE_ADMIN")) {
                 // Admin
@@ -80,4 +85,3 @@ public class LoginController {
         }
     }
 }
-

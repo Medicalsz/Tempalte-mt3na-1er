@@ -17,9 +17,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public class CollaborationFormController {
 
@@ -108,10 +110,8 @@ public class CollaborationFormController {
 
     @FXML
     private void onSave() {
-        // Basic Validation
-        if (titreField.getText().isEmpty() || partnerComboBox.getValue() == null || dateDebutPicker.getValue() == null) {
-            showAlert(Alert.AlertType.ERROR, "Erreur de validation", "Les champs Titre, Partenaire et Date de début sont obligatoires.");
-            return;
+        if (!validateInputs()) {
+            return; // Stop if validation fails
         }
 
         boolean isNew = currentCollaboration == null;
@@ -144,6 +144,66 @@ public class CollaborationFormController {
         closeStage();
     }
 
+    private boolean validateInputs() {
+        // Clear previous validation styles
+        resetValidationStyles();
+
+        List<String> errors = new ArrayList<>();
+
+        // --- Field-by-field validation ---
+        if (titreField.getText().isBlank()) {
+            errors.add("Le champ 'Titre' est obligatoire.");
+            titreField.getStyleClass().add("validation-error");
+        }
+        if (descriptionArea.getText().isBlank()) {
+            errors.add("Le champ 'Description' est obligatoire.");
+            descriptionArea.getStyleClass().add("validation-error");
+        }
+        if (partnerComboBox.getValue() == null) {
+            errors.add("Le champ 'Partenaire' est obligatoire.");
+            partnerComboBox.getStyleClass().add("validation-error");
+        }
+        if (statutComboBox.getValue() == null) {
+            errors.add("Le champ 'Statut' est obligatoire.");
+            statutComboBox.getStyleClass().add("validation-error");
+        }
+        if (dateDebutPicker.getValue() == null) {
+            errors.add("Le champ 'Date de début' est obligatoire.");
+            dateDebutPicker.getStyleClass().add("validation-error");
+        } else if (dateDebutPicker.getValue().isAfter(LocalDate.now())) {
+            errors.add("La 'Date de début' ne peut pas être dans le futur.");
+            dateDebutPicker.getStyleClass().add("validation-error");
+        }
+        if (dateFinPicker.getValue() == null) {
+            errors.add("Le champ 'Date de fin' est obligatoire.");
+            dateFinPicker.getStyleClass().add("validation-error");
+        }
+
+        // --- Cross-field validation (Date Logic) ---
+        if (dateDebutPicker.getValue() != null && dateFinPicker.getValue() != null &&
+            dateFinPicker.getValue().isBefore(dateDebutPicker.getValue())) {
+            errors.add("La 'Date de fin' doit être après la 'Date de début'.");
+            dateDebutPicker.getStyleClass().add("validation-error");
+            dateFinPicker.getStyleClass().add("validation-error");
+        }
+
+        // --- Final Check ---
+        if (errors.isEmpty()) {
+            return true;
+        } else {
+            // If there are errors, show them all in one alert
+            String errorHeader = "Veuillez corriger les erreurs suivantes :";
+            String errorContent = String.join("\n- ", errors);
+            showAlert(Alert.AlertType.ERROR, "Erreur de Validation", errorHeader, "- " + errorContent);
+            return false;
+        }
+    }
+
+    private void resetValidationStyles() {
+        Stream.of(titreField, descriptionArea, partnerComboBox, statutComboBox, dateDebutPicker, dateFinPicker)
+              .forEach(node -> node.getStyleClass().remove("validation-error"));
+    }
+
     private String saveImage(File imageFile) {
         try {
             // Define your upload directory
@@ -163,7 +223,7 @@ public class CollaborationFormController {
             return uniqueName;
         } catch (Exception e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Erreur Fichier", "Impossible d'enregistrer l'image.");
+            showAlert(Alert.AlertType.ERROR, "Erreur Fichier", "Impossible d'enregistrer l'image.", "Vérifiez les permissions du dossier et l'espace disque.");
             return null;
         }
     }
@@ -180,12 +240,10 @@ public class CollaborationFormController {
         ((Stage) titleLabel.getScene().getWindow()).close();
     }
 
-
-
-    private void showAlert(Alert.AlertType type, String title, String content) {
+    private void showAlert(Alert.AlertType type, String title, String header, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
-        alert.setHeaderText(null);
+        alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();
     }

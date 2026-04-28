@@ -1,5 +1,7 @@
 package com.medicare.controllers;
 
+import java.io.IOException;
+
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -10,6 +12,7 @@ import com.medicare.services.RendezVousService;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -27,10 +30,12 @@ public class DashboardPatientController {
     @FXML private Button btnRendezVous;
     @FXML private Button btnDonation;
     @FXML private Button btnProduit;
-    @FXML private Button btnCollaboration;
+    @FXML private Button btnPartnerships;
+    @FXML private Button btnMesCollaborations;
     @FXML private Button btnForum;
     @FXML private Button btnDevenirMedecin;
     @FXML private Button btnLogout;
+    @FXML private Button chatbotButton;
 
     private static User currentUser;
 
@@ -49,10 +54,12 @@ public class DashboardPatientController {
         btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
         btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
         btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
-        btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
+        btnPartnerships.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
+        btnMesCollaborations.setGraphic(icon(FontAwesomeSolid.LIST_ALT));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
         btnDevenirMedecin.setGraphic(icon(FontAwesomeSolid.USER_MD, Color.web("#ffd700")));
         btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#ffcccb")));
+        chatbotButton.setGraphic(icon(FontAwesomeSolid.COMMENTS, Color.web("#1a73e8")));
 
         highlightButton(btnAccueil);
     }
@@ -111,11 +118,30 @@ public class DashboardPatientController {
         }});
     }
 
-    @FXML private void onCollaborationClick() {
-        highlightButton(btnCollaboration);
-        setContent(new Label("Collaborer") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+    @FXML private void onPartnershipsClick() {
+        highlightButton(btnPartnerships);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-collaboration-view.fxml"));
+            Node view = loader.load();
+            UserCollaborationController controller = loader.getController();
+            controller.setDashboardStackPane(contentArea);
+            setContent(view);
+        } catch (IOException e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur de chargement de la page des partenariats."));
+        }
+    }
+
+    @FXML private void onMesCollaborationsClick() {
+        highlightButton(btnMesCollaborations);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-collaborations-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (IOException e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur de chargement de la page des collaborations."));
+        }
     }
 
     @FXML private void onForumClick() {
@@ -131,6 +157,24 @@ public class DashboardPatientController {
             setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
         }});
         // TODO : formulaire de demande pour devenir médecin
+    }
+
+    @FXML
+    private void onChatbotClick() {
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("chatbot-view.fxml"));
+            Parent root = loader.load();
+            Stage chatbotStage = new Stage();
+                chatbotStage.setTitle("Medicare AI Assistant");
+                Scene scene = new Scene(root);
+                scene.getStylesheets().add(HelloApplication.class.getResource("chatbot-style.css").toExternalForm());
+                chatbotStage.setScene(scene);
+                chatbotStage.setResizable(false);
+                chatbotStage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            // Optionally, show an error alert to the user
+        }
     }
 
     @FXML private void onLogoutClick() {
@@ -161,7 +205,8 @@ public class DashboardPatientController {
         btnRendezVous.setStyle(normalStyle);
         btnDonation.setStyle(normalStyle);
         btnProduit.setStyle(normalStyle);
-        btnCollaboration.setStyle(normalStyle);
+        btnPartnerships.setStyle(normalStyle);
+        btnMesCollaborations.setStyle(normalStyle);
         btnForum.setStyle(normalStyle);
         btnDevenirMedecin.setStyle(normalGoldStyle);
 

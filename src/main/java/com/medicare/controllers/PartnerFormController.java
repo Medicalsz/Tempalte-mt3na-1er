@@ -20,8 +20,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
+
 import javafx.collections.FXCollections;
+import javafx.scene.control.Alert;
 
 public class PartnerFormController {
 
@@ -103,6 +108,10 @@ public class PartnerFormController {
 
     @FXML
     private void handleSave() {
+        if (!validateInputs()) {
+            return; // Stop if validation fails
+        }
+
         currentPartner.setName(nomField.getText());
         currentPartner.setTypePartenaire(typeComboBox.getValue());
         currentPartner.setStatut(statutComboBox.getValue());
@@ -149,5 +158,76 @@ public class PartnerFormController {
     private void closeStage() {
         Stage stage = (Stage) saveBtn.getScene().getWindow();
         stage.close();
+    }
+
+    private boolean validateInputs() {
+        resetValidationStyles();
+        List<String> errors = new ArrayList<>();
+
+        if (nomField.getText().isBlank()) {
+            errors.add("Le champ 'Nom' est obligatoire.");
+            nomField.getStyleClass().add("validation-error");
+        }
+        if (typeComboBox.getValue() == null) {
+            errors.add("Le champ 'Type' est obligatoire.");
+            typeComboBox.getStyleClass().add("validation-error");
+        }
+
+        // Email validation with regex
+        String emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,6}$";
+        if (emailField.getText().isBlank()) {
+            errors.add("Le champ 'Email' est obligatoire.");
+            emailField.getStyleClass().add("validation-error");
+        } else if (!emailField.getText().matches(emailRegex)) {
+            errors.add("Le format de l\'Email est invalide.");
+            emailField.getStyleClass().add("validation-error");
+        }
+
+        // Phone validation for digits only
+        if (phoneField.getText().isBlank()) {
+            errors.add("Le champ 'Téléphone' est obligatoire.");
+            phoneField.getStyleClass().add("validation-error");
+        } else if (!phoneField.getText().matches("\\d+")) {
+            errors.add("Le 'Téléphone' ne doit contenir que des chiffres.");
+            phoneField.getStyleClass().add("validation-error");
+        }
+
+        if (adresseField.getText().isBlank()) {
+            errors.add("Le champ 'Adresse' est obligatoire.");
+            adresseField.getStyleClass().add("validation-error");
+        }
+        if (statutComboBox.getValue() == null) {
+            errors.add("Le champ 'Statut' est obligatoire.");
+            statutComboBox.getStyleClass().add("validation-error");
+        }
+        if (datePicker.getValue() == null) {
+            errors.add("Le champ 'Date Partenariat' est obligatoire.");
+            datePicker.getStyleClass().add("validation-error");
+        } else if (datePicker.getValue().isAfter(LocalDate.now())) {
+            errors.add("La 'Date Partenariat' ne peut pas être dans le futur.");
+            datePicker.getStyleClass().add("validation-error");
+        }
+
+        if (errors.isEmpty()) {
+            return true;
+        } else {
+            String errorHeader = "Veuillez corriger les erreurs suivantes :";
+            String errorContent = String.join("\n- ", errors);
+            showAlert(Alert.AlertType.ERROR, "Erreur de Validation", errorHeader, "- " + errorContent);
+            return false;
+        }
+    }
+
+    private void resetValidationStyles() {
+        Stream.of(nomField, typeComboBox, emailField, phoneField, adresseField, statutComboBox, datePicker)
+              .forEach(node -> node.getStyleClass().remove("validation-error"));
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String header, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 }

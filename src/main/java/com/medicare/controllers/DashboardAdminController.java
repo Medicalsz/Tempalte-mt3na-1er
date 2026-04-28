@@ -5,6 +5,8 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import com.medicare.models.User;
 
+import java.io.IOException;
+
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -64,9 +66,17 @@ public class DashboardAdminController {
 
     @FXML private void onAccueilClick() {
         highlightButton(btnAccueil);
-        setContent(new Label("Bienvenue sur le panneau d'administration !") {{
-            setStyle("-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/admin-home-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (IOException e) {
+            e.printStackTrace();
+            // Fallback in case of error
+            setContent(new Label("Erreur de chargement du tableau de bord.") {{
+                setStyle("-fx-font-size: 18px; -fx-text-fill: #ef4444;");
+            }});
+        }
     }
 
     @FXML private void onUtilisateursClick() {

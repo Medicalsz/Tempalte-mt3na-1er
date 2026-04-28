@@ -4,14 +4,16 @@ public class Badge {
     private String id;
     private String name;
     private String description;
+    private String iconPath;
 
     public Badge() {
     }
 
-    public Badge(String id, String name, String description) {
+    public Badge(String id, String name, String description, String iconPath) {
         this.id = id;
         this.name = name;
         this.description = description;
+        this.iconPath = iconPath;
     }
 
     // Getters
@@ -27,6 +29,10 @@ public class Badge {
         return description;
     }
 
+    public String getIconPath() {
+        return iconPath;
+    }
+
     // Setters
     public void setId(String id) {
         this.id = id;
@@ -38,5 +44,9 @@ public class Badge {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public void setIconPath(String iconPath) {
+        this.iconPath = iconPath;
     }
 }

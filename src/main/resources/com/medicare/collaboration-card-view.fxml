@@ -1,0 +1,26 @@
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Rectangle?>
+<VBox fx:id="card" styleClass="collaboration-card" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.CollaborationCardController">
+    <children>
+        <ImageView fx:id="partnerImageView" fitHeight="150.0" fitWidth="250.0" pickOnBounds="true" preserveRatio="false">
+            <clip>
+                <Rectangle arcHeight="20" arcWidth="20" width="250" height="150"/>
+            </clip>
+        </ImageView>
+        <VBox styleClass="card-content">
+            <children>
+                <Label fx:id="titleLabel" styleClass="card-title"/>
+                <Label fx:id="partnerNameLabel" styleClass="card-partner-name"/>
+                <HBox styleClass="card-details">
+                    <children>
+                        <Label fx:id="statusLabel" styleClass="card-status"/>
+                        <Label fx:id="dateLabel" styleClass="card-date"/>
+                    </children>
+                </HBox>
+            </children>
+        </VBox>
+    </children>
+</VBox>

@@ -1,282 +1,375 @@
 package com.medicare.controllers;
 
+import java.awt.Desktop;
+import java.io.InputStream;
+import java.net.URI;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+
+import org.kordamp.ikonli.javafx.FontIcon;
+
 import com.medicare.models.Badge;
+import com.medicare.models.Comment;
 import com.medicare.models.Partner;
-import com.medicare.models.PartnerRating;
-import com.medicare.services.ReputationService;
+import com.medicare.models.User;
+import com.medicare.services.BadgeService;
+import com.medicare.services.CommentService;
+import com.medicare.utils.Session;
+
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 
 public class PartnerDetailController {
 
     @FXML
-    private VBox mainContainer;
+    private ImageView partnerImageView;
     @FXML
     private Label partnerNameLabel;
     @FXML
-    private ImageView partnerImageView;
+    private Label partnerTypeLabel;
     @FXML
-    private Label typeLabel;
+    private GridPane detailsGrid;
     @FXML
-    private Label statutLabel;
+    private HBox ratingBox;
     @FXML
-    private Label emailLabel;
+    private HBox badgesBox;
     @FXML
-    private Label telephoneLabel;
+    private VBox commentsVBox;
     @FXML
-    private Label adresseLabel;
-    @FXML
-    private Label datePartenariatLabel;
-
-    // Reputation section
-    @FXML
-    private Label averageRatingLabel;
-    @FXML
-    private FlowPane badgesPane;
-    @FXML
-    private ListView<PartnerRating> ratingsListView;
-
-    // Add Comment Section
-    @FXML
-    private HBox ratingStarsContainer;
+    private Label commentsToggleLabel;
     @FXML
     private TextArea commentTextArea;
+    @FXML
+    private HBox addRatingBox;
+    @FXML
+    private Button submitCommentButton;
 
-    private ReputationService reputationService;
     private Partner currentPartner;
     private int selectedRating = 0;
-    private List<Text> ratingStars = new ArrayList<>();
 
-    public PartnerDetailController() {
-        this.reputationService = new ReputationService();
-    }
-
-    @FXML
-    private void initialize() {
-        setupRatingStars();
-    }
+    private final CommentService commentService = new CommentService();
+    private final BadgeService badgeService = new BadgeService();
 
     public void setPartner(Partner partner) {
-        if (partner == null) {
-            return;
-        }
-        this.currentPartner = partner;
+        this.currentPartner = partner; // Stocker le partenaire actuel
 
-        // --- Formatters ---
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMMM yyyy");
-
-        // --- Populate Basic Info ---
+        // Informations de base
         partnerNameLabel.setText(partner.getName());
-        typeLabel.setText(partner.getTypePartenaire());
-        statutLabel.setText(partner.getStatut());
-        emailLabel.setText(partner.getEmail());
-        telephoneLabel.setText(partner.getTelephone());
-        adresseLabel.setText(partner.getAdresse());
+        partnerTypeLabel.setText(partner.getTypePartenaire());
 
-        if (partner.getDatePartenariat() != null) {
-            datePartenariatLabel.setText(partner.getDatePartenariat().format(dateFormatter));
-        } else {
-            datePartenariatLabel.setText("Non spécifiée");
-        }
-
-        // --- Load Image ---
-        if (partner.getImageName() != null && !partner.getImageName().isEmpty()) {
-            try {
-                Path imagePath = Paths.get("src/main/resources/uploads/partners", partner.getImageName());
-                if (Files.exists(imagePath)) {
-                    Image image = new Image(imagePath.toUri().toString());
-                    partnerImageView.setImage(image);
-
-                    // Apply a circular clip to the image view
-                    Circle clip = new Circle(40, 40, 40); // The image view is 80x80, so radius is 40
-                    partnerImageView.setClip(clip);
-                }
-            } catch (Exception e) {
-                System.err.println("Could not load image for partner " + partner.getId() + ": " + e.getMessage());
-                partnerImageView.setImage(null);
+        // Image du partenaire avec une gestion d'erreur robuste
+        InputStream imageStream = null;
+        try {
+            // 1. Essayer de charger l'image spécifique au partenaire
+            String imageName = partner.getImageName();
+            if (imageName != null && !imageName.isEmpty()) {
+                imageStream = getClass().getResourceAsStream("/uploads/partners/" + imageName);
             }
+
+            // 2. Si l'image spécifique n'est pas trouvée, essayer de charger l'image par défaut
+            if (imageStream == null) {
+                System.err.println("Image non trouvée pour le partenaire: " + imageName + ". Tentative avec l'image par défaut.");
+                imageStream = getClass().getResourceAsStream("/images/default_partner.png");
+            }
+
+            // 3. Si une image a été trouvée (spécifique ou par défaut), l'afficher
+            if (imageStream != null) {
+                Image image = new Image(imageStream);
+                partnerImageView.setImage(image);
+                Circle clip = new Circle(40, 40, 40); // Assure que l'image est bien circulaire
+                partnerImageView.setClip(clip);
+            } else {
+                // 4. Si même l'image par défaut n'est pas trouvée, afficher un message d'erreur clair
+                System.err.println("ERREUR CRITIQUE: L'image par défaut '/images/default_partner.png' est introuvable. L'affichage de l'image est annulé.");
+                // On pourrait ici définir une couleur de fond ou une icône de remplacement
+            }
+        } catch (Exception e) {
+            System.err.println("Une erreur inattendue est survenue lors du chargement de l'image : " + e.getMessage());
+            e.printStackTrace();
         }
 
-        // --- Load and Display Reputation Data ---
-        loadReputationData(partner.getId());
-    }
+        // Remplissage dynamique de la grille de détails
+        populateDetailsGrid(partner);
 
-    private void loadReputationData(int partnerId) {
-        // --- Ratings ---
-        List<PartnerRating> ratings = reputationService.getRatingsForPartner(partnerId);
-        if (ratings.isEmpty()) {
-            averageRatingLabel.setText("N/A");
-            ratingsListView.setPlaceholder(new Label("Aucun commentaire pour le moment."));
-            ratingsListView.getItems().clear();
-        } else {
-            double average = ratings.stream().mapToInt(PartnerRating::getRating).average().orElse(0.0);
-            averageRatingLabel.setText(String.format("%.1f / 5", average));
-            ratingsListView.getItems().setAll(ratings);
-        }
+        // Réputation
+        double avgRating = commentService.getAverageRatingForPartner(partner.getId());
+        setStarRating(avgRating);
 
-        // --- Badges ---
-        List<Badge> badges = reputationService.getBadgesForPartner(partnerId);
-        badgesPane.getChildren().clear();
+        // Badges
+        List<Badge> badges = badgeService.getBadgesForPartner(partner.getId());
+        badgesBox.getChildren().clear();
         if (badges.isEmpty()) {
-            badgesPane.getChildren().add(new Label("Aucun badge obtenu."));
+            badgesBox.getChildren().add(new Label("Aucun badge obtenu."));
         } else {
             for (Badge badge : badges) {
-                VBox badgeView = new VBox();
-                badgeView.getStyleClass().add("badge-view");
-
-                // Use a static placeholder icon
-                Text badgeIcon = new Text("🏆");
-                badgeIcon.getStyleClass().add("badge-icon");
-
-                // Make the "Top Rated" badge gold
-                if ("Top Rated".equalsIgnoreCase(badge.getName())) {
-                    badgeIcon.setFill(Color.GOLD);
-                }
-
-                Label badgeName = new Label(badge.getName());
-                badgeName.getStyleClass().add("badge-name");
-
-                badgeView.getChildren().addAll(badgeIcon, badgeName);
-                badgesPane.getChildren().add(badgeView);
+                badgesBox.getChildren().add(createBadgeView(badge));
             }
         }
 
-        // --- Customize ListView Cell ---
-        ratingsListView.setCellFactory(lv -> new ListCell<PartnerRating>() {
-            @Override
-            protected void updateItem(PartnerRating item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    // --- Main container for the comment ---
-                    VBox commentBox = new VBox(10); // Spacing between header and text
-                    commentBox.getStyleClass().add("comment-box");
 
-                    // --- Header: Rating, Username, Date, Sentiment ---
-                    HBox header = new HBox();
-                    header.getStyleClass().add("comment-header");
+        // Commentaires
+        refreshComments();
 
-                    Label ratingLabel = new Label(String.format("%d/5", item.getRating()));
-                    ratingLabel.getStyleClass().add("comment-rating");
-
-                    String userName = (item.getUserName() != null && !item.getUserName().isEmpty()) ? item.getUserName() : "Anonyme";
-                    Label nameLabel = new Label(userName);
-                    nameLabel.getStyleClass().add("comment-user-name");
-
-                    // Sentiment Icon
-                    Label sentimentIcon = new Label();
-                    sentimentIcon.getStyleClass().add("sentiment-icon");
-                    String sentiment = item.getSentiment();
-                    if (sentiment != null) {
-                        switch (sentiment.toLowerCase()) {
-                            case "positive":
-                                sentimentIcon.setText("😊");
-                                sentimentIcon.getStyleClass().add("sentiment-positive");
-                                break;
-                            case "negative":
-                                sentimentIcon.setText("😠");
-                                sentimentIcon.getStyleClass().add("sentiment-negative");
-                                break;
-                            default:
-                                sentimentIcon.setText("😐");
-                                sentimentIcon.getStyleClass().add("sentiment-neutral");
-                                break;
-                        }
-                    }
-
-                    Label dateLabel = new Label();
-                    dateLabel.getStyleClass().add("comment-date");
-                    if (item.getCreatedAt() != null) {
-                        dateLabel.setText("- " + item.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy")));
-                    } else {
-                        dateLabel.setText("Date inconnue");
-                    }
-
-                    header.getChildren().addAll(ratingLabel, nameLabel, sentimentIcon, dateLabel);
-
-                    commentBox.getChildren().add(header);
-
-                    // --- Comment Text (if it exists) ---
-                    if (item.getComment() != null && !item.getComment().trim().isEmpty()) {
-                        Text commentText = new Text(item.getComment());
-                        commentText.getStyleClass().add("comment-text");
-                        commentText.setWrappingWidth(300); // Adjust width as needed
-                        commentBox.getChildren().add(commentText);
-                    }
-
-                    setGraphic(commentBox);
-                }
-            }
-        });
+        // Initialisation du formulaire d'ajout de commentaire
+        setupAddCommentSection();
     }
 
-    private void setupRatingStars() {
-        for (int i = 1; i <= 5; i++) {
-            Text star = new Text("☆");
-            star.getStyleClass().add("rating-star");
-            final int rating = i;
+    private void refreshComments() {
+        if (currentPartner == null) return;
+        List<Comment> comments = commentService.getCommentsForPartner(currentPartner.getId());
+        commentsVBox.getChildren().clear();
+        for (Comment comment : comments) {
+            commentsVBox.getChildren().add(createCommentCard(comment));
+        }
 
+        // Mettre à jour le label de basculement
+        updateToggleLabel(comments.size());
+
+        // Mettre à jour également la note moyenne
+        double avgRating = commentService.getAverageRatingForPartner(currentPartner.getId());
+        setStarRating(avgRating);
+    }
+
+    private void populateDetailsGrid(Partner partner) {
+        detailsGrid.getChildren().clear();
+        detailsGrid.getColumnConstraints().clear(); // Vider les anciennes contraintes
+
+        // Contrainte pour la colonne des libellés (fixe)
+        ColumnConstraints col1 = new ColumnConstraints();
+        col1.setPrefWidth(120); // Largeur fixe pour les libellés
+        col1.setHgrow(Priority.NEVER);
+
+        // Contrainte pour la colonne des valeurs (qui s'étend)
+        ColumnConstraints col2 = new ColumnConstraints();
+        col2.setHgrow(Priority.ALWAYS);
+
+        detailsGrid.getColumnConstraints().addAll(col1, col2);
+
+        // Création du bouton de contact une seule fois
+        Button contactBtn = new Button();
+        FontIcon mailIcon = new FontIcon("fas-envelope");
+        mailIcon.getStyleClass().add("contact-icon");
+        contactBtn.setGraphic(mailIcon);
+        contactBtn.getStyleClass().add("contact-button");
+        contactBtn.setOnAction(e -> handleContactPartner());
+
+        Map<String, String> details = Map.of(
+                "Téléphone", partner.getTelephone(),
+                "Date Partenariat", partner.getDatePartenariat() != null ? partner.getDatePartenariat().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")) : "N/A",
+                "Statut", partner.getStatut(),
+                "Email", partner.getEmail(),
+                "Adresse", partner.getAdresse()
+        );
+
+        int row = 0;
+        for (Map.Entry<String, String> entry : details.entrySet()) {
+            Label headerLabel = new Label(entry.getKey());
+            headerLabel.getStyleClass().add("grid-label-header");
+            detailsGrid.add(headerLabel, 0, row);
+
+            if (entry.getKey().equals("Email")) {
+                HBox emailBox = new HBox(10);
+                emailBox.setAlignment(Pos.CENTER_LEFT);
+                Label valueLabel = new Label(entry.getValue());
+                valueLabel.setWrapText(true);
+                emailBox.getChildren().addAll(valueLabel, contactBtn);
+                detailsGrid.add(emailBox, 1, row);
+            } else {
+                Label valueLabel = new Label(entry.getValue());
+                valueLabel.setWrapText(true);
+                detailsGrid.add(valueLabel, 1, row);
+            }
+            row++;
+        }
+    }
+
+    private void setStarRating(double rating) {
+        ratingBox.getChildren().clear();
+        Label ratingLabel = new Label(String.format("Note moyenne : %.1f / 5", rating));
+        ratingLabel.getStyleClass().add("reputation-label");
+        ratingBox.getChildren().add(ratingLabel);
+
+        HBox stars = new HBox();
+        stars.setSpacing(2);
+        updateRatingStars(stars, (int) Math.round(rating));
+        ratingBox.getChildren().add(stars);
+    }
+
+    private VBox createCommentCard(Comment comment) {
+        VBox card = new VBox(5);
+        card.getStyleClass().add("comment-card");
+
+        HBox header = new HBox(10);
+        Label authorLabel = new Label(comment.getUserName() != null ? comment.getUserName() : "Anonyme");
+        authorLabel.getStyleClass().add("comment-header");
+
+        Label dateLabel = new Label("- " + comment.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy")));
+        dateLabel.getStyleClass().add("comment-date");
+
+        // Ajout du sentiment avec gestion du null
+        String sentiment = comment.getSentiment();
+        if (sentiment == null) {
+            sentiment = "NEUTRAL"; // Valeur par défaut si le sentiment est null
+        }
+
+        Label sentimentLabel = new Label(sentiment);
+        sentimentLabel.getStyleClass().add("sentiment-label");
+        switch (sentiment.toUpperCase()) {
+            case "POSITIVE":
+                sentimentLabel.getStyleClass().add("sentiment-positive");
+                break;
+            case "NEGATIVE":
+                sentimentLabel.getStyleClass().add("sentiment-negative");
+                break;
+            default:
+                sentimentLabel.getStyleClass().add("sentiment-neutral");
+                break;
+        }
+
+        header.getChildren().addAll(authorLabel, dateLabel, sentimentLabel);
+
+        Label textLabel = new Label(comment.getContent());
+        textLabel.getStyleClass().add("comment-text");
+
+        card.getChildren().addAll(header, textLabel);
+        return card;
+    }
+
+    @FXML
+    private void toggleCommentsVisibility() {
+        boolean isVisible = !commentsVBox.isVisible();
+        commentsVBox.setVisible(isVisible);
+        commentsVBox.setManaged(isVisible);
+        updateToggleLabel(commentsVBox.getChildren().size());
+    }
+
+    private void updateToggleLabel(int commentCount) {
+        if (commentCount == 0) {
+            commentsToggleLabel.setText("(0 avis)");
+            commentsToggleLabel.setDisable(true); // Désactiver le clic si pas de commentaires
+        } else {
+            commentsToggleLabel.setDisable(false);
+            if (commentsVBox.isVisible()) {
+                commentsToggleLabel.setText(String.format("(%d) - Masquer", commentCount));
+            } else {
+                commentsToggleLabel.setText(String.format("(%d) - Afficher", commentCount));
+            }
+        }
+    }
+
+    private void setupAddCommentSection() {
+        // Crée les étoiles initiales (vides) et les ajoute au conteneur
+        updateRatingStars(addRatingBox, 0);
+
+        // Ajoute les gestionnaires de clics aux étoiles qui viennent d'être créées
+        for (int i = 1; i <= 5; i++) {
+            FontIcon star = (FontIcon) addRatingBox.getChildren().get(i - 1);
+            final int rating = i;
             star.setOnMouseClicked(event -> {
                 selectedRating = rating;
-                updateRatingStars();
+                updateRatingStars(addRatingBox, rating); // Met à jour visuellement les étoiles
             });
-
-            ratingStars.add(star);
-            ratingStarsContainer.getChildren().add(star);
-        }
-    }
-
-    private void updateRatingStars() {
-        for (int i = 0; i < ratingStars.size(); i++) {
-            Text star = ratingStars.get(i);
-            if (i < selectedRating) {
-                star.setText("★");
-                star.setFill(Color.GOLD);
-            } else {
-                star.setText("☆");
-                star.setFill(Color.BLACK);
-            }
         }
     }
 
     @FXML
-    private void submitComment() {
-        String commentText = commentTextArea.getText();
-        if (selectedRating == 0 || commentText.trim().isEmpty()) {
-            // You can show an alert here to inform the user
-            System.out.println("Please select a rating and write a comment.");
+    private void handleSubmitComment() {
+        String content = commentTextArea.getText();
+        if (content == null || content.trim().isEmpty()) {
+            // Idéalement, afficher une alerte à l'utilisateur
+            System.err.println("Le commentaire ne peut pas être vide.");
+            return;
+        }
+        if (selectedRating == 0) {
+            System.err.println("Veuillez sélectionner une note.");
             return;
         }
 
-        reputationService.addRating(currentPartner.getId(), selectedRating, commentText);
+        // IMPORTANT: Remplacez 1 par l'ID de l'utilisateur actuellement connecté
+        // Vous aurez besoin d'un système de gestion de session pour cela.
+        User currentUser = Session.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            System.err.println("Aucun utilisateur n'est connecté. Impossible de commenter.");
+            // Idéalement, afficher une alerte à l'utilisateur ici.
+            return;
+        }
+        int currentUserId = currentUser.getId();
 
-        // Clear the form and reload data
+        commentService.addComment(currentPartner.getId(), currentUserId, content, selectedRating);
+
+        // Rafraîchir la liste des commentaires et réinitialiser le formulaire
+        refreshComments();
         commentTextArea.clear();
         selectedRating = 0;
-        updateRatingStars();
-        loadReputationData(currentPartner.getId());
+        updateRatingStars(addRatingBox, 0);
+    }
+
+    @FXML
+    private void handleContactPartner() {
+        if (currentPartner == null || currentPartner.getEmail() == null || currentPartner.getEmail().isEmpty()) {
+            System.err.println("Email du partenaire non disponible.");
+            // Optionnel: Afficher une alerte à l'utilisateur
+            return;
+        }
+
+        try {
+            Desktop.getDesktop().mail(new URI("mailto:" + currentPartner.getEmail()));
+        } catch (Exception e) {
+            System.err.println("Impossible d'ouvrir le client de messagerie: " + e.getMessage());
+            // Optionnel: Afficher une alerte à l'utilisateur
+        }
+    }
+
+    private void updateRatingStars(HBox ratingContainer, int rating) {
+        ratingContainer.getChildren().clear();
+        for (int i = 1; i <= 5; i++) {
+            FontIcon star = new FontIcon("fas-star");
+            star.getStyleClass().add("star-icon");
+            if (i <= rating) {
+                star.getStyleClass().add("filled");
+            } else {
+                star.getStyleClass().add("empty");
+            }
+            ratingContainer.getChildren().add(star);
+        }
+    }
+
+    private HBox createBadgeView(Badge badge) {
+        HBox badgeView = new HBox(5);
+        badgeView.setAlignment(Pos.CENTER_LEFT);
+
+        // Icône du badge
+        ImageView iconView = new ImageView();
+        try {
+            // Supposant que les icônes sont dans les ressources
+            String iconPath = badge.getIconPath();
+            if (iconPath != null && !iconPath.isEmpty()) {
+                InputStream iconStream = getClass().getResourceAsStream(iconPath);
+                if (iconStream != null) {
+                    iconView.setImage(new Image(iconStream, 20, 20, true, true));
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur lors du chargement de l'icône du badge: " + e.getMessage());
+        }
+
+        // Nom du badge
+        Label nameLabel = new Label(badge.getName());
+        nameLabel.getStyleClass().add("badge-name");
+
+        badgeView.getChildren().addAll(iconView, nameLabel);
+        return badgeView;
     }
 }

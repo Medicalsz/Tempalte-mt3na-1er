@@ -10,10 +10,6 @@
       fx:controller="com.medicare.controllers.UserCollaborationController"
       styleClass="main-container">
 
-    <stylesheets>
-        <URL value="@user-collaboration-style.css"/>
-    </stylesheets>
-
     <Label text="Nos Partenaires" styleClass="title"/>
 
     <ScrollPane fx:id="scrollPane" styleClass="scroll-pane" fitToWidth="true">

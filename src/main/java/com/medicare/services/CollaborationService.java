@@ -172,4 +172,42 @@ public class CollaborationService implements Crud<Collaboration> {
         }
         return collaborations;
     }
+
+    public List<Collaboration> getCollaborationsForUser(int userId) {
+        List<Collaboration> collaborations = new ArrayList<>();
+        String sql = "SELECT c.*, p.name as partner_name, u.nom as user_name FROM collaboration c " +
+                     "LEFT JOIN partner p ON c.partner_id = p.id " +
+                     "LEFT JOIN user u ON c.user_id = u.id " +
+                     "WHERE c.user_id = ?";
+
+        try (Connection conn = MyConnection.getInstance().getCnx();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Collaboration collab = new Collaboration();
+                collab.setId(rs.getInt("id"));
+                collab.setPartnerId(rs.getInt("partner_id"));
+                collab.setPartnerName(rs.getString("partner_name"));
+                collab.setUserId(rs.getInt("user_id"));
+                collab.setUserName(rs.getString("user_name"));
+                collab.setDateDebut(rs.getDate("date_debut").toLocalDate());
+                if (rs.getDate("date_fin") != null) {
+                    collab.setDateFin(rs.getDate("date_fin").toLocalDate());
+                }
+                collab.setTitre(rs.getString("titre"));
+                collab.setDescription(rs.getString("description"));
+                collab.setStatut(rs.getString("statut"));
+                collab.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
+
+                collaborations.add(collab);
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la récupération des collaborations: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return collaborations;
+    }
 }

@@ -95,6 +95,11 @@ public class DashboardUserController implements Initializable {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/user-collaboration-view.fxml"));
             Node view = loader.load();
+
+            // Pass the main content area to the controller to enable navigation
+            UserCollaborationController controller = loader.getController();
+            controller.setDashboardStackPane(contentArea);
+
             setContent(view);
         } catch (IOException e) {
             e.printStackTrace();
