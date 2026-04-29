@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.medicare.controllers.ChatbotController"
+      style="-fx-background-color: #f9fafb;">
+
+    <HBox spacing="12" alignment="CENTER_LEFT"
+          style="-fx-background-color: linear-gradient(to right, #1a73e8, #7c3aed); -fx-padding: 18 22;">
+        <Label text="Assistant Sante" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="modelInfoLbl" text=""
+               style="-fx-font-size: 11px; -fx-text-fill: #e0e7ff; -fx-padding: 4 10; -fx-background-color: rgba(255,255,255,0.18); -fx-background-radius: 12;"/>
+    </HBox>
+
+    <ScrollPane fx:id="scrollPane" fitToWidth="true" VBox.vgrow="ALWAYS"
+                style="-fx-background: #f9fafb; -fx-background-color: #f9fafb;">
+        <VBox fx:id="messagesBox" spacing="10">
+            <padding>
+                <Insets top="20" right="22" bottom="14" left="22"/>
+            </padding>
+        </VBox>
+    </ScrollPane>
+
+    <HBox spacing="10" alignment="CENTER" style="-fx-background-color: white; -fx-padding: 14 22; -fx-border-color: #e5e7eb #e5e7eb transparent transparent;">
+        <TextField fx:id="inputField" promptText="Decris tes symptomes ou pose ta question..."
+                   HBox.hgrow="ALWAYS"
+                   style="-fx-background-radius: 22; -fx-padding: 10 18; -fx-font-size: 13px; -fx-background-color: #f3f4f6;"
+                   onAction="#onSend"/>
+        <Button fx:id="sendBtn" text="Envoyer"
+                style="-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 22; -fx-cursor: hand; -fx-padding: 9 22;"
+                onAction="#onSend"/>
+    </HBox>
+</VBox>

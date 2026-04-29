@@ -15,11 +15,13 @@ module com.medicare.medicarejavafx {
     requires cloudinary.core;
     requires cloudinary.http5;
     requires stripe.java;
+    requires com.google.gson;
 
 
     opens com.medicare to javafx.fxml;
     opens com.medicare.controllers to javafx.fxml;
     opens com.medicare.models to javafx.fxml;
+    opens com.medicare.services to com.google.gson;
     exports com.medicare;
     exports com.medicare.controllers;
 }

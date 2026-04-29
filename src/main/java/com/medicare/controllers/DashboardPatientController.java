@@ -26,6 +26,7 @@ public class DashboardPatientController {
     @FXML private Button btnDonation;
     @FXML private Button btnProduit;
     @FXML private Button btnMesCommandes;
+    @FXML private Button btnChatbot;
     @FXML private Button btnCollaboration;
     @FXML private Button btnForum;
     @FXML private Button btnDevenirMedecin;
@@ -49,6 +50,7 @@ public class DashboardPatientController {
         btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
         btnProduit.setGraphic(icon(FontAwesomeSolid.CAPSULES));
         btnMesCommandes.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
+        btnChatbot.setGraphic(icon(FontAwesomeSolid.ROBOT));
         btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
         btnDevenirMedecin.setGraphic(icon(FontAwesomeSolid.USER_MD, Color.web("#ffd700")));
@@ -132,6 +134,20 @@ public class DashboardPatientController {
         }
     }
 
+    @FXML private void onChatbotClick() {
+        highlightButton(btnChatbot);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("chatbot-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement chatbot") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
+    }
+
     @FXML private void onCollaborationClick() {
         highlightButton(btnCollaboration);
         setContent(new Label("Collaborer") {{
@@ -183,6 +199,7 @@ public class DashboardPatientController {
         btnDonation.setStyle(normalStyle);
         btnProduit.setStyle(normalStyle);
         btnMesCommandes.setStyle(normalStyle);
+        btnChatbot.setStyle(normalStyle);
         btnCollaboration.setStyle(normalStyle);
         btnForum.setStyle(normalStyle);
         btnDevenirMedecin.setStyle(normalGoldStyle);

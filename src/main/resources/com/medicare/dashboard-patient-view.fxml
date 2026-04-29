@@ -47,6 +47,10 @@
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
+            <Button fx:id="btnChatbot" text="  Assistant Sante" onAction="#onChatbotClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
             <Button fx:id="btnCollaboration" text="  Collaborer" onAction="#onCollaborationClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
