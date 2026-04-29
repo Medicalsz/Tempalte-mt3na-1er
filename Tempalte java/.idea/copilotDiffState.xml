@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="/RendezVous (snapshot).java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="/RendezVous (snapshot).java" />
+              <option name="originalContent" value="package com.medicare.models;&#10;&#10;public class RendezVous {&#10;}&#10;" />
+              <option name="updatedContent" value="package com.medicare.models;&#13;&#10;&#13;&#10;import java.time.LocalDate;&#13;&#10;import java.time.LocalTime;&#13;&#10;&#13;&#10;public class RendezVous {&#13;&#10;    private int id;&#13;&#10;    private int medecinId;&#13;&#10;    private int patientId;&#13;&#10;    private LocalDate date;&#13;&#10;    private LocalTime heure;&#13;&#10;    private String statut; // en_attente, confirme, annule, termine&#13;&#10;&#13;&#10;    // Champs pour affichage (jointure)&#13;&#10;    private String medecinNom;&#13;&#10;    private String medecinPrenom;&#13;&#10;    private String specialite;&#13;&#10;&#13;&#10;    public RendezVous() {}&#13;&#10;&#13;&#10;    public RendezVous(int medecinId, int patientId, LocalDate date, LocalTime heure, String statut) {&#13;&#10;        this.medecinId = medecinId;&#13;&#10;        this.patientId = patientId;&#13;&#10;        this.date = date;&#13;&#10;        this.heure = heure;&#13;&#10;        this.statut = statut;&#13;&#10;    }&#13;&#10;&#13;&#10;    public int getId() { return id; }&#13;&#10;    public void setId(int id) { this.id = id; }&#13;&#10;&#13;&#10;    public int getMedecinId() { return medecinId; }&#13;&#10;    public void setMedecinId(int medecinId) { this.medecinId = medecinId; }&#13;&#10;&#13;&#10;    public int getPatientId() { return patientId; }&#13;&#10;    public void setPatientId(int patientId) { this.patientId = patientId; }&#13;&#10;&#13;&#10;    public LocalDate getDate() { return date; }&#13;&#10;    public void setDate(LocalDate date) { this.date = date; }&#13;&#10;&#13;&#10;    public LocalTime getHeure() { return heure; }&#13;&#10;    public void setHeure(LocalTime heure) { this.heure = heure; }&#13;&#10;&#13;&#10;    public String getStatut() { return statut; }&#13;&#10;    public void setStatut(String statut) { this.statut = statut; }&#13;&#10;&#13;&#10;    public String getMedecinNom() { return medecinNom; }&#13;&#10;    public void setMedecinNom(String medecinNom) { this.medecinNom = medecinNom; }&#13;&#10;&#13;&#10;    public String getMedecinPrenom() { return medecinPrenom; }&#13;&#10;    public void setMedecinPrenom(String medecinPrenom) { this.medecinPrenom = medecinPrenom; }&#13;&#10;&#13;&#10;    public String getSpecialite() { return specialite; }&#13;&#10;    public void setSpecialite(String specialite) { this.specialite = specialite; }&#13;&#10;&#13;&#10;    public String getMedecinFullName() {&#13;&#10;        return (medecinPrenom != null ? medecinPrenom : &quot;&quot;) + &quot; &quot; + (medecinNom != null ? medecinNom : &quot;&quot;);&#13;&#10;    }&#13;&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
