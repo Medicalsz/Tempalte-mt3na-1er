@@ -39,6 +39,7 @@ public class RendezVousFormController {
     @FXML private Button btnRetour;
     @FXML private Label errorLabel;
     @FXML private Label formTitle;
+    @FXML private TextArea motifArea;
 
     private final RendezVousService   service             = new RendezVousService();
     private final EmailService        emailService        = new EmailService();
@@ -98,6 +99,11 @@ public class RendezVousFormController {
 
         // Activer le date picker directement
         datePicker.setDisable(false);
+
+        // Pré-remplir le motif si présent
+        if (motifArea != null && rv.getMotif() != null) {
+            motifArea.setText(rv.getMotif());
+        }
     }
 
     @FXML
@@ -254,6 +260,7 @@ public class RendezVousFormController {
             String ancienneDate = rvToEdit.getDate().toString();
             rvToEdit.setDate(datePicker.getValue());
             rvToEdit.setHeure(selectedHeure);
+            if (motifArea != null) rvToEdit.setMotif(motifArea.getText().trim());
             service.update(rvToEdit);
             // Email de notification au médecin
             User medecinUser = userService.getUserByMedecinId(rvToEdit.getMedecinId());
@@ -279,6 +286,7 @@ public class RendezVousFormController {
             }
             RendezVous rv = new RendezVous(medecin.getId(), patientId,
                     datePicker.getValue(), selectedHeure, "en_attente");
+            if (motifArea != null) rv.setMotif(motifArea.getText().trim());
             service.create(rv);
             showSuccessPopup("Rendez-vous pris !",
                     "Votre rendez-vous a ete enregistre avec succes.",

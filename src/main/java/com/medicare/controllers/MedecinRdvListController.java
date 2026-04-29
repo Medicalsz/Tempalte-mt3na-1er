@@ -645,14 +645,21 @@ public class MedecinRdvListController {
     // ========== DETAILS MODAL ==========
 
     private void showDetails(RendezVous rv) {
+        // Recharger pour récupérer le motif (les listes ne le chargent pas systématiquement)
+        RendezVous full = service.getById(rv.getId());
+        if (full == null) full = rv;
+        // Préserver les noms patient (getById utilise medecinNom/Prenom pour le côté patient)
+        full.setMedecinPrenom(rv.getMedecinPrenom());
+        full.setMedecinNom(rv.getMedecinNom());
+
         DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter heureFmt = DateTimeFormatter.ofPattern("HH:mm");
 
         VBox modal = new VBox(12);
         modal.setAlignment(Pos.CENTER);
         modal.setPadding(new Insets(30));
-        modal.setMaxWidth(420);
-        modal.setMaxHeight(350);
+        modal.setMaxWidth(460);
+        modal.setMaxHeight(500);
         modal.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 20, 0, 0, 5);");
 
@@ -664,19 +671,43 @@ public class MedecinRdvListController {
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #0d9488;");
 
         Label details = new Label(
-            "Patient :  " + rv.getMedecinPrenom() + " " + rv.getMedecinNom() + "\n" +
-            "Date :  " + rv.getDate().format(dateFmt) + "\n" +
-            "Heure :  " + rv.getHeure().format(heureFmt) + "\n" +
-            "Statut :  " + rv.getStatut()
+            "Patient :  " + full.getMedecinPrenom() + " " + full.getMedecinNom() + "\n" +
+            "Date :  " + full.getDate().format(dateFmt) + "\n" +
+            "Heure :  " + full.getHeure().format(heureFmt) + "\n" +
+            "Statut :  " + full.getStatut()
         );
         details.setStyle("-fx-font-size: 14px; -fx-text-fill: #444; -fx-line-spacing: 4;");
+
+        modal.getChildren().addAll(icon, titleLabel, details);
+
+        // Motif de consultation (saisi par le patient) — utile au médecin avant consultation
+        if (full.getMotif() != null && !full.getMotif().trim().isEmpty()) {
+            VBox motifBox = new VBox(5);
+            motifBox.setStyle("-fx-background-color: #f0fdfa; -fx-background-radius: 8; -fx-padding: 12; " +
+                              "-fx-border-color: #99f6e4; -fx-border-radius: 8; -fx-border-width: 1;");
+
+            HBox titleRow = new HBox(6);
+            titleRow.setAlignment(Pos.CENTER_LEFT);
+            FontIcon mIcon = new FontIcon(FontAwesomeSolid.NOTES_MEDICAL);
+            mIcon.setIconSize(13);
+            mIcon.setIconColor(Color.web("#0d9488"));
+            Label motifTitle = new Label("Motif / symptômes du patient :");
+            motifTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #0d9488;");
+            titleRow.getChildren().addAll(mIcon, motifTitle);
+
+            Label motifText = new Label(full.getMotif());
+            motifText.setStyle("-fx-font-size: 13px; -fx-text-fill: #134e4a;");
+            motifText.setWrapText(true);
+
+            motifBox.getChildren().addAll(titleRow, motifText);
+            modal.getChildren().add(motifBox);
+        }
 
         Button closeBtn = new Button("Fermer");
         closeBtn.setStyle("-fx-background-color: #0d9488; -fx-text-fill: white; -fx-font-size: 13px; " +
                           "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 30;");
         closeBtn.setOnAction(e -> reloadFullList());
-
-        modal.getChildren().addAll(icon, titleLabel, details, closeBtn);
+        modal.getChildren().add(closeBtn);
 
         StackPane overlay = new StackPane(modal);
         overlay.setStyle("-fx-background-color: rgba(0,0,0,0.4);");

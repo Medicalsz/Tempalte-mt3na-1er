@@ -11,6 +11,7 @@ public class RendezVous {
     private LocalTime heure;
     private String statut; // en_attente, confirme, annule, termine
     private String motifAnnulation;
+    private String motif; // Motif / symptômes saisis par le patient lors de la prise du RDV
     private LocalDate proposedDate;
     private LocalTime proposedHeure;
     private boolean reportPending;
@@ -52,6 +53,9 @@ public class RendezVous {
 
     public String getMotifAnnulation() { return motifAnnulation; }
     public void setMotifAnnulation(String motifAnnulation) { this.motifAnnulation = motifAnnulation; }
+
+    public String getMotif() { return motif; }
+    public void setMotif(String motif) { this.motif = motif; }
 
     public LocalDate getProposedDate() { return proposedDate; }
     public void setProposedDate(LocalDate proposedDate) { this.proposedDate = proposedDate; }

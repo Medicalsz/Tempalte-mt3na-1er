@@ -313,14 +313,15 @@ public class RendezVousService {
     }
 
     public boolean update(RendezVous rv) {
-        String q = "UPDATE rendez_vous SET medecin_id=?, date=?, heure=?, statut=? WHERE id=?";
+        String q = "UPDATE rendez_vous SET medecin_id=?, date=?, heure=?, statut=?, motif=? WHERE id=?";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, rv.getMedecinId());
             ps.setDate(2, Date.valueOf(rv.getDate()));
             ps.setTime(3, Time.valueOf(rv.getHeure()));
             ps.setString(4, rv.getStatut());
-            ps.setInt(5, rv.getId());
+            ps.setString(5, rv.getMotif());
+            ps.setInt(6, rv.getId());
             ps.executeUpdate();
             return true;
         } catch (SQLException e) { System.out.println("Erreur update RV: " + e.getMessage()); }

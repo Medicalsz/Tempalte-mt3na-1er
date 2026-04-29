@@ -795,6 +795,22 @@ public class RendezVousListController {
 
         modal.getChildren().addAll(icon, titleLabel, details);
 
+        // Afficher le motif de consultation si présent
+        if (full.getMotif() != null && !full.getMotif().trim().isEmpty()) {
+            VBox motifBox = new VBox(5);
+            motifBox.setStyle("-fx-background-color: #eff6ff; -fx-background-radius: 8; -fx-padding: 10;");
+
+            Label motifTitle = new Label("Motif de consultation :");
+            motifTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1d4ed8;");
+
+            Label motifText = new Label(full.getMotif());
+            motifText.setStyle("-fx-font-size: 13px; -fx-text-fill: #1e3a8a;");
+            motifText.setWrapText(true);
+
+            motifBox.getChildren().addAll(motifTitle, motifText);
+            modal.getChildren().add(motifBox);
+        }
+
         // Afficher le motif d'annulation si le RDV est annulé
         if ("annule".equals(full.getStatut()) && full.getMotifAnnulation() != null && !full.getMotifAnnulation().isEmpty()) {
             VBox motifBox = new VBox(5);
