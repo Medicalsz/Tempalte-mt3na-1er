@@ -28,6 +28,16 @@
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: #14b8a6; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
+            <!-- Sous-menu de Rendez-vous (caché par défaut, géré par le contrôleur) -->
+            <VBox fx:id="rdvSubMenu" spacing="3" managed="false" visible="false">
+                <padding>
+                    <Insets left="22"/>
+                </padding>
+                <Button fx:id="btnEvaluations" text="  Mes évaluations" onAction="#onEvaluationsClick"
+                        prefWidth="178" prefHeight="34" alignment="CENTER_LEFT"
+                        style="-fx-background-color: transparent; -fx-text-fill: #ccfbf1; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+            </VBox>
+
             <Button fx:id="btnPlanning" text="  Planning" onAction="#onPlanningClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>

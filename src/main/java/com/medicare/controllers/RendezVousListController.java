@@ -1,9 +1,11 @@
 package com.medicare.controllers;
 
+import com.medicare.models.Evaluation;
 import com.medicare.models.ListeAttente;
 import com.medicare.models.RendezVous;
 import com.medicare.models.User;
 import com.medicare.services.EmailService;
+import com.medicare.services.EvaluationService;
 import com.medicare.services.ListeAttenteService;
 import com.medicare.services.RendezVousService;
 import com.medicare.services.UserService;
@@ -46,6 +48,7 @@ public class RendezVousListController {
     private final EmailService        emailService        = new EmailService();
     private final UserService         userService         = new UserService();
     private final ListeAttenteService listeAttenteService = new ListeAttenteService();
+    private final EvaluationService   evaluationService   = new EvaluationService();
     private int patientId;
     private StackPane contentArea;
     private List<RendezVous> allRdvs;
@@ -292,7 +295,66 @@ public class RendezVousListController {
             card.getChildren().addAll(separator, ordoRow);
         }
 
+        // ===== Bloc évaluation : RDV confirmé + date/heure passée =====
+        if (rv.getStatut().equals("confirme") && isRdvPassed(rv)) {
+            Region sep = new Region();
+            sep.setStyle("-fx-background-color: #e5e7eb; -fx-min-height: 1; -fx-max-height: 1;");
+            card.getChildren().add(sep);
+            card.getChildren().add(buildEvaluationRow(rv));
+        }
+
         return card;
+    }
+
+    /** RDV considéré "passé" si la date+heure est ≤ maintenant. */
+    private boolean isRdvPassed(RendezVous rv) {
+        if (rv.getDate() == null) return false;
+        java.time.LocalDateTime rdvDt = rv.getDate().atTime(rv.getHeure() != null ? rv.getHeure() : java.time.LocalTime.of(23, 59));
+        return !rdvDt.isAfter(java.time.LocalDateTime.now());
+    }
+
+    private HBox buildEvaluationRow(RendezVous rv) {
+        HBox row = new HBox(10);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(6, 0, 0, 0));
+
+        Evaluation existing = evaluationService.getByRdv(rv.getId());
+        if (existing != null) {
+            // Badge évalué
+            FontIcon check = new FontIcon(FontAwesomeSolid.CHECK_CIRCLE);
+            check.setIconSize(14);
+            check.setIconColor(Color.web("#16a34a"));
+            Label badge = new Label("  Évalué");
+            badge.setGraphic(check);
+            badge.setStyle("-fx-background-color: #dcfce7; -fx-text-fill: #166534; -fx-font-size: 12px; " +
+                    "-fx-font-weight: bold; -fx-background-radius: 20; -fx-padding: 5 12;");
+
+            HBox stars = new HBox(2);
+            for (int i = 0; i < 5; i++) {
+                FontIcon s = new FontIcon(FontAwesomeSolid.STAR);
+                s.setIconSize(12);
+                s.setIconColor(Color.web(i < existing.getNote() ? "#f59e0b" : "#e2e8f0"));
+                stars.getChildren().add(s);
+            }
+            Label scoreLbl = new Label(existing.getNote() + "/5");
+            scoreLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #475569; -fx-font-weight: bold;");
+
+            row.getChildren().addAll(badge, stars, scoreLbl);
+        } else {
+            Button btnEval = new Button("  Évaluer la consultation");
+            FontIcon star = new FontIcon(FontAwesomeSolid.STAR);
+            star.setIconSize(14);
+            star.setIconColor(Color.WHITE);
+            btnEval.setGraphic(star);
+            btnEval.setStyle("-fx-background-color: linear-gradient(to right, #f59e0b, #d97706); " +
+                    "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                    "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 7 18; " +
+                    "-fx-effect: dropshadow(gaussian, rgba(245,158,11,0.35), 8, 0, 0, 2);");
+            btnEval.setOnAction(e -> EvaluationDialog.show(rv, patientId,
+                    container.getScene().getWindow(), this::reloadFullList));
+            row.getChildren().add(btnEval);
+        }
+        return row;
     }
 
     private Stage calendarStage;

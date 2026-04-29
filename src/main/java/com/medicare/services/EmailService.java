@@ -280,5 +280,71 @@ public class EmailService {
             """.formatted(nomMedecin, nomPatient, date, heure);
         envoyerEmail(emailMedecin, sujet, contenu);
     }
+
+    // ── Remerciement au patient après évaluation ─────────────────────────
+    public void envoyerRemerciementEvaluation(String emailPatient, String nomPatient,
+                                               String nomMedecin, int note) {
+        String sujet = "⭐ Merci pour votre évaluation - MediCare";
+        String etoiles = "★".repeat(note) + "☆".repeat(5 - note);
+        String contenu = """
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;">
+              <div style="background:linear-gradient(135deg,#f59e0b,#fbbf24);padding:25px;text-align:center;">
+                <h1 style="color:white;margin:0;font-size:28px;">⭐ MediCare</h1>
+                <p style="color:#fff7ed;margin:5px 0 0;">Merci pour votre retour</p>
+              </div>
+              <div style="padding:30px;">
+                <h2 style="color:#d97706;">Bonjour %s,</h2>
+                <p style="color:#555;font-size:16px;">
+                  Merci d'avoir pris le temps d'évaluer votre consultation avec le Dr. <strong>%s</strong>.
+                  Votre avis aide d'autres patients à choisir le bon médecin et permet à votre praticien de progresser.
+                </p>
+                <div style="background:#FEF3C7;border-left:4px solid #f59e0b;padding:20px;margin:20px 0;border-radius:8px;text-align:center;">
+                  <p style="margin:0;font-size:13px;color:#92400e;">Votre note globale</p>
+                  <p style="margin:8px 0 0;font-size:34px;color:#f59e0b;letter-spacing:4px;">%s</p>
+                  <p style="margin:6px 0 0;font-size:14px;color:#92400e;font-weight:bold;">%d / 5</p>
+                </div>
+                <p style="color:#555;font-size:14px;">À très bientôt sur <strong>MediCare</strong> !</p>
+              </div>
+              <div style="background:#f5f5f5;padding:15px;text-align:center;">
+                <p style="color:#999;font-size:12px;margin:0;">MediCare © 2026 — Ne pas répondre à cet email</p>
+              </div>
+            </div>
+            """.formatted(nomPatient, nomMedecin, etoiles, note);
+        envoyerEmail(emailPatient, sujet, contenu);
+    }
+
+    // ── Notification au médecin : nouvelle évaluation reçue ──────────────
+    public void envoyerNotificationEvaluation(String emailMedecin, String nomMedecin,
+                                               String nomPatient, int note, String commentaire) {
+        String sujet = "🌟 Nouvelle évaluation reçue - MediCare";
+        String etoiles = "★".repeat(note) + "☆".repeat(5 - note);
+        String blocCommentaire = (commentaire != null && !commentaire.isBlank())
+                ? "<div style=\"background:#f8fafc;border-left:4px solid #64748b;padding:15px;margin:15px 0;border-radius:6px;font-style:italic;color:#334155;\">« " + commentaire.replace("<", "&lt;").replace(">", "&gt;") + " »</div>"
+                : "<p style=\"color:#94a3b8;font-size:13px;font-style:italic;\">Aucun commentaire laissé.</p>";
+        String contenu = """
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;">
+              <div style="background:linear-gradient(135deg,#0d9488,#14b8a6);padding:25px;text-align:center;">
+                <h1 style="color:white;margin:0;font-size:28px;">🌟 MediCare</h1>
+                <p style="color:#ccfbf1;margin:5px 0 0;">Nouvelle évaluation</p>
+              </div>
+              <div style="padding:30px;">
+                <h2 style="color:#0d9488;">Bonjour Dr. %s,</h2>
+                <p style="color:#555;font-size:16px;">
+                  Le patient <strong>%s</strong> vient de noter votre consultation.
+                </p>
+                <div style="background:#FEF3C7;border-left:4px solid #f59e0b;padding:20px;margin:20px 0;border-radius:8px;text-align:center;">
+                  <p style="margin:0;font-size:34px;color:#f59e0b;letter-spacing:4px;">%s</p>
+                  <p style="margin:6px 0 0;font-size:14px;color:#92400e;font-weight:bold;">%d / 5</p>
+                </div>
+                %s
+                <p style="color:#555;font-size:14px;">Connectez-vous sur <strong>MediCare</strong> → onglet « Mes évaluations » pour consulter le détail des critères.</p>
+              </div>
+              <div style="background:#f5f5f5;padding:15px;text-align:center;">
+                <p style="color:#999;font-size:12px;margin:0;">MediCare © 2026 — Ne pas répondre à cet email</p>
+              </div>
+            </div>
+            """.formatted(nomMedecin, nomPatient, etoiles, note, blocCommentaire);
+        envoyerEmail(emailMedecin, sujet, contenu);
+    }
 }
 

@@ -77,14 +77,26 @@ public class AdminRdvListController {
         long attente = allRdvs.stream().filter(r -> "en_attente".equals(r.getStatut())).count();
         long annules = allRdvs.stream().filter(r -> "annule".equals(r.getStatut())).count();
 
-        // KPI Cards
+        double pctConf = total > 0 ? (confirmes * 100.0 / total) : 0;
+        double pctAtt  = total > 0 ? (attente   * 100.0 / total) : 0;
+        double pctAnn  = total > 0 ? (annules   * 100.0 / total) : 0;
+
+        // KPI Cards (avec tooltips au survol)
         HBox kpiRow = new HBox(12);
         kpiRow.setAlignment(Pos.CENTER);
         kpiRow.getChildren().addAll(
-            buildKpiCard("Total", String.valueOf(total), FontAwesomeSolid.CALENDAR_ALT, "#7c3aed", "#f3f0ff"),
-            buildKpiCard("Confirmes", String.valueOf(confirmes), FontAwesomeSolid.CHECK_CIRCLE, "#16a34a", "#dcfce7"),
-            buildKpiCard("En attente", String.valueOf(attente), FontAwesomeSolid.CLOCK, "#f59e0b", "#fef3c7"),
-            buildKpiCard("Annules", String.valueOf(annules), FontAwesomeSolid.TIMES_CIRCLE, "#dc2626", "#fee2e2")
+            buildKpiCard("Total", String.valueOf(total), FontAwesomeSolid.CALENDAR_ALT, "#7c3aed", "#f3f0ff",
+                    "100% des RDV",
+                    "📅 Nombre total de rendez-vous\nenregistrés dans le système.\n\nTotal : " + total + " RDV"),
+            buildKpiCard("Confirmes", String.valueOf(confirmes), FontAwesomeSolid.CHECK_CIRCLE, "#16a34a", "#dcfce7",
+                    String.format("%.1f%% du total", pctConf),
+                    String.format("✅ Rendez-vous confirmés par les médecins.%n%n%d sur %d  (%.1f%%)", confirmes, total, pctConf)),
+            buildKpiCard("En attente", String.valueOf(attente), FontAwesomeSolid.CLOCK, "#f59e0b", "#fef3c7",
+                    String.format("%.1f%% du total", pctAtt),
+                    String.format("⏳ Rendez-vous en attente de validation\npar le médecin.%n%n%d sur %d  (%.1f%%)", attente, total, pctAtt)),
+            buildKpiCard("Annules", String.valueOf(annules), FontAwesomeSolid.TIMES_CIRCLE, "#dc2626", "#fee2e2",
+                    String.format("%.1f%% du total", pctAnn),
+                    String.format("❌ Rendez-vous annulés par le patient\nou le médecin.%n%n%d sur %d  (%.1f%%)", annules, total, pctAnn))
         );
         container.getChildren().add(kpiRow);
 
@@ -105,12 +117,18 @@ public class AdminRdvListController {
         container.getChildren().add(chartsRow);
     }
 
-    private VBox buildKpiCard(String title, String value, FontAwesomeSolid iconType, String color, String bgColor) {
+    private VBox buildKpiCard(String title, String value, FontAwesomeSolid iconType, String color, String bgColor,
+                              String hoverDetail, String tooltipText) {
         VBox card = new VBox(4);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(14, 10, 14, 10));
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; " +
-                      "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 2);");
+        String baseStyle = "-fx-background-color: white; -fx-background-radius: 12; " +
+                           "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 2);";
+        String hoverStyle = "-fx-background-color: white; -fx-background-radius: 12; -fx-cursor: hand; " +
+                            "-fx-effect: dropshadow(gaussian, " + color + "40, 14, 0, 0, 4); " +
+                            "-fx-border-color: " + color + "; -fx-border-radius: 12; -fx-border-width: 1.5;";
+        card.setStyle(baseStyle);
+        card.setPickOnBounds(true);
         HBox.setHgrow(card, Priority.ALWAYS);
         card.setMaxWidth(Double.MAX_VALUE);
 
@@ -129,7 +147,50 @@ public class AdminRdvListController {
         Label titleLbl = new Label(title);
         titleLbl.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
 
-        card.getChildren().addAll(iconCircle, valLbl, titleLbl);
+        // Détail au survol : badge avec pourcentage qui slide-fade in
+        Label detailLbl = new Label(hoverDetail);
+        detailLbl.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: " + color + "; " +
+                           "-fx-background-color: " + bgColor + "; -fx-background-radius: 10; " +
+                           "-fx-padding: 3 10;");
+        detailLbl.setOpacity(0);
+        detailLbl.setManaged(false);
+        detailLbl.setVisible(false);
+
+        card.getChildren().addAll(iconCircle, valLbl, titleLbl, detailLbl);
+
+        // Tooltip stylisé (long détail)
+        Tooltip tp = new Tooltip(tooltipText);
+        tp.setShowDelay(javafx.util.Duration.millis(400));
+        tp.setHideDelay(javafx.util.Duration.millis(100));
+        tp.setShowDuration(javafx.util.Duration.seconds(10));
+        tp.setStyle("-fx-background-color: #1e293b; -fx-text-fill: white; -fx-font-size: 12px; " +
+                    "-fx-background-radius: 8; -fx-padding: 10 14; " +
+                    "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 10, 0, 0, 3);");
+        Tooltip.install(card, tp);
+
+        // Animations hover : illumination + apparition du badge détail
+        javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(javafx.util.Duration.millis(200), detailLbl);
+        fadeIn.setFromValue(0); fadeIn.setToValue(1);
+        javafx.animation.FadeTransition fadeOut = new javafx.animation.FadeTransition(javafx.util.Duration.millis(150), detailLbl);
+        fadeOut.setFromValue(1); fadeOut.setToValue(0);
+
+        card.setOnMouseEntered(e -> {
+            card.setStyle(hoverStyle);
+            detailLbl.setManaged(true);
+            detailLbl.setVisible(true);
+            fadeOut.stop();
+            fadeIn.playFromStart();
+        });
+        card.setOnMouseExited(e -> {
+            card.setStyle(baseStyle);
+            fadeIn.stop();
+            fadeOut.setOnFinished(ev -> {
+                detailLbl.setVisible(false);
+                detailLbl.setManaged(false);
+            });
+            fadeOut.playFromStart();
+        });
+
         return card;
     }
 
@@ -193,11 +254,17 @@ public class AdminRdvListController {
                 if (d.getNode() == null) continue;
                 javafx.scene.Node node = d.getNode();
                 double pct = total > 0 ? (d.getPieValue() / total) * 100 : 0;
-                String tooltipText = d.getName() + "\n" + (int) d.getPieValue() + " RDV  -  " + String.format("%.1f", pct) + "%";
+                String tooltipText = "📊 " + d.getName()
+                        + "\n────────────────────"
+                        + "\nNombre  : " + (int) d.getPieValue() + " RDV"
+                        + "\nPart     : " + String.format("%.1f", pct) + " %"
+                        + "\nTotal    : " + (int) total + " RDV";
 
                 Tooltip tp = new Tooltip(tooltipText);
+                tp.setShowDelay(javafx.util.Duration.millis(150));
                 tp.setStyle("-fx-background-color: #1e293b; -fx-text-fill: white; -fx-font-size: 12px; " +
-                            "-fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 8 12;");
+                            "-fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 14; " +
+                            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 10, 0, 0, 3);");
                 Tooltip.install(node, tp);
 
                 node.setOnMouseEntered(e -> {
@@ -262,15 +329,27 @@ public class AdminRdvListController {
         bar.sceneProperty().addListener((obs, oldS, newS) -> {
             if (newS != null) {
                 javafx.application.Platform.runLater(() -> {
+                    long totalBar = series.getData().stream().mapToLong(d -> d.getYValue().longValue()).sum();
+                    String[] joursComplets = {"Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"};
+                    int idx = 0;
                     for (XYChart.Data<String, Number> d : series.getData()) {
-                        if (d.getNode() == null) continue;
+                        if (d.getNode() == null) { idx++; continue; }
                         javafx.scene.Node node = d.getNode();
                         node.setStyle("-fx-bar-fill: #7c3aed;");
 
-                        String tooltipText = d.getXValue() + " : " + d.getYValue().intValue() + " RDV";
+                        long count = d.getYValue().longValue();
+                        double pct = totalBar > 0 ? (count * 100.0 / totalBar) : 0;
+                        String jourFull = idx < joursComplets.length ? joursComplets[idx] : d.getXValue();
+                        String tooltipText = "📅 " + jourFull
+                                + "\n────────────────────"
+                                + "\nRendez-vous : " + count
+                                + "\nPart de la semaine : " + String.format("%.1f", pct) + " %";
+
                         Tooltip tp = new Tooltip(tooltipText);
+                        tp.setShowDelay(javafx.util.Duration.millis(150));
                         tp.setStyle("-fx-background-color: #1e293b; -fx-text-fill: white; -fx-font-size: 12px; " +
-                                    "-fx-font-weight: bold; -fx-background-radius: 6; -fx-padding: 8 12;");
+                                    "-fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 14; " +
+                                    "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 10, 0, 0, 3);");
                         Tooltip.install(node, tp);
 
                         node.setOnMouseEntered(e -> {
@@ -284,6 +363,7 @@ public class AdminRdvListController {
                             node.setScaleX(1.0);
                             node.setScaleY(1.0);
                         });
+                        idx++;
                     }
                 });
             }
