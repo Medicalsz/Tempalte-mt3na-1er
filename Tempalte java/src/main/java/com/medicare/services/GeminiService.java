@@ -21,7 +21,7 @@ import java.util.Base64;
 public class GeminiService {
     private final String apiKey;
     
-    // Liste des modèles identifiés via le diagnostic réussi (Mise à jour pour forcer le commit)
+    // Liste des modèles identifiés via le diagnostic réussi (Mise à jour pour synchronisation finale)
     private static final String[][] CONFIGS = {
         {"v1beta", "gemini-2.0-flash"},
         {"v1beta", "gemini-flash-latest"},
