@@ -4,6 +4,7 @@ import com.medicare.models.Commande;
 import com.medicare.models.Produit;
 import com.medicare.models.User;
 import com.medicare.services.CommandeService;
+import com.medicare.services.FacturePdfService;
 import com.medicare.services.ProduitService;
 import com.medicare.utils.Validators;
 import javafx.animation.PauseTransition;
@@ -14,6 +15,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -21,6 +23,7 @@ import javafx.util.Duration;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -34,6 +37,7 @@ public class PatientCommandesController {
 
     private final CommandeService service = new CommandeService();
     private final ProduitService produitService = new ProduitService();
+    private final FacturePdfService pdfService = new FacturePdfService();
     private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @FXML
@@ -55,7 +59,7 @@ public class PatientCommandesController {
         tableHeader.getChildren().addAll(
                 colLabel("N° commande", 140), colLabel("Produit", 170), colLabel("Qte", 55),
                 colLabel("Total", 90), colLabel("Date", 100), colLabel("Statut", 100),
-                colLabel("Actions", 130)
+                colLabel("Actions", 170)
         );
         container.getChildren().add(tableHeader);
 
@@ -96,11 +100,15 @@ public class PatientCommandesController {
 
             HBox actions = new HBox(6);
             actions.setAlignment(Pos.CENTER);
-            actions.setPrefWidth(130);
+            actions.setPrefWidth(170);
 
             Button btnView = actionBtn(FontAwesomeSolid.EYE, "#1a73e8", "#dbeafe");
             btnView.setTooltip(new Tooltip("Voir"));
             btnView.setOnAction(e -> showDetails(c));
+
+            Button btnPdf = actionBtn(FontAwesomeSolid.FILE_PDF, "#dc2626", "#fee2e2");
+            btnPdf.setTooltip(new Tooltip("Telecharger PDF"));
+            btnPdf.setOnAction(e -> downloadPdf(c));
 
             Button btnEdit = actionBtn(FontAwesomeSolid.EDIT, "#f59e0b", "#fef3c7");
             btnEdit.setTooltip(new Tooltip("Modifier"));
@@ -113,7 +121,7 @@ public class PatientCommandesController {
                                  && !"confirmee".equalsIgnoreCase(c.getStatus()));
             btnCancel.setOnAction(e -> showCancelConfirm(c));
 
-            actions.getChildren().addAll(btnView, btnEdit, btnCancel);
+            actions.getChildren().addAll(btnView, btnPdf, btnEdit, btnCancel);
 
             row.getChildren().addAll(num, prod, qty, tot, date, status, actions);
             container.getChildren().add(row);
@@ -409,5 +417,29 @@ public class PatientCommandesController {
         Label l = new Label(label);
         l.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #555;");
         return new VBox(4, l, field);
+    }
+
+    // ========== PDF ==========
+
+    private void downloadPdf(Commande c) {
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Enregistrer la facture PDF");
+        String defaultName = "Facture_" +
+                (c.getCommandeNumber() != null ? c.getCommandeNumber() : ("CMD-" + c.getId())) + ".pdf";
+        fc.setInitialFileName(defaultName);
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF", "*.pdf"));
+        File out = fc.showSaveDialog(container.getScene().getWindow());
+        if (out == null) return;
+
+        try {
+            Produit p = produitService.getById(c.getProductId());
+            User u = DashboardPatientController.getCurrentUser();
+            pdfService.generate(c, p, u, out);
+            showInfo("PDF genere", out.getName(), "#16a34a", FontAwesomeSolid.FILE_PDF);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showInfo("Echec generation", ex.getMessage(),
+                    "#dc2626", FontAwesomeSolid.EXCLAMATION_TRIANGLE);
+        }
     }
 }

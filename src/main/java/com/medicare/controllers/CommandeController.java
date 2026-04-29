@@ -1,15 +1,24 @@
 package com.medicare.controllers;
 
+import com.medicare.HelloApplication;
 import com.medicare.models.Commande;
+import com.medicare.models.Produit;
+import com.medicare.models.User;
 import com.medicare.services.CommandeService;
+import com.medicare.services.FacturePdfService;
+import com.medicare.services.ProduitService;
+import com.medicare.services.UserService;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -17,6 +26,7 @@ import javafx.util.Duration;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.io.File;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -29,6 +39,9 @@ public class CommandeController {
     @FXML private VBox container;
 
     private final CommandeService service = new CommandeService();
+    private final ProduitService produitService = new ProduitService();
+    private final UserService userService = new UserService();
+    private final FacturePdfService pdfService = new FacturePdfService();
     private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @FXML
@@ -64,7 +77,16 @@ public class CommandeController {
             else addRows(service.getByStatus(v));
         });
 
-        header.getChildren().addAll(title, spacer, searchField, statusFilter);
+        Button btnVerify = new Button("Verifier QR");
+        FontIcon verifyIcon = new FontIcon(FontAwesomeSolid.QRCODE);
+        verifyIcon.setIconSize(13);
+        verifyIcon.setIconColor(Color.WHITE);
+        btnVerify.setGraphic(verifyIcon);
+        btnVerify.setStyle("-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 12px; "
+                + "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 14;");
+        btnVerify.setOnAction(e -> openVerifyWindow());
+
+        header.getChildren().addAll(title, spacer, searchField, statusFilter, btnVerify);
         container.getChildren().add(header);
 
         // Table header
@@ -76,7 +98,7 @@ public class CommandeController {
         tableHeader.getChildren().addAll(
             colLabel("N° commande", 130), colLabel("Produit", 140), colLabel("Client", 140),
             colLabel("Qte", 50), colLabel("Total", 80), colLabel("Date", 90),
-            colLabel("Statut", 95), colLabel("Actions", 155)
+            colLabel("Statut", 95), colLabel("Actions", 195)
         );
         container.getChildren().add(tableHeader);
 
@@ -117,11 +139,15 @@ public class CommandeController {
 
             HBox actions = new HBox(6);
             actions.setAlignment(Pos.CENTER);
-            actions.setPrefWidth(155);
+            actions.setPrefWidth(195);
 
             Button btnView = actionBtn(FontAwesomeSolid.EYE, "#7c3aed", "#ede9fe");
             btnView.setTooltip(new Tooltip("Voir"));
             btnView.setOnAction(e -> showDetails(c));
+
+            Button btnPdf = actionBtn(FontAwesomeSolid.FILE_PDF, "#dc2626", "#fee2e2");
+            btnPdf.setTooltip(new Tooltip("Telecharger PDF"));
+            btnPdf.setOnAction(e -> downloadPdf(c));
 
             Button btnAccept = actionBtn(FontAwesomeSolid.CHECK, "#16a34a", "#dcfce7");
             btnAccept.setTooltip(new Tooltip("Accepter"));
@@ -153,7 +179,7 @@ public class CommandeController {
                           FontAwesomeSolid.TRUCK, "#1a73e8");
             });
 
-            actions.getChildren().addAll(btnView, btnAccept, btnReject, btnDeliver);
+            actions.getChildren().addAll(btnView, btnPdf, btnAccept, btnReject, btnDeliver);
 
             row.getChildren().addAll(num, product, client, qty, total, date, status, actions);
             container.getChildren().add(row);
@@ -283,5 +309,46 @@ public class CommandeController {
         btn.setGraphic(icon);
         btn.setStyle("-fx-background-color: " + bgColor + "; -fx-cursor: hand; -fx-padding: 5; -fx-background-radius: 6;");
         return btn;
+    }
+
+    // ========== PDF + QR ==========
+
+    private void downloadPdf(Commande c) {
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Enregistrer la facture PDF");
+        String defaultName = "Facture_" +
+                (c.getCommandeNumber() != null ? c.getCommandeNumber() : ("CMD-" + c.getId())) + ".pdf";
+        fc.setInitialFileName(defaultName);
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF", "*.pdf"));
+        File out = fc.showSaveDialog(container.getScene().getWindow());
+        if (out == null) return;
+
+        try {
+            Produit p = produitService.getById(c.getProductId());
+            User u = c.getUserId() > 0 ? userService.getById(c.getUserId()) : null;
+            pdfService.generate(c, p, u, out);
+            showPopup("PDF genere", out.getName(), FontAwesomeSolid.FILE_PDF, "#16a34a");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showPopup("Echec generation", ex.getMessage(),
+                    FontAwesomeSolid.EXCLAMATION_TRIANGLE, "#dc2626");
+        }
+    }
+
+    private void openVerifyWindow() {
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("qr-verify-view.fxml"));
+            Parent root = loader.load();
+            Stage stage = new Stage();
+            stage.initModality(Modality.NONE);
+            stage.initOwner(container.getScene().getWindow());
+            stage.setTitle("Verification QR — Medicare");
+            stage.setScene(new Scene(root, 720, 760));
+            stage.show();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showPopup("Erreur", "Impossible d'ouvrir la fenetre de verification.",
+                    FontAwesomeSolid.EXCLAMATION_TRIANGLE, "#dc2626");
+        }
     }
 }

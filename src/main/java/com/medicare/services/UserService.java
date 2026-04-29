@@ -98,6 +98,18 @@ public class UserService {
         return false;
     }
 
+    public User getById(int id) {
+        String q = "SELECT * FROM user WHERE id = ?";
+        try (PreparedStatement ps = cnx.prepareStatement(q)) {
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapUser(rs);
+        } catch (SQLException e) {
+            System.out.println("Erreur getById user: " + e.getMessage());
+        }
+        return null;
+    }
+
     private User mapUser(ResultSet rs) throws SQLException {
         User u = new User();
         u.setId(rs.getInt("id"));
