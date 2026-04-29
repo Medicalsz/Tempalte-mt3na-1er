@@ -105,6 +105,23 @@
             <!-- Heure sélectionnée -->
             <Label fx:id="selectedHeureLabel" text="" alignment="CENTER" maxWidth="Infinity"
                    style="-fx-font-size: 15px; -fx-text-fill: #3b82f6; -fx-font-weight: bold; -fx-padding: 12 0 0 0;"/>
+            <!-- Séparateur -->
+            <Separator style="-fx-padding: 18 0 10 0;"/>
+
+            <!-- Motif / symptômes -->
+            <VBox spacing="8">
+                <HBox spacing="6" alignment="CENTER_LEFT">
+                    <Label text="Motif de consultation"
+                           style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;"/>
+                    <Label text="(optionnel)"
+                           style="-fx-font-size: 11px; -fx-text-fill: #cbd5e1; -fx-font-style: italic;"/>
+                </HBox>
+                <TextArea fx:id="motifArea"
+                          promptText="Décrivez vos symptômes ou la raison de la consultation (ex: maux de tête persistants, douleurs abdominales, contrôle de routine...)"
+                          prefRowCount="3" wrapText="true"
+                          style="-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0;
+                                 -fx-border-radius: 10; -fx-background-radius: 10; -fx-font-size: 13px;"/>
+            </VBox>
 
             <!-- Erreur -->
             <Label fx:id="errorLabel" text="" alignment="CENTER" maxWidth="Infinity"

@@ -233,7 +233,7 @@ public class RendezVousService {
     // ==================== CRUD RENDEZ-VOUS ====================
 
     public boolean create(RendezVous rv) {
-        String q = "INSERT INTO rendez_vous (medecin_id, patient_id, date, heure, statut) VALUES (?, ?, ?, ?, ?)";
+        String q = "INSERT INTO rendez_vous (medecin_id, patient_id, date, heure, statut, motif) VALUES (?, ?, ?, ?, ?, ?)";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, rv.getMedecinId());
@@ -241,6 +241,7 @@ public class RendezVousService {
             ps.setDate(3, Date.valueOf(rv.getDate()));
             ps.setTime(4, Time.valueOf(rv.getHeure()));
             ps.setString(5, rv.getStatut());
+            ps.setString(6, rv.getMotif());
             ps.executeUpdate();
             return true;
         } catch (SQLException e) { System.out.println("Erreur create RV: " + e.getMessage()); }
@@ -275,6 +276,7 @@ public class RendezVousService {
                 if (pd != null) rv.setProposedDate(pd.toLocalDate());
                 java.sql.Time pt = rs.getTime("proposed_heure");
                 if (pt != null) rv.setProposedHeure(pt.toLocalTime());
+                try { rv.setMotif(rs.getString("motif")); } catch (SQLException ignore) {}
                 list.add(rv);
             }
         } catch (SQLException e) { System.out.println("Erreur list RV: " + e.getMessage()); }
@@ -303,6 +305,7 @@ public class RendezVousService {
                 rv.setMedecinPrenom(rs.getString("med_prenom"));
                 rv.setSpecialite(rs.getString("specialite"));
                 rv.setMotifAnnulation(rs.getString("motif_annulation"));
+                try { rv.setMotif(rs.getString("motif")); } catch (SQLException ignore) {}
                 return rv;
             }
         } catch (SQLException e) { System.out.println("Erreur getById RV: " + e.getMessage()); }
@@ -386,6 +389,7 @@ public class RendezVousService {
                 if (pd2 != null) rv.setProposedDate(pd2.toLocalDate());
                 java.sql.Time pt2 = rs.getTime("proposed_heure");
                 if (pt2 != null) rv.setProposedHeure(pt2.toLocalTime());
+                try { rv.setMotif(rs.getString("motif")); } catch (SQLException ignore) {}
                 list.add(rv);
             }
         } catch (SQLException e) { System.out.println("Erreur getByMedecin: " + e.getMessage()); }
@@ -495,6 +499,7 @@ public class RendezVousService {
                 rv.setPatientNom(rs.getString("pat_nom"));
                 rv.setPatientPrenom(rs.getString("pat_prenom"));
                 rv.setSpecialite(rs.getString("spec_nom"));
+                try { rv.setMotif(rs.getString("motif")); } catch (SQLException ignore) {}
                 list.add(rv);
             }
         } catch (SQLException e) { System.out.println("Erreur getAllRdv: " + e.getMessage()); }
