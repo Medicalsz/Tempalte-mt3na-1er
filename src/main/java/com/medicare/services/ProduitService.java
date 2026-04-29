@@ -20,19 +20,22 @@ public class ProduitService implements IProduitService {
 
     @Override
     public void add(Produit p) {
-        String q = "INSERT INTO produit (name, description, sku, price, quantity, type, dosage, " +
-                   "expiry_date, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String q = "INSERT INTO produit (name, description, image_url, image_public_id, sku, price, " +
+                   "quantity, type, dosage, expiry_date, is_active, created_at) " +
+                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement ps = cnx.prepareStatement(q, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, p.getName());
             ps.setString(2, p.getDescription());
-            ps.setString(3, p.getSku());
-            ps.setBigDecimal(4, p.getPrice());
-            ps.setInt(5, p.getQuantity());
-            ps.setString(6, p.getType());
-            ps.setString(7, p.getDosage());
-            ps.setTimestamp(8, p.getExpiryDate() != null ? Timestamp.valueOf(p.getExpiryDate()) : null);
-            ps.setBoolean(9, p.isActive());
-            ps.setTimestamp(10, p.getCreatedAt() != null
+            ps.setString(3, p.getImageUrl());
+            ps.setString(4, p.getImagePublicId());
+            ps.setString(5, p.getSku());
+            ps.setBigDecimal(6, p.getPrice());
+            ps.setInt(7, p.getQuantity());
+            ps.setString(8, p.getType());
+            ps.setString(9, p.getDosage());
+            ps.setTimestamp(10, p.getExpiryDate() != null ? Timestamp.valueOf(p.getExpiryDate()) : null);
+            ps.setBoolean(11, p.isActive());
+            ps.setTimestamp(12, p.getCreatedAt() != null
                     ? Timestamp.valueOf(p.getCreatedAt())
                     : Timestamp.valueOf(LocalDateTime.now()));
             ps.executeUpdate();
@@ -46,19 +49,21 @@ public class ProduitService implements IProduitService {
 
     @Override
     public void update(Produit p) {
-        String q = "UPDATE produit SET name=?, description=?, sku=?, price=?, quantity=?, " +
-                   "type=?, dosage=?, expiry_date=?, is_active=? WHERE id=?";
+        String q = "UPDATE produit SET name=?, description=?, image_url=?, image_public_id=?, sku=?, " +
+                   "price=?, quantity=?, type=?, dosage=?, expiry_date=?, is_active=? WHERE id=?";
         try (PreparedStatement ps = cnx.prepareStatement(q)) {
             ps.setString(1, p.getName());
             ps.setString(2, p.getDescription());
-            ps.setString(3, p.getSku());
-            ps.setBigDecimal(4, p.getPrice());
-            ps.setInt(5, p.getQuantity());
-            ps.setString(6, p.getType());
-            ps.setString(7, p.getDosage());
-            ps.setTimestamp(8, p.getExpiryDate() != null ? Timestamp.valueOf(p.getExpiryDate()) : null);
-            ps.setBoolean(9, p.isActive());
-            ps.setInt(10, p.getId());
+            ps.setString(3, p.getImageUrl());
+            ps.setString(4, p.getImagePublicId());
+            ps.setString(5, p.getSku());
+            ps.setBigDecimal(6, p.getPrice());
+            ps.setInt(7, p.getQuantity());
+            ps.setString(8, p.getType());
+            ps.setString(9, p.getDosage());
+            ps.setTimestamp(10, p.getExpiryDate() != null ? Timestamp.valueOf(p.getExpiryDate()) : null);
+            ps.setBoolean(11, p.isActive());
+            ps.setInt(12, p.getId());
             ps.executeUpdate();
             System.out.println("Produit mis a jour: id=" + p.getId());
         } catch (SQLException e) {
@@ -149,6 +154,8 @@ public class ProduitService implements IProduitService {
         p.setId(rs.getInt("id"));
         p.setName(rs.getString("name"));
         p.setDescription(rs.getString("description"));
+        try { p.setImageUrl(rs.getString("image_url")); } catch (SQLException ignored) {}
+        try { p.setImagePublicId(rs.getString("image_public_id")); } catch (SQLException ignored) {}
         p.setSku(rs.getString("sku"));
         BigDecimal price = rs.getBigDecimal("price");
         p.setPrice(price != null ? price : BigDecimal.ZERO);

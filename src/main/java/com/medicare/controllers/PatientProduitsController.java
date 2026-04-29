@@ -1,5 +1,6 @@
 package com.medicare.controllers;
 
+import com.medicare.HelloApplication;
 import com.medicare.models.Commande;
 import com.medicare.models.Produit;
 import com.medicare.models.User;
@@ -8,10 +9,14 @@ import com.medicare.services.ProduitService;
 import com.medicare.utils.Validators;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
@@ -104,9 +109,24 @@ public class PatientProduitsController {
                       "-fx-border-color: #e5e7eb; -fx-border-radius: 14; " +
                       "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 2);");
 
-        FontIcon icon = new FontIcon(FontAwesomeSolid.CAPSULES);
-        icon.setIconSize(34);
-        icon.setIconColor(Color.web("#1a73e8"));
+        StackPane imageBox = new StackPane();
+        imageBox.setPrefSize(204, 130);
+        imageBox.setStyle("-fx-background-color: #f3f4f6; -fx-background-radius: 10;");
+        if (p.getImageUrl() != null && !p.getImageUrl().isBlank()) {
+            ImageView iv = new ImageView();
+            iv.setFitWidth(204);
+            iv.setFitHeight(130);
+            iv.setPreserveRatio(true);
+            try {
+                iv.setImage(new Image(p.getImageUrl(), 204, 130, true, true, true));
+            } catch (Exception ignored) {}
+            imageBox.getChildren().add(iv);
+        } else {
+            FontIcon ph = new FontIcon(FontAwesomeSolid.CAPSULES);
+            ph.setIconSize(48);
+            ph.setIconColor(Color.web("#1a73e8"));
+            imageBox.getChildren().add(ph);
+        }
 
         Label name = new Label(p.getName());
         name.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;");
@@ -142,7 +162,7 @@ public class PatientProduitsController {
         btnOrder.setDisable(p.getQuantity() <= 0);
         btnOrder.setOnAction(e -> showCommandeForm(p));
 
-        card.getChildren().addAll(icon, name, type, desc, info, btnOrder);
+        card.getChildren().addAll(imageBox, name, type, desc, info, btnOrder);
         return card;
     }
 
@@ -237,7 +257,7 @@ public class PatientProduitsController {
             c.setQuantity(qty);
             c.setTotalPrice((product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO)
                     .multiply(BigDecimal.valueOf(qty)));
-            c.setStatus("en_attente");
+            c.setStatus("en_attente_paiement");
             c.setNotes(notesArea.getText());
             c.setCommandeDate(LocalDateTime.now());
             c.setCreatedAt(LocalDateTime.now());
@@ -245,8 +265,7 @@ public class PatientProduitsController {
 
             commandeService.add(c);
             popup.close();
-            showSuccess("Commande creee",
-                    product.getName() + " x" + qty + " — en attente de confirmation");
+            openStripeCheckout(c, product);
         });
 
         HBox btns = new HBox(12, btnCancel, btnSave);
@@ -319,5 +338,36 @@ public class PatientProduitsController {
         Label l = new Label(label);
         l.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #555;");
         return new VBox(4, l, field);
+    }
+
+    // ========== STRIPE ==========
+
+    private void openStripeCheckout(Commande c, Produit product) {
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("stripe-checkout-view.fxml"));
+            Parent root = loader.load();
+            StripeCheckoutController ctrl = loader.getController();
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.initOwner(container.getScene().getWindow());
+            stage.setTitle("Paiement Medicare");
+            stage.setScene(new Scene(root, 820, 760));
+            ctrl.start(stage, c, product, paid -> {
+                if (paid) {
+                    showSuccess("Paiement reussi",
+                            product.getName() + " x" + c.getQuantity() + " — commande confirmee.");
+                } else {
+                    showSuccess("Paiement non finalise",
+                            "Tu peux payer plus tard depuis 'Mes commandes'.");
+                }
+                loadCatalogue();
+            });
+            stage.show();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showSuccess("Erreur",
+                    "Impossible d'ouvrir le paiement : " + ex.getMessage());
+        }
     }
 }

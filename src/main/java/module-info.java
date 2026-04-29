@@ -2,6 +2,7 @@ module com.medicare.medicarejavafx {
     requires javafx.controls;
     requires javafx.fxml;
     requires javafx.swing;
+    requires javafx.web;
     requires java.desktop;
     requires java.sql;
     requires jbcrypt;
@@ -11,6 +12,9 @@ module com.medicare.medicarejavafx {
     requires com.google.zxing;
     requires com.google.zxing.javase;
     requires webcam.capture;
+    requires cloudinary.core;
+    requires cloudinary.http5;
+    requires stripe.java;
 
 
     opens com.medicare to javafx.fxml;

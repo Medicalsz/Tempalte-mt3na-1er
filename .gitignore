@@ -40,3 +40,7 @@ build/
 ### Claude / local tooling ###
 .claude/
 .idea/
+
+### Credentials — never commit ###
+src/main/resources/cloudinary.properties
+src/main/resources/stripe.properties

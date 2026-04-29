@@ -1,6 +1,7 @@
 package com.medicare.controllers;
 
 import com.medicare.models.Produit;
+import com.medicare.services.CloudinaryService;
 import com.medicare.services.ProduitService;
 import com.medicare.utils.Validators;
 import javafx.animation.PauseTransition;
@@ -9,8 +10,11 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -18,6 +22,7 @@ import javafx.util.Duration;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -27,6 +32,7 @@ public class ProduitController {
     @FXML private VBox container;
 
     private final ProduitService service = new ProduitService();
+    private final CloudinaryService cloudinaryService = new CloudinaryService();
     private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @FXML
@@ -72,9 +78,9 @@ public class ProduitController {
         tableHeader.setStyle("-fx-background-color: #7c3aed; -fx-background-radius: 8 8 0 0;");
 
         tableHeader.getChildren().addAll(
-            colLabel("Nom", 150), colLabel("SKU", 100), colLabel("Type", 110),
-            colLabel("Prix", 80), colLabel("Stock", 60), colLabel("Expire", 90),
-            colLabel("Actif", 60), colLabel("Actions", 130)
+            colLabel("Image", 70), colLabel("Nom", 130), colLabel("SKU", 90), colLabel("Type", 95),
+            colLabel("Prix", 75), colLabel("Stock", 55), colLabel("Expire", 85),
+            colLabel("Actif", 50), colLabel("Actions", 130)
         );
         container.getChildren().add(tableHeader);
 
@@ -100,19 +106,36 @@ public class ProduitController {
             row.setPadding(new Insets(10, 15, 10, 15));
             row.setStyle("-fx-background-color: " + (i % 2 == 0 ? "white" : "#f9fafb") + ";");
 
-            Label name = cellLabel(p.getName(), 150, "#333");
-            Label sku = cellLabel(p.getSku() != null ? p.getSku() : "-", 100, "#555");
-            Label type = cellLabel(p.getType() != null ? p.getType() : "-", 110, "#555");
-            Label price = cellLabel(p.getPrice() != null ? p.getPrice() + " DT" : "-", 80, "#16a34a");
-            Label stock = cellLabel(String.valueOf(p.getQuantity()), 60, p.getQuantity() > 0 ? "#333" : "#dc2626");
-            Label expire = cellLabel(p.getExpiryDate() != null ? p.getExpiryDate().format(DF) : "-", 90, "#555");
+            HBox imgCell = new HBox();
+            imgCell.setPrefWidth(70);
+            imgCell.setAlignment(Pos.CENTER_LEFT);
+            ImageView thumb = new ImageView();
+            thumb.setFitWidth(48);
+            thumb.setFitHeight(48);
+            thumb.setPreserveRatio(true);
+            if (p.getImageUrl() != null && !p.getImageUrl().isBlank()) {
+                try { thumb.setImage(new Image(p.getImageUrl(), 48, 48, true, true, true)); } catch (Exception ignored) {}
+            } else {
+                FontIcon ph = new FontIcon(FontAwesomeSolid.IMAGE);
+                ph.setIconSize(28);
+                ph.setIconColor(Color.web("#d1d5db"));
+                imgCell.getChildren().add(ph);
+            }
+            if (thumb.getImage() != null) imgCell.getChildren().add(thumb);
+
+            Label name = cellLabel(p.getName(), 130, "#333");
+            Label sku = cellLabel(p.getSku() != null ? p.getSku() : "-", 90, "#555");
+            Label type = cellLabel(p.getType() != null ? p.getType() : "-", 95, "#555");
+            Label price = cellLabel(p.getPrice() != null ? p.getPrice() + " DT" : "-", 75, "#16a34a");
+            Label stock = cellLabel(String.valueOf(p.getQuantity()), 55, p.getQuantity() > 0 ? "#333" : "#dc2626");
+            Label expire = cellLabel(p.getExpiryDate() != null ? p.getExpiryDate().format(DF) : "-", 85, "#555");
 
             FontIcon activeIcon = new FontIcon(p.isActive() ? FontAwesomeSolid.CHECK_CIRCLE : FontAwesomeSolid.TIMES_CIRCLE);
             activeIcon.setIconSize(16);
             activeIcon.setIconColor(Color.web(p.isActive() ? "#16a34a" : "#dc2626"));
             Label active = new Label();
             active.setGraphic(activeIcon);
-            active.setPrefWidth(60);
+            active.setPrefWidth(50);
 
             HBox actions = new HBox(6);
             actions.setAlignment(Pos.CENTER);
@@ -146,7 +169,7 @@ public class ProduitController {
 
             actions.getChildren().addAll(btnView, btnEdit, btnToggle, btnDelete);
 
-            row.getChildren().addAll(name, sku, type, price, stock, expire, active, actions);
+            row.getChildren().addAll(imgCell, name, sku, type, price, stock, expire, active, actions);
             container.getChildren().add(row);
         }
     }
@@ -191,6 +214,44 @@ public class ProduitController {
         activeBox.setSelected(true);
         activeBox.setStyle("-fx-font-size: 13px; -fx-text-fill: #555;");
 
+        // Image picker (Cloudinary)
+        ImageView preview = new ImageView();
+        preview.setFitWidth(120);
+        preview.setFitHeight(120);
+        preview.setPreserveRatio(true);
+        StackPane previewBox = new StackPane(preview);
+        previewBox.setPrefSize(120, 120);
+        previewBox.setStyle("-fx-background-color: #f3f4f6; -fx-background-radius: 10; -fx-border-color: #e5e7eb; -fx-border-radius: 10;");
+        Label imageHint = new Label("Aucune image");
+        imageHint.setStyle("-fx-text-fill: #9ca3af; -fx-font-size: 11px;");
+        previewBox.getChildren().add(imageHint);
+
+        Button btnPickImage = new Button("Choisir une image");
+        FontIcon imgIcon = new FontIcon(FontAwesomeSolid.IMAGE);
+        imgIcon.setIconSize(13);
+        imgIcon.setIconColor(Color.WHITE);
+        btnPickImage.setGraphic(imgIcon);
+        btnPickImage.setStyle("-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 12px; "
+                + "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 14;");
+        Label fileNameLbl = new Label("");
+        fileNameLbl.setStyle("-fx-text-fill: #555; -fx-font-size: 11px;");
+
+        final File[] pickedFile = new File[1];
+        btnPickImage.setOnAction(e -> {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Choisir une image produit");
+            fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.webp"));
+            File f = fc.showOpenDialog(popup);
+            if (f != null) {
+                pickedFile[0] = f;
+                fileNameLbl.setText(f.getName());
+                try {
+                    preview.setImage(new Image(f.toURI().toString(), 120, 120, true, true, true));
+                    imageHint.setVisible(false);
+                } catch (Exception ignored) {}
+            }
+        });
+
         if (isEdit) {
             nameField.setText(existing.getName());
             skuField.setText(existing.getSku());
@@ -201,6 +262,13 @@ public class ProduitController {
             if (existing.getExpiryDate() != null) expiryPicker.setValue(existing.getExpiryDate().toLocalDate());
             descArea.setText(existing.getDescription());
             activeBox.setSelected(existing.isActive());
+            if (existing.getImageUrl() != null && !existing.getImageUrl().isBlank()) {
+                try {
+                    preview.setImage(new Image(existing.getImageUrl(), 120, 120, true, true, true));
+                    imageHint.setVisible(false);
+                    fileNameLbl.setText("(image actuelle)");
+                } catch (Exception ignored) {}
+            }
         }
 
         Label errorLbl = new Label();
@@ -261,6 +329,27 @@ public class ProduitController {
             p.setExpiryDate(expiryPicker.getValue() != null ? expiryPicker.getValue().atStartOfDay() : null);
             if (!isEdit) p.setCreatedAt(LocalDateTime.now());
 
+            // Upload image to Cloudinary if a new file was picked
+            if (pickedFile[0] != null) {
+                btnSave.setDisable(true);
+                btnSave.setText("Upload...");
+                try {
+                    // delete old image first when editing
+                    if (isEdit && existing.getImagePublicId() != null) {
+                        cloudinaryService.delete(existing.getImagePublicId());
+                    }
+                    CloudinaryService.UploadResult ur = cloudinaryService.upload(pickedFile[0]);
+                    p.setImageUrl(ur.secureUrl);
+                    p.setImagePublicId(ur.publicId);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    btnSave.setDisable(false);
+                    btnSave.setText(isEdit ? "Enregistrer" : "Creer");
+                    errorLbl.setText("Echec upload Cloudinary : " + ex.getMessage());
+                    return;
+                }
+            }
+
             if (isEdit) service.update(p); else service.add(p);
             popup.close();
             showPopup(isEdit ? "Produit modifie" : "Produit cree",
@@ -286,12 +375,18 @@ public class ProduitController {
         ColumnConstraints c2 = new ColumnConstraints(); c2.setPercentWidth(50);
         grid.getColumnConstraints().addAll(c1, c2);
 
-        VBox box = new VBox(15, titleLbl, grid, labeled("Description", descArea), errorLbl, btns);
+        VBox imageRight = new VBox(8, btnPickImage, fileNameLbl);
+        imageRight.setAlignment(Pos.CENTER_LEFT);
+        HBox imageRow = new HBox(15, previewBox, imageRight);
+        imageRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox box = new VBox(15, titleLbl, labeled("Image produit", imageRow),
+                grid, labeled("Description", descArea), errorLbl, btns);
         box.setPadding(new Insets(25));
         box.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
                      "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
                      "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
-        box.setPrefWidth(560);
+        box.setPrefWidth(620);
 
         popup.setScene(new Scene(box));
         popup.showAndWait();
@@ -384,6 +479,7 @@ public class ProduitController {
         btnNon.setOnAction(e -> popup.close());
         btnOui.setOnAction(e -> {
             popup.close();
+            if (p.getImagePublicId() != null) cloudinaryService.delete(p.getImagePublicId());
             service.delete(p.getId());
             showPopup("Produit supprime", p.getName(),
                       FontAwesomeSolid.TRASH_ALT, "#dc2626");

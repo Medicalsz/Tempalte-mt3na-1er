@@ -1,5 +1,6 @@
 package com.medicare.controllers;
 
+import com.medicare.HelloApplication;
 import com.medicare.models.Commande;
 import com.medicare.models.Produit;
 import com.medicare.models.User;
@@ -9,8 +10,10 @@ import com.medicare.services.ProduitService;
 import com.medicare.utils.Validators;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -58,8 +61,8 @@ public class PatientCommandesController {
         tableHeader.setStyle("-fx-background-color: #1a73e8; -fx-background-radius: 8 8 0 0;");
         tableHeader.getChildren().addAll(
                 colLabel("N° commande", 140), colLabel("Produit", 170), colLabel("Qte", 55),
-                colLabel("Total", 90), colLabel("Date", 100), colLabel("Statut", 100),
-                colLabel("Actions", 170)
+                colLabel("Total", 90), colLabel("Date", 100), colLabel("Statut", 130),
+                colLabel("Actions", 210)
         );
         container.getChildren().add(tableHeader);
 
@@ -94,17 +97,22 @@ public class PatientCommandesController {
             Label date = cellLabel(c.getCommandeDate() != null ? c.getCommandeDate().format(DF) : "-", 100, "#555");
 
             Label status = new Label(c.getStatus() != null ? c.getStatus() : "-");
-            status.setPrefWidth(100);
+            status.setPrefWidth(130);
             status.setStyle("-fx-font-size: 11px; -fx-text-fill: white; -fx-padding: 3 10; " +
                             "-fx-background-color: " + statusColor(c.getStatus()) + "; -fx-background-radius: 12;");
 
             HBox actions = new HBox(6);
             actions.setAlignment(Pos.CENTER);
-            actions.setPrefWidth(170);
+            actions.setPrefWidth(210);
 
             Button btnView = actionBtn(FontAwesomeSolid.EYE, "#1a73e8", "#dbeafe");
             btnView.setTooltip(new Tooltip("Voir"));
             btnView.setOnAction(e -> showDetails(c));
+
+            Button btnPay = actionBtn(FontAwesomeSolid.CREDIT_CARD, "#9333ea", "#f3e8ff");
+            btnPay.setTooltip(new Tooltip("Payer"));
+            btnPay.setDisable(!"en_attente_paiement".equalsIgnoreCase(c.getStatus()));
+            btnPay.setOnAction(e -> openPayment(c));
 
             Button btnPdf = actionBtn(FontAwesomeSolid.FILE_PDF, "#dc2626", "#fee2e2");
             btnPdf.setTooltip(new Tooltip("Telecharger PDF"));
@@ -118,10 +126,11 @@ public class PatientCommandesController {
             Button btnCancel = actionBtn(FontAwesomeSolid.BAN, "#dc2626", "#fee2e2");
             btnCancel.setTooltip(new Tooltip("Annuler"));
             btnCancel.setDisable(!"en_attente".equalsIgnoreCase(c.getStatus())
-                                 && !"confirmee".equalsIgnoreCase(c.getStatus()));
+                                 && !"confirmee".equalsIgnoreCase(c.getStatus())
+                                 && !"en_attente_paiement".equalsIgnoreCase(c.getStatus()));
             btnCancel.setOnAction(e -> showCancelConfirm(c));
 
-            actions.getChildren().addAll(btnView, btnPdf, btnEdit, btnCancel);
+            actions.getChildren().addAll(btnView, btnPay, btnPdf, btnEdit, btnCancel);
 
             row.getChildren().addAll(num, prod, qty, tot, date, status, actions);
             container.getChildren().add(row);
@@ -131,6 +140,7 @@ public class PatientCommandesController {
     private String statusColor(String status) {
         if (status == null) return "#6b7280";
         return switch (status.toLowerCase()) {
+            case "en_attente_paiement" -> "#9333ea";
             case "en_attente" -> "#f59e0b";
             case "confirmee" -> "#1a73e8";
             case "livree" -> "#16a34a";
@@ -417,6 +427,38 @@ public class PatientCommandesController {
         Label l = new Label(label);
         l.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #555;");
         return new VBox(4, l, field);
+    }
+
+    // ========== STRIPE ==========
+
+    private void openPayment(Commande c) {
+        Produit product = produitService.getById(c.getProductId());
+        if (product == null) {
+            showInfo("Produit introuvable", "Ce produit n'existe plus.", "#dc2626", FontAwesomeSolid.EXCLAMATION_TRIANGLE);
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("stripe-checkout-view.fxml"));
+            Parent root = loader.load();
+            StripeCheckoutController ctrl = loader.getController();
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.initOwner(container.getScene().getWindow());
+            stage.setTitle("Paiement Medicare");
+            stage.setScene(new Scene(root, 820, 760));
+            ctrl.start(stage, c, product, paid -> {
+                showInfo(paid ? "Paiement reussi" : "Paiement non finalise",
+                        paid ? "Commande confirmee." : "Tu peux reessayer plus tard.",
+                        paid ? "#16a34a" : "#9333ea",
+                        paid ? FontAwesomeSolid.CHECK_CIRCLE : FontAwesomeSolid.HOURGLASS_HALF);
+                loadCommandes();
+            });
+            stage.show();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showInfo("Erreur", ex.getMessage(), "#dc2626", FontAwesomeSolid.EXCLAMATION_TRIANGLE);
+        }
     }
 
     // ========== PDF ==========

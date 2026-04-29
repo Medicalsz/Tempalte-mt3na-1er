@@ -7,6 +7,8 @@ public class Produit {
     private int id;
     private String name;
     private String description;
+    private String imageUrl;
+    private String imagePublicId;
     private String sku;
     private BigDecimal price;
     private int quantity;
@@ -42,6 +44,12 @@ public class Produit {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public String getImagePublicId() { return imagePublicId; }
+    public void setImagePublicId(String imagePublicId) { this.imagePublicId = imagePublicId; }
 
     public String getSku() { return sku; }
     public void setSku(String sku) { this.sku = sku; }
