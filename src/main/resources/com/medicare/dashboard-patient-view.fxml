@@ -3,17 +3,13 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
-<<<<<<< HEAD
-<?import javafx.scene.image.Image?>
-<?import javafx.scene.image.ImageView?>
-=======
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.Separator?>
 
 <BorderPane prefWidth="900" prefHeight="600"
             xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.medicare.controllers.DashboardPatientController">
+            fx:controller="com.medicare.controllers.DashboardPatientController"
+            stylesheets="@dashboard-sidebar.css">
 
     <!-- ========== SIDEBAR ========== -->
     <left>
@@ -24,10 +20,18 @@
             </padding>
 
             <!-- Nom du user connecté -->
-            <Label fx:id="userNameLabel" text="Patient"
-                   style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 5 10;"/>
-            <Label fx:id="userEmailLabel" text=""
-                   style="-fx-text-fill: #b3d4fc; -fx-font-size: 11px; -fx-padding: 0 0 10 10;"/>
+            <Label text="Medicare" prefWidth="200" alignment="CENTER" styleClass="sidebar-logo"/>
+
+            <VBox fx:id="profileCard" alignment="CENTER" spacing="8" prefWidth="200" styleClass="sidebar-profile-card">
+                <Label fx:id="avatarInitialsLabel" text="PT" styleClass="sidebar-avatar"/>
+                <Label fx:id="userNameLabel" text="Patient" wrapText="true" alignment="CENTER" styleClass="sidebar-profile-name"/>
+                <Label fx:id="userEmailLabel" text="Patient Member" alignment="CENTER" styleClass="sidebar-profile-role"/>
+                <HBox alignment="CENTER" spacing="6">
+                    <Region styleClass="sidebar-status-dot"/>
+                    <Label text="En ligne" styleClass="sidebar-status-text"/>
+                </HBox>
+                <Label fx:id="roleBadgeLabel" text="Patient" styleClass="sidebar-role-badge sidebar-role-patient"/>
+            </VBox>
 
             <Separator style="-fx-background-color: #4a9af5;"/>
 
@@ -48,19 +52,15 @@
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
-<<<<<<< HEAD
-            <Button fx:id="btnPartnerships" text="  Partenariats" onAction="#onPartnershipsClick"
-                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
-                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
-
-            <Button fx:id="btnMesCollaborations" text="  Mes Collaborations" onAction="#onMesCollaborationsClick"
-=======
             <Button fx:id="btnCollaboration" text="  Collaborer" onAction="#onCollaborationClick"
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
             <Button fx:id="btnForum" text="  Forum" onAction="#onForumClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnNotifications" text="  Notifications" onAction="#onNotificationsClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
@@ -81,36 +81,6 @@
 
     <!-- ========== ZONE DE CONTENU ========== -->
     <center>
-<<<<<<< HEAD
-        <StackPane>
-            <StackPane fx:id="contentArea"
-                       style="-fx-background-color: #f0f4f8;">
-                <padding>
-                    <Insets top="20" bottom="20" left="20" right="20"/>
-                </padding>
-                <!-- Le contenu de chaque section sera chargé ici dynamiquement -->
-                <Label text="Bienvenue sur votre espace patient !"
-                       style="-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;"/>
-            </StackPane>
-
-            <!-- Floating Chatbot Button -->
-            <Button fx:id="chatbotButton" onAction="#onChatbotClick" style="-fx-background-color: transparent; -fx-cursor: hand;" StackPane.alignment="BOTTOM_RIGHT">
-                <graphic>
-                    <ImageView fitWidth="48" fitHeight="48">
-                        <image>
-                            <Image url="@images/chat-icon.png"/>
-                        </image>
-                    </ImageView>
-                </graphic>
-                <padding>
-                    <Insets bottom="20" right="20"/>
-                </padding>
-            </Button>
-        </StackPane>
-    </center>
-
-</BorderPane>
-=======
         <StackPane fx:id="contentArea"
                    style="-fx-background-color: #f0f4f8;">
             <padding>
@@ -123,4 +93,3 @@
     </center>
 
 </BorderPane>
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

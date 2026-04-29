@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.web.WebView?>
+
+<ScrollPane fx:id="detailScrollPane" fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.medicare.controllers.ForumDetailController">
+    <content>
+        <VBox spacing="18" style="-fx-background-color: transparent;">
+            <padding>
+                <Insets top="16" right="18" bottom="24" left="18"/>
+            </padding>
+
+            <HBox alignment="CENTER_LEFT" spacing="12">
+                <Button text="Retour" onAction="#onBackClick"
+                        style="-fx-background-color: #fff7ed; -fx-text-fill: #c2410c; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 9 16;"/>
+                <Button fx:id="assistantToggleButton" text="Assistant" onAction="#onAssistantToggleClick"
+                        style="-fx-background-color: #ecfeff; -fx-text-fill: #0f766e; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 9 16;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="editButton" text="Modifier" onAction="#onEditClick"
+                        style="-fx-background-color: #ffedd5; -fx-text-fill: #c2410c; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 9 16;"/>
+                <Button fx:id="toggleReportedButton" text="Signaler" onAction="#onToggleReportedClick"
+                        visible="false" managed="false"
+                        style="-fx-background-color: #fef3c7; -fx-text-fill: #b45309; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 9 16;"/>
+                <Button fx:id="toggleHiddenButton" text="Masquer le sujet" onAction="#onToggleHiddenClick"
+                        visible="false" managed="false"
+                        style="-fx-background-color: #e2e8f0; -fx-text-fill: #475569; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 9 16;"/>
+                <Button fx:id="deleteButton" text="Supprimer" onAction="#onDeleteClick"
+                        style="-fx-background-color: #fee2e2; -fx-text-fill: #dc2626; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 9 16;"/>
+            </HBox>
+
+            <VBox spacing="16"
+                  style="-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0, 0, 3);">
+                <padding>
+                    <Insets top="22" right="22" bottom="22" left="22"/>
+                </padding>
+
+                <Label fx:id="titleLabel" text="Titre du sujet"
+                       wrapText="true"
+                       style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #0f172a;"/>
+
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label fx:id="typeBadgeLabel" text="Article"
+                           style="-fx-background-color: #dbeafe; -fx-text-fill: #1d4ed8; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 999; -fx-padding: 4 10;"/>
+                    <Label fx:id="metaLabel" text="Auteur - Date"
+                           style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
+                    <Label fx:id="reportedStatusLabel" text="Sujet signale"
+                           visible="false" managed="false"
+                           style="-fx-background-color: #fef3c7; -fx-text-fill: #b45309; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 999; -fx-padding: 4 10;"/>
+                    <Label fx:id="hiddenStatusLabel" text="Sujet masque"
+                           visible="false" managed="false"
+                           style="-fx-background-color: #e2e8f0; -fx-text-fill: #475569; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 999; -fx-padding: 4 10;"/>
+                </HBox>
+
+                <VBox fx:id="summaryBox" spacing="6">
+                    <Label text="Resume"
+                           style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #334155;"/>
+                    <Label fx:id="summaryLabel" text=""
+                           wrapText="true"
+                           style="-fx-font-size: 13px; -fx-text-fill: #475569;"/>
+                </VBox>
+
+                <VBox spacing="6">
+                    <Label text="Contenu"
+                           style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #334155;"/>
+                    <Label fx:id="contentLabel" text=""
+                           wrapText="true"
+                           style="-fx-font-size: 14px; -fx-text-fill: #1e293b; -fx-line-spacing: 3;"/>
+                </VBox>
+
+                <VBox fx:id="videoBox" spacing="6">
+                    <Label text="Video"
+                           style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #334155;"/>
+                    <Label fx:id="videoFallbackLabel" text="Video indisponible"
+                           managed="false" visible="false"
+                           style="-fx-background-color: #fff7ed; -fx-text-fill: #c2410c; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 12 14;"/>
+                    <WebView fx:id="videoWebView" prefHeight="360"
+                             style="-fx-background-radius: 14; -fx-border-radius: 14;"/>
+                </VBox>
+
+                <VBox spacing="6">
+                    <Label text="Tags"
+                           style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #334155;"/>
+                    <FlowPane fx:id="tagsPane" hgap="8" vgap="8"/>
+                </VBox>
+            </VBox>
+
+            <VBox spacing="14"
+                  style="-fx-background-color: linear-gradient(to bottom right, #ffffff, #f8fbff); -fx-background-radius: 16; -fx-border-color: #dbeafe; -fx-border-radius: 16; -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.10), 16, 0, 0, 4);">
+                <padding>
+                    <Insets top="20" right="22" bottom="22" left="22"/>
+                </padding>
+
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Sujets recommandes"
+                           style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #312e81;"/>
+                    <Label text="Similaires a ce sujet"
+                           style="-fx-background-color: #ede9fe; -fx-text-fill: #6d28d9; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 999; -fx-padding: 4 10;"/>
+                </HBox>
+
+                <Label fx:id="emptyRecommendationsLabel" text="Aucun sujet similaire trouve pour le moment."
+                       managed="false" visible="false"
+                       style="-fx-text-fill: #64748b; -fx-font-size: 13px;"/>
+
+                <VBox fx:id="recommendationsContainer" spacing="10"/>
+            </VBox>
+
+            <VBox spacing="14"
+                  style="-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0, 0, 3);">
+                <padding>
+                    <Insets top="20" right="22" bottom="22" left="22"/>
+                </padding>
+
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Assistant medical local"
+                           style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #0f766e;"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="assistantStatusLabel" text="Assistant pret."
+                           style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
+                </HBox>
+
+                <Label text="Posez une question sur ce sujet, demandez un resume ou cherchez des discussions proches. Les reponses restent informatives et prudentes."
+                       wrapText="true"
+                       style="-fx-font-size: 12px; -fx-text-fill: #475569;"/>
+
+                <ScrollPane fx:id="assistantMessagesScrollPane"
+                            fitToWidth="true"
+                            hbarPolicy="NEVER"
+                            prefHeight="220"
+                            style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: #e2e8f0; -fx-border-radius: 14; -fx-background-radius: 14;">
+                    <content>
+                        <VBox fx:id="assistantMessagesContainer" spacing="10" style="-fx-background-color: #f8fafc;">
+                            <padding>
+                                <Insets top="12" right="12" bottom="12" left="12"/>
+                            </padding>
+                        </VBox>
+                    </content>
+                </ScrollPane>
+
+                <VBox spacing="8">
+                    <TextArea fx:id="assistantInputArea" prefRowCount="3" wrapText="true"
+                              promptText="Ex. Resume ce sujet, Quels sujets similaires existent ?, Comment mieux gerer le stress ?"
+                              style="-fx-background-radius: 10; -fx-font-size: 13px;"/>
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <Label text="Ces informations sont generales et ne remplacent pas l'avis d'un professionnel de sante."
+                               wrapText="true"
+                               style="-fx-font-size: 11px; -fx-text-fill: #94a3b8;"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="assistantSendButton" text="Envoyer" onAction="#onAssistantSendClick"
+                                style="-fx-background-color: #0f766e; -fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 10 18;"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+
+            <VBox spacing="14"
+                  style="-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0, 0, 3);">
+                <padding>
+                    <Insets top="20" right="22" bottom="22" left="22"/>
+                </padding>
+
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Commentaires"
+                           style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #f97316;"/>
+                    <Label fx:id="commentsStatsLabel" text="0 commentaire"
+                           style="-fx-font-size: 12px; -fx-text-fill: #64748b;"/>
+                </HBox>
+
+                <Label fx:id="emptyCommentsLabel" text="Aucun commentaire pour le moment."
+                       managed="false" visible="false"
+                       style="-fx-text-fill: #64748b; -fx-font-size: 13px;"/>
+
+                <Label text="Cliquez sur J'aime ou J'adore pour reagir rapidement a chaque commentaire."
+                       style="-fx-text-fill: #94a3b8; -fx-font-size: 12px;"/>
+
+                <VBox fx:id="commentsContainer" spacing="12"/>
+
+                <Separator/>
+
+                <VBox spacing="8">
+                    <Label text="Ajouter un commentaire"
+                           style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #334155;"/>
+                    <TextArea fx:id="newCommentArea" prefRowCount="4" wrapText="true"
+                              promptText="Partagez votre avis sur ce sujet..."
+                              style="-fx-background-radius: 10; -fx-font-size: 13px;"/>
+                    <Label fx:id="commentErrorLabel" text=""
+                           style="-fx-text-fill: #dc2626; -fx-font-size: 13px;"/>
+                    <HBox alignment="CENTER_RIGHT">
+                        <Button fx:id="addCommentButton" text="Publier le commentaire" onAction="#onAddCommentClick"
+                                style="-fx-background-color: #f97316; -fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-padding: 10 18;"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+        </VBox>
+    </content>
+</ScrollPane>

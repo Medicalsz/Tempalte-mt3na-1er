@@ -8,7 +8,8 @@
 
 <BorderPane prefWidth="950" prefHeight="620"
             xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.medicare.controllers.DashboardMedecinController">
+            fx:controller="com.medicare.controllers.DashboardMedecinController"
+            stylesheets="@dashboard-sidebar.css">
 
     <left>
         <VBox prefWidth="220" spacing="5"
@@ -17,10 +18,18 @@
                 <Insets top="20" bottom="20" left="10" right="10"/>
             </padding>
 
-            <Label fx:id="userNameLabel" text="Medecin"
-                   style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 5 10;"/>
-            <Label fx:id="userEmailLabel" text=""
-                   style="-fx-text-fill: #b2dfdb; -fx-font-size: 11px; -fx-padding: 0 0 10 10;"/>
+            <Label text="Medicare" prefWidth="200" alignment="CENTER" styleClass="sidebar-logo"/>
+
+            <VBox fx:id="profileCard" alignment="CENTER" spacing="8" prefWidth="200" styleClass="sidebar-profile-card">
+                <Label fx:id="avatarInitialsLabel" text="DR" styleClass="sidebar-avatar"/>
+                <Label fx:id="userNameLabel" text="Medecin" wrapText="true" alignment="CENTER" styleClass="sidebar-profile-name"/>
+                <Label fx:id="userEmailLabel" text="Doctor" alignment="CENTER" styleClass="sidebar-profile-role"/>
+                <HBox alignment="CENTER" spacing="6">
+                    <Region styleClass="sidebar-status-dot"/>
+                    <Label text="En ligne" styleClass="sidebar-status-text"/>
+                </HBox>
+                <Label fx:id="roleBadgeLabel" text="Doctor" styleClass="sidebar-role-badge sidebar-role-doctor"/>
+            </VBox>
 
             <Separator/>
 
@@ -29,6 +38,14 @@
                     style="-fx-background-color: #14b8a6; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
             <Button fx:id="btnPlanning" text="  Planning" onAction="#onPlanningClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnForum" text="  Forum" onAction="#onForumClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnNotifications" text="  Notifications" onAction="#onNotificationsClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
@@ -53,4 +70,3 @@
         </StackPane>
     </center>
 </BorderPane>
-

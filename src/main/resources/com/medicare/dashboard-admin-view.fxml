@@ -1,60 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<<<<<<< HEAD
-<?import java.net.URL?>
-=======
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Separator?>
-<<<<<<< HEAD
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.VBox?>
-
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.medicare.controllers.DashboardAdminController"
-            prefHeight="700.0" prefWidth="1200.0">
-
-    <stylesheets>
-        <URL value="@dashboard-admin-style.css"/>
-    </stylesheets>
-
-    <left>
-        <VBox fx:id="sidebar" spacing="8" prefWidth="240" styleClass="sidebar">
-            <padding>
-                <Insets bottom="10"/>
-            </padding>
-
-            <!-- User Profile Section -->
-            <VBox styleClass="sidebar-user-profile">
-                <Label fx:id="userNameLabel" text="Rayen" styleClass="sidebar-user-name"/>
-                <Label fx:id="userEmailLabel" text="rayen@admin.com" styleClass="sidebar-user-email"/>
-            </VBox>
-
-            <!-- Navigation Buttons -->
-            <Button fx:id="btnAccueil" text="Accueil" onAction="#onAccueilClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
-            <Button fx:id="btnUtilisateurs" text="Utilisateurs" onAction="#onUtilisateursClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
-            <Button fx:id="btnRendezVous" text="Rendez-vous" onAction="#onRendezVousClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
-            <Button fx:id="btnDonation" text="Donations" onAction="#onDonationClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
-            <Button fx:id="btnProduit" text="Produits" onAction="#onProduitClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
-            <Button fx:id="btnCollaboration" text="Collaborations" onAction="#onCollaborationClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
-            <Button fx:id="btnPartenaire" text="Partenaires" onAction="#onPartenaireClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
-            <Button fx:id="btnForum" text="Forum" onAction="#onForumClick" prefWidth="200" prefHeight="40" styleClass="sidebar-button"/>
-
-            <Region VBox.vgrow="ALWAYS"/>
-
-            <Separator style="-fx-background-color: #6366f1;"/>
-
-            <Button fx:id="btnLogout" text="Deconnexion" onAction="#onLogoutClick" prefWidth="200" prefHeight="40" styleClass="logout-button"/>
-=======
+<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import java.net.URL?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <BorderPane prefWidth="1000" prefHeight="650"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.medicare.controllers.DashboardAdminController">
+    <stylesheets>
+        <URL value="@dashboard-forum.css"/>
+        <URL value="@dashboard-sidebar.css"/>
+    </stylesheets>
 
     <left>
         <VBox prefWidth="220" spacing="5"
@@ -63,10 +21,18 @@
                 <Insets top="20" bottom="20" left="10" right="10"/>
             </padding>
 
-            <Label fx:id="userNameLabel" text="Admin"
-                   style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 5 10;"/>
-            <Label fx:id="userEmailLabel" text=""
-                   style="-fx-text-fill: #ddd6fe; -fx-font-size: 11px; -fx-padding: 0 0 10 10;"/>
+            <Label text="Medicare" prefWidth="200" alignment="CENTER" styleClass="sidebar-logo"/>
+
+            <VBox fx:id="profileCard" alignment="CENTER" spacing="8" prefWidth="200" styleClass="sidebar-profile-card">
+                <Label fx:id="avatarInitialsLabel" text="AD" styleClass="sidebar-avatar"/>
+                <Label fx:id="userNameLabel" text="Admin" wrapText="true" alignment="CENTER" styleClass="sidebar-profile-name"/>
+                <Label fx:id="userEmailLabel" text="System Administrator" alignment="CENTER" styleClass="sidebar-profile-role"/>
+                <HBox alignment="CENTER" spacing="6">
+                    <Region styleClass="sidebar-status-dot"/>
+                    <Label text="En ligne" styleClass="sidebar-status-text"/>
+                </HBox>
+                <Label fx:id="roleBadgeLabel" text="Admin" styleClass="sidebar-role-badge sidebar-role-admin"/>
+            </VBox>
 
             <Separator/>
 
@@ -98,6 +64,10 @@
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
+            <Button fx:id="btnNotifications" text="  Notifications" onAction="#onNotificationsClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
             <Region VBox.vgrow="ALWAYS"/>
 
             <Separator/>
@@ -105,26 +75,159 @@
             <Button fx:id="btnLogout" text="  Deconnexion" onAction="#onLogoutClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: #fecaca; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         </VBox>
     </left>
 
     <center>
         <StackPane fx:id="contentArea"
-<<<<<<< HEAD
-                   style="-fx-background-color: #f3f4f6; -fx-padding: 10;"/>
-    </center>
-
-</BorderPane>
-=======
-                   style="-fx-background-color: #f5f3ff;">
+                   styleClass="forum-dashboard-shell">
             <padding>
-                <Insets top="20" bottom="20" left="20" right="20"/>
+                <Insets top="24" bottom="24" left="24" right="24"/>
             </padding>
-            <Label text="Bienvenue sur le panneau d'administration !"
-                   style="-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;"/>
+            <ScrollPane fx:id="adminHomeScrollPane"
+                        fitToWidth="true"
+                        hbarPolicy="NEVER"
+                        styleClass="forum-dashboard-scroll">
+                <content>
+                    <VBox fx:id="dashboardForumContent" spacing="20" styleClass="forum-dashboard">
+                        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="forum-dashboard-header">
+                            <VBox spacing="5" HBox.hgrow="ALWAYS">
+                                <Label text="Dashboard Forum" styleClass="forum-dashboard-title"/>
+                                <Label text="Vue d'ensemble des sujets, commentaires et actions de moderation du forum."
+                                       wrapText="true"
+                                       styleClass="forum-dashboard-subtitle"/>
+                            </VBox>
+                            <Label fx:id="forumDashboardStatusLabel" text="Chargement des statistiques forum..."
+                                   styleClass="forum-status-pill"/>
+                        </HBox>
+
+                        <FlowPane hgap="16" vgap="16" alignment="CENTER_LEFT" prefWrapLength="920" styleClass="kpi-grid">
+                            <VBox fx:id="totalTopicsCard" prefWidth="176" minWidth="176" spacing="10" styleClass="kpi-card kpi-blue">
+                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                    <StackPane styleClass="kpi-icon">
+                                        <FontIcon iconLiteral="fas-comments" iconSize="18" iconColor="#2563EB"/>
+                                    </StackPane>
+                                    <Label text="Total sujets" styleClass="kpi-title"/>
+                                </HBox>
+                                <Label fx:id="totalTopicsLabel" text="0" styleClass="kpi-value"/>
+                                <Label text="Tous les sujets du forum" wrapText="true" styleClass="kpi-caption"/>
+                                <Label text="Forum" styleClass="kpi-badge"/>
+                            </VBox>
+
+                            <VBox fx:id="totalCommentsCard" prefWidth="176" minWidth="176" spacing="10" styleClass="kpi-card kpi-purple">
+                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                    <StackPane styleClass="kpi-icon">
+                                        <FontIcon iconLiteral="fas-comment-dots" iconSize="18" iconColor="#7C3AED"/>
+                                    </StackPane>
+                                    <Label text="Total commentaires" styleClass="kpi-title"/>
+                                </HBox>
+                                <Label fx:id="totalCommentsLabel" text="0" styleClass="kpi-value"/>
+                                <Label text="Commentaires visibles ou moderes" wrapText="true" styleClass="kpi-caption"/>
+                                <Label text="Activite" styleClass="kpi-badge"/>
+                            </VBox>
+
+                            <VBox fx:id="reportedTopicsCard" prefWidth="176" minWidth="176" spacing="10" styleClass="kpi-card kpi-orange">
+                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                    <StackPane styleClass="kpi-icon">
+                                        <FontIcon iconLiteral="fas-flag" iconSize="18" iconColor="#F59E0B"/>
+                                    </StackPane>
+                                    <Label text="Sujets signales" styleClass="kpi-title"/>
+                                </HBox>
+                                <Label fx:id="reportedTopicsLabel" text="0" styleClass="kpi-value"/>
+                                <Label text="A verifier rapidement" wrapText="true" styleClass="kpi-caption"/>
+                                <Label text="Signales" styleClass="kpi-badge"/>
+                            </VBox>
+
+                            <VBox fx:id="reportedCommentsCard" prefWidth="176" minWidth="176" spacing="10" styleClass="kpi-card kpi-red">
+                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                    <StackPane styleClass="kpi-icon">
+                                        <FontIcon iconLiteral="fas-exclamation-triangle" iconSize="18" iconColor="#EF4444"/>
+                                    </StackPane>
+                                    <Label text="Commentaires signales" styleClass="kpi-title"/>
+                                </HBox>
+                                <Label fx:id="reportedCommentsLabel" text="0" styleClass="kpi-value"/>
+                                <Label text="Signalements recents" wrapText="true" styleClass="kpi-caption"/>
+                                <Label text="Critique" styleClass="kpi-badge"/>
+                            </VBox>
+
+                            <VBox fx:id="hiddenTopicsCard" prefWidth="176" minWidth="176" spacing="10" styleClass="kpi-card kpi-dark">
+                                <HBox alignment="CENTER_LEFT" spacing="10">
+                                    <StackPane styleClass="kpi-icon">
+                                        <FontIcon iconLiteral="fas-eye-slash" iconSize="18" iconColor="#475569"/>
+                                    </StackPane>
+                                    <Label text="Sujets masques" styleClass="kpi-title"/>
+                                </HBox>
+                                <Label fx:id="hiddenTopicsLabel" text="0" styleClass="kpi-value"/>
+                                <Label text="Caches cote forum" wrapText="true" styleClass="kpi-caption"/>
+                                <Label text="Masques" styleClass="kpi-badge"/>
+                            </VBox>
+                        </FlowPane>
+
+                        <HBox spacing="18" styleClass="forum-tables-row">
+                            <VBox fx:id="topTopicsPanel" spacing="12" HBox.hgrow="ALWAYS" styleClass="dashboard-panel">
+                                <VBox spacing="4">
+                                    <Label text="Top 5 sujets les plus commentes" styleClass="panel-title"/>
+                                    <Label text="Classement par nombre total de commentaires." styleClass="panel-subtitle"/>
+                                </VBox>
+                                <TableView fx:id="topTopicsTable" prefHeight="250" styleClass="dashboard-table">
+                                    <columns>
+                                        <TableColumn fx:id="topTopicsTitleColumn" text="Sujet" prefWidth="260"/>
+                                        <TableColumn fx:id="topTopicsAuthorColumn" text="Auteur" prefWidth="150"/>
+                                        <TableColumn fx:id="topTopicsCountColumn" text="Commentaires" prefWidth="120"/>
+                                    </columns>
+                                </TableView>
+                            </VBox>
+
+                            <VBox fx:id="recentModerationPanel" spacing="12" HBox.hgrow="ALWAYS" styleClass="dashboard-panel">
+                                <VBox spacing="4">
+                                    <Label text="Moderation recente" styleClass="panel-title"/>
+                                    <Label text="Sujets et commentaires signales ou masques les plus recents."
+                                           wrapText="true"
+                                           styleClass="panel-subtitle"/>
+                                </VBox>
+                                <TableView fx:id="recentModerationTable" prefHeight="290" styleClass="dashboard-table">
+                                    <columns>
+                                        <TableColumn fx:id="moderationTypeColumn" text="Type" prefWidth="100"/>
+                                        <TableColumn fx:id="moderationContentColumn" text="Contenu" prefWidth="280"/>
+                                        <TableColumn fx:id="moderationAuthorColumn" text="Auteur" prefWidth="140"/>
+                                        <TableColumn fx:id="moderationStatusColumn" text="Etat" prefWidth="110"/>
+                                        <TableColumn fx:id="moderationDateColumn" text="Date" prefWidth="130"/>
+                                    </columns>
+                                </TableView>
+                            </VBox>
+                        </HBox>
+
+                        <VBox fx:id="allTopicsPanel" spacing="14" styleClass="dashboard-panel all-topics-panel">
+                            <HBox alignment="CENTER_LEFT" spacing="14" styleClass="table-toolbar">
+                                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                    <Label text="Tous les sujets" styleClass="panel-title"/>
+                                    <Label text="Recherche rapide et tri des sujets du forum." styleClass="panel-subtitle"/>
+                                </VBox>
+                                <TextField fx:id="topicSearchField"
+                                           promptText="Rechercher titre, auteur ou tag"
+                                           prefWidth="260"
+                                           styleClass="dashboard-search-field"/>
+                                <ComboBox fx:id="topicSortComboBox"
+                                          prefWidth="175"
+                                          styleClass="dashboard-sort-combo"/>
+                            </HBox>
+
+                            <TableView fx:id="allTopicsTable" prefHeight="360" styleClass="dashboard-table all-topics-table">
+                                <columns>
+                                    <TableColumn fx:id="allTopicsIdColumn" text="ID" prefWidth="70"/>
+                                    <TableColumn fx:id="allTopicsTitleColumn" text="Titre" prefWidth="260"/>
+                                    <TableColumn fx:id="allTopicsAuthorColumn" text="Auteur" prefWidth="150"/>
+                                    <TableColumn fx:id="allTopicsTypeColumn" text="Type" prefWidth="100"/>
+                                    <TableColumn fx:id="allTopicsCommentCountColumn" text="Commentaires" prefWidth="125"/>
+                                    <TableColumn fx:id="allTopicsReportedColumn" text="Signale" prefWidth="100"/>
+                                    <TableColumn fx:id="allTopicsHiddenColumn" text="Masque" prefWidth="100"/>
+                                    <TableColumn fx:id="allTopicsCreatedAtColumn" text="Date creation" prefWidth="145"/>
+                                </columns>
+                            </TableView>
+                        </VBox>
+                    </VBox>
+                </content>
+            </ScrollPane>
         </StackPane>
     </center>
 </BorderPane>
-
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

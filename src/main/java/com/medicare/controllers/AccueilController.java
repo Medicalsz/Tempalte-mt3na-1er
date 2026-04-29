@@ -19,14 +19,12 @@ public class AccueilController {
 
     @FXML
     private void initialize() {
-        // Charge le logo s'il existe dans resources/com/medicare/images/logo.png
         InputStream logoStream = getClass().getResourceAsStream("/com/medicare/images/logo.png");
         if (logoStream != null) {
             logoView.setImage(new Image(logoStream));
         }
 
-        // Affiche le statut DB
-        boolean dbOk = MyConnection.getInstance().getCnx() != null;
+        boolean dbOk = MyConnection.getInstance().isConnected();
         if (dbOk) {
             dbStatusLabel.setText("Base de donnees connectee");
             dbStatusLabel.setStyle("-fx-text-fill: #16a34a; -fx-font-size: 11px; -fx-font-weight: bold;");
@@ -57,4 +55,3 @@ public class AccueilController {
         }
     }
 }
-

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<ScrollPane fitToWidth="true"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.medicare.controllers.ForumListController"
+            stylesheets="@forum-list.css"
+            styleClass="forum-list-scroll">
+    <content>
+        <VBox fx:id="forumListContent" spacing="18" styleClass="forum-list-content">
+            <padding>
+                <Insets top="16" right="18" bottom="18" left="18"/>
+            </padding>
+
+            <HBox fx:id="forumHeaderBox" alignment="CENTER_LEFT" spacing="16" styleClass="forum-header-card">
+                <StackPane styleClass="forum-title-icon">
+                    <FontIcon iconLiteral="fas-comments" iconSize="22" iconColor="#2563EB"/>
+                </StackPane>
+                <VBox spacing="5">
+                    <Label text="Forum Medicare" styleClass="forum-title"/>
+                    <Label fx:id="headerStatsLabel" text="0 sujet visible" styleClass="forum-subtitle"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="moderationButton" text="Moderation" onAction="#onModerationClick"
+                        visible="false" managed="false"
+                        styleClass="forum-moderation-button"/>
+                <Button fx:id="addButton" text="Ajouter un sujet" onAction="#onAddTopicClick"
+                        styleClass="forum-add-button"/>
+            </HBox>
+
+            <HBox fx:id="forumSearchCard" spacing="12" alignment="CENTER_LEFT"
+                  styleClass="forum-search-card">
+                <padding>
+                    <Insets top="16" right="18" bottom="16" left="18"/>
+                </padding>
+                <HBox alignment="CENTER_LEFT" spacing="8" HBox.hgrow="ALWAYS" styleClass="forum-search-input-shell">
+                    <FontIcon iconLiteral="fas-search" iconSize="14" iconColor="#64748B"/>
+                    <TextField fx:id="searchField" promptText="Rechercher un sujet, un tag ou un auteur..."
+                               prefHeight="48" HBox.hgrow="ALWAYS"
+                               styleClass="forum-search-field"/>
+                </HBox>
+                <ComboBox fx:id="typeFilterCombo" prefWidth="160" prefHeight="48"
+                          styleClass="forum-type-combo"/>
+                <CheckBox fx:id="showHiddenCheckBox" text="Inclure les sujets masques"
+                          visible="false" managed="false"
+                          styleClass="forum-admin-checkbox"/>
+            </HBox>
+
+            <Label fx:id="errorLabel" text=""
+                   style="-fx-text-fill: #dc2626; -fx-font-size: 13px;"/>
+
+            <Label fx:id="emptyLabel" text="Aucun sujet ne correspond a votre recherche."
+                   managed="false" visible="false"
+                   style="-fx-text-fill: #64748b; -fx-font-size: 14px; -fx-padding: 10 4;"/>
+
+            <VBox fx:id="topicsContainer" spacing="14"/>
+        </VBox>
+    </content>
+</ScrollPane>

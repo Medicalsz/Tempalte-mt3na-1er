@@ -4,11 +4,7 @@ import com.medicare.HelloApplication;
 import com.medicare.models.User;
 import com.medicare.services.RendezVousService;
 import com.medicare.services.UserService;
-<<<<<<< HEAD
-import com.medicare.utils.Session;
-
-=======
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
+import com.medicare.utils.MyConnection;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -29,44 +25,43 @@ public class LoginController {
     private void onLoginClick() {
         String email = emailField.getText().trim();
         String password = passwordField.getText();
+        clearError();
 
         if (email.isEmpty() || password.isEmpty()) {
-            errorLabel.setText("Veuillez remplir tous les champs.");
+            showError("Veuillez remplir tous les champs.");
+            return;
+        }
+
+        if (!MyConnection.getInstance().isConnected()) {
+            showError("Connexion MySQL indisponible. Verifiez XAMPP/MySQL.");
             return;
         }
 
         User user = userService.login(email, password);
 
-        if (user != null) {
-            System.out.println("Connexion reussie : " + user);
+        if (user == null) {
+            showError("Email ou mot de passe incorrect.");
+            return;
+        }
 
-<<<<<<< HEAD
-            // Set the user in the global session
-            Session.getInstance().setCurrentUser(user);
+        System.out.println("Connexion reussie : " + user);
 
-=======
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
-            if (user.getRoles().contains("ROLE_ADMIN")) {
-                // Admin
-                DashboardAdminController.setCurrentUser(user);
-                navigateTo("dashboard-admin-view.fxml", "Medicare - Administration");
-            } else {
-                // Vérifier si c'est un médecin
-                RendezVousService rvService = new RendezVousService();
-                int medecinId = rvService.getMedecinIdByUserId(user.getId());
+        if (user.hasRole("ROLE_ADMIN")) {
+            DashboardAdminController.setCurrentUser(user);
+            navigateTo("dashboard-admin-view.fxml", "Medicare - Administration");
+            return;
+        }
 
-                if (medecinId > 0 && user.getRoles().contains("ROLE_MEDECIN")) {
-                    DashboardMedecinController.setCurrentUser(user);
-                    DashboardMedecinController.setMedecinId(medecinId);
-                    navigateTo("dashboard-medecin-view.fxml", "Medicare - Espace Medecin");
-                } else {
-                    DashboardPatientController.setCurrentUser(user);
-                    navigateTo("dashboard-patient-view.fxml", "Medicare - Dashboard");
-                }
-            }
+        RendezVousService rvService = new RendezVousService();
+        int medecinId = rvService.getMedecinIdByUserId(user.getId());
+
+        if (medecinId > 0 && user.hasRole("ROLE_MEDECIN")) {
+            DashboardMedecinController.setCurrentUser(user);
+            DashboardMedecinController.setMedecinId(medecinId);
+            navigateTo("dashboard-medecin-view.fxml", "Medicare - Espace Medecin");
         } else {
-            errorLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 13px;");
-            errorLabel.setText("Email ou mot de passe incorrect.");
+            DashboardPatientController.setCurrentUser(user);
+            navigateTo("dashboard-patient-view.fxml", "Medicare - Dashboard");
         }
     }
 
@@ -87,12 +82,17 @@ public class LoginController {
             stage.setScene(new Scene(loader.load()));
             stage.setTitle(title);
         } catch (Exception e) {
+            showError("Impossible d'ouvrir l'ecran suivant.");
             e.printStackTrace();
         }
     }
-<<<<<<< HEAD
-}
-=======
-}
 
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
+    private void showError(String message) {
+        errorLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 13px;");
+        errorLabel.setText(message);
+    }
+
+    private void clearError() {
+        errorLabel.setText("");
+    }
+}

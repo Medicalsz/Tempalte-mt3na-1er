@@ -1,6 +1,8 @@
 module com.medicare.medicarejavafx {
     requires javafx.controls;
     requires javafx.fxml;
+    requires javafx.web;
+    requires java.net.http;
     requires java.sql;
     requires jbcrypt;
     requires org.kordamp.ikonli.javafx;

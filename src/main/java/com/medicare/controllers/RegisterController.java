@@ -3,6 +3,7 @@ package com.medicare.controllers;
 import com.medicare.HelloApplication;
 import com.medicare.models.User;
 import com.medicare.services.UserService;
+import com.medicare.utils.MyConnection;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -24,10 +25,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 public class RegisterController {
 
     @FXML private TextField nomField;
-<<<<<<< HEAD
-=======
     @FXML private TextField prenomField;
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
     @FXML private TextField emailField;
     @FXML private PasswordField passwordField;
     @FXML private PasswordField confirmPasswordField;
@@ -40,24 +38,14 @@ public class RegisterController {
     @FXML
     private void onRegisterClick() {
         String nom = nomField.getText().trim();
-<<<<<<< HEAD
-=======
         String prenom = prenomField.getText().trim();
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         String email = emailField.getText().trim();
         String password = passwordField.getText();
         String confirm = confirmPasswordField.getText();
         String numero = numeroField.getText().trim();
-<<<<<<< HEAD
-
-        // Validations
-        if (nom.isEmpty() || email.isEmpty() || password.isEmpty() || numero.isEmpty()) {
-=======
         String adresse = adresseField.getText().trim();
 
-        // Validations
         if (nom.isEmpty() || prenom.isEmpty() || email.isEmpty() || password.isEmpty() || numero.isEmpty()) {
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             showError("Veuillez remplir tous les champs obligatoires.");
             return;
         }
@@ -73,13 +61,13 @@ public class RegisterController {
             showError("Les mots de passe ne correspondent pas.");
             return;
         }
+        if (!MyConnection.getInstance().isConnected()) {
+            showError("Connexion MySQL indisponible. Verifiez XAMPP/MySQL.");
+            return;
+        }
 
-<<<<<<< HEAD
-        User user = new User(nom, email, password, numero, "[\"ROLE_USER\"]", false);
-=======
         User user = new User(nom, prenom, email, password, numero,
-                             adresse.isEmpty() ? null : adresse, null, "[\"ROLE_USER\"]", false);
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
+                adresse.isEmpty() ? null : adresse, null, "[\"ROLE_USER\"]", false);
 
         boolean success = userService.register(user);
 
@@ -96,7 +84,6 @@ public class RegisterController {
     }
 
     private void showSuccessAndRedirect() {
-        // Popup stylée
         Stage popup = new Stage();
         popup.initStyle(StageStyle.UNDECORATED);
         popup.initModality(Modality.APPLICATION_MODAL);
@@ -117,13 +104,12 @@ public class RegisterController {
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(30));
         box.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
-                     "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
+                "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
 
         popup.setScene(new Scene(box, 340, 220));
         popup.show();
 
-        // Ferme la popup après 2s et redirige vers connexion
         PauseTransition pause = new PauseTransition(Duration.seconds(2));
         pause.setOnFinished(e -> {
             popup.close();
@@ -152,9 +138,4 @@ public class RegisterController {
             e.printStackTrace();
         }
     }
-<<<<<<< HEAD
 }
-=======
-}
-
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

@@ -1,48 +1,23 @@
 package com.medicare.controllers;
 
-<<<<<<< HEAD
-import java.util.List;
-
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
-import org.kordamp.ikonli.javafx.FontIcon;
-
 import com.medicare.models.User;
 import com.medicare.services.UserService;
-
-=======
-import com.medicare.models.User;
-import com.medicare.services.UserService;
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-<<<<<<< HEAD
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-=======
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
-<<<<<<< HEAD
-=======
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.List;
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 
 public class AdminUsersController {
 
@@ -85,11 +60,7 @@ public class AdminUsersController {
         tableHeader.setStyle("-fx-background-color: #7c3aed; -fx-background-radius: 8 8 0 0;");
 
         tableHeader.getChildren().addAll(
-<<<<<<< HEAD
-            colLabel("Nom", 150), colLabel("Email", 200),
-=======
             colLabel("Nom", 150), colLabel("Prenom", 120), colLabel("Email", 200),
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             colLabel("Role", 120), colLabel("Verifie", 70), colLabel("Actions", 120)
         );
         container.getChildren().add(tableHeader);
@@ -123,13 +94,10 @@ public class AdminUsersController {
             nom.setPrefWidth(150);
             nom.setStyle("-fx-font-size: 13px; -fx-text-fill: #333;");
 
-<<<<<<< HEAD
-=======
             Label prenom = new Label(u.getPrenom());
             prenom.setPrefWidth(120);
             prenom.setStyle("-fx-font-size: 13px; -fx-text-fill: #333;");
 
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             Label email = new Label(u.getEmail());
             email.setPrefWidth(200);
             email.setStyle("-fx-font-size: 12px; -fx-text-fill: #555;");
@@ -170,11 +138,7 @@ public class AdminUsersController {
             btnToggle.setOnAction(e -> {
                 userService.toggleVerified(u.getId(), !u.isVerified());
                 showPopup(u.isVerified() ? "Utilisateur bloque" : "Utilisateur active",
-<<<<<<< HEAD
-                          u.getNom(),
-=======
                           u.getPrenom() + " " + u.getNom(),
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
                           u.isVerified() ? FontAwesomeSolid.BAN : FontAwesomeSolid.CHECK_CIRCLE,
                           u.isVerified() ? "#dc2626" : "#16a34a");
             });
@@ -185,11 +149,7 @@ public class AdminUsersController {
 
             actions.getChildren().addAll(btnVoir, btnToggle, btnDelete);
 
-<<<<<<< HEAD
-            row.getChildren().addAll(nom, email, role, verified, actions);
-=======
             row.getChildren().addAll(nom, prenom, email, role, verified, actions);
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             container.getChildren().add(row);
         }
     }
@@ -220,10 +180,7 @@ public class AdminUsersController {
         String s = search.toLowerCase();
         List<User> filtered = all.stream()
             .filter(u -> u.getNom().toLowerCase().contains(s) ||
-<<<<<<< HEAD
-=======
                          u.getPrenom().toLowerCase().contains(s) ||
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
                          u.getEmail().toLowerCase().contains(s))
             .toList();
         addUserRows(filtered);
@@ -241,20 +198,13 @@ public class AdminUsersController {
         icon.setIconSize(44);
         icon.setIconColor(Color.web("#7c3aed"));
 
-<<<<<<< HEAD
-        Label titleLbl = new Label(u.getNom());
-=======
         Label titleLbl = new Label(u.getPrenom() + " " + u.getNom());
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         titleLbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #7c3aed;");
 
         Label details = new Label(
             "Email :  " + u.getEmail() + "\n" +
             "Numero :  " + (u.getNumero() != null ? u.getNumero() : "-") + "\n" +
-<<<<<<< HEAD
-=======
             "Adresse :  " + (u.getAdresse() != null ? u.getAdresse() : "-") + "\n" +
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             "Roles :  " + u.getRoles() + "\n" +
             "Verifie :  " + (u.isVerified() ? "Oui" : "Non")
         );
@@ -291,11 +241,7 @@ public class AdminUsersController {
         Label titleLbl = new Label("Supprimer cet utilisateur ?");
         titleLbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #333;");
 
-<<<<<<< HEAD
-        Label msgLbl = new Label(u.getNom() + "\n" + u.getEmail());
-=======
         Label msgLbl = new Label(u.getPrenom() + " " + u.getNom() + "\n" + u.getEmail());
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         msgLbl.setStyle("-fx-font-size: 13px; -fx-text-fill: #666; -fx-text-alignment: center;");
 
         Button btnOui = new Button("Supprimer");
@@ -323,11 +269,7 @@ public class AdminUsersController {
         btnOui.setOnAction(e -> {
             popup.close();
             userService.deleteUser(u.getId());
-<<<<<<< HEAD
-            showPopup("Utilisateur supprime", u.getNom(),
-=======
             showPopup("Utilisateur supprime", u.getPrenom() + " " + u.getNom(),
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
                       FontAwesomeSolid.TRASH_ALT, "#dc2626");
         });
     }
@@ -367,9 +309,5 @@ public class AdminUsersController {
         });
         pause.play();
     }
-<<<<<<< HEAD
-}
-=======
 }
 
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
