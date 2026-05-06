@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Doctors Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    html, body, #map {
+      width:100%;
+      height:100%;
+      margin:0;
+      padding:0;
+      font-family: Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .leaflet-container,
+    .leaflet-pane,
+    .leaflet-tile,
+    .leaflet-marker-icon {
+      image-rendering: auto !important;
+    }
+    #legend {
+      position: absolute; top: 10px; left: 10px; z-index: 1000;
+      background: #fff; border-radius: 10px; padding: 8px 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 12px; color: #374151;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="legend">Bleu: vous • Rouge: médecins</div>
+  <script>
+    window.L_DISABLE_3D = true;
+    var map;
+    var patientMarker;
+    var doctorLayer;
+    var pendingPatient = null;
+    var pendingDoctors = [];
+
+    function ensureMap() {
+      if (map) return;
+      map = L.map('map', {
+        zoomControl: true,
+        zoomAnimation: false,
+        fadeAnimation: false,
+        markerZoomAnimation: false
+      }).setView([36.8, 10.18], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+        maxNativeZoom: 19,
+        detectRetina: false,
+        updateWhenIdle: false,
+        updateWhenZooming: true,
+        keepBuffer: 8
+      }).addTo(map);
+      doctorLayer = L.layerGroup().addTo(map);
+      forceMapResize();
+      setTimeout(forceMapResize, 300);
+      setTimeout(forceMapResize, 1000);
+      if (window.ResizeObserver) {
+        new ResizeObserver(forceMapResize).observe(document.getElementById('map'));
+      }
+      window.addEventListener('resize', forceMapResize);
+    }
+
+    function forceMapResize() {
+      if (!map) return;
+      map.invalidateSize(true);
+    }
+
+    function setPatientLocation(lat, lng, name) {
+      pendingPatient = { lat: lat, lng: lng, name: name || 'Patient' };
+      render();
+    }
+
+    function setDoctors(doctors) {
+      pendingDoctors = Array.isArray(doctors) ? doctors : [];
+      render();
+    }
+
+    function render() {
+      ensureMap();
+      if (patientMarker) map.removeLayer(patientMarker);
+      doctorLayer.clearLayers();
+
+      if (pendingPatient) {
+        patientMarker = L.circleMarker([pendingPatient.lat, pendingPatient.lng], {
+          radius: 8, color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9
+        }).addTo(map).bindPopup('<b>' + pendingPatient.name + '</b><br>Votre position');
+      }
+
+      var bounds = [];
+      if (pendingPatient) bounds.push([pendingPatient.lat, pendingPatient.lng]);
+      pendingDoctors.forEach(function(d) {
+        var label = '<b>' + (d.name || 'Médecin') + '</b>'
+          + (d.specialite ? '<br>' + d.specialite : '')
+          + (d.city ? '<br>' + d.city : '')
+          + (d.distanceKm != null ? '<br><small>Distance: ' + d.distanceKm.toFixed(2) + ' km</small>' : '');
+        L.circleMarker([d.lat, d.lng], {
+          radius: 7, color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 0.85
+        }).addTo(doctorLayer).bindPopup(label);
+        bounds.push([d.lat, d.lng]);
+      });
+
+      if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+      else if (bounds.length === 1) map.setView(bounds[0], 11);
+      setTimeout(forceMapResize, 80);
+      setTimeout(forceMapResize, 260);
+    }
+
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = ensureMap;
+    document.head.appendChild(s);
+  </script>
+</body>
+</html>

@@ -10,10 +10,12 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Circle?>
 
 <BorderPane prefWidth="900" prefHeight="600"
             xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.medicare.controllers.DashboardPatientController">
+            fx:controller="com.medicare.controllers.DashboardPatientController"
+            stylesheets="css/theme.css">
 
     <left>
         <VBox prefWidth="220" spacing="8"
@@ -66,13 +68,27 @@
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
-            <Button fx:id="btnNotifications" text="  Notifications" onAction="#onNotificationsClick"
+            <Button fx:id="btnMatchDoctors" text="  Match Doctors" onAction="#onMatchDoctorsClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <StackPane prefWidth="200" prefHeight="38" alignment="CENTER_LEFT">
+                <Button fx:id="btnNotifications" text="  Notifications" onAction="#onNotificationsClick"
+                        prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+                <Circle fx:id="notifRedDot" radius="5" fill="#ef4444"
+                        StackPane.alignment="TOP_RIGHT"
+                        translateX="-14" translateY="4"
+                        visible="false"/>
+            </StackPane>
 
             <Button fx:id="btnDevenirMedecin" text="  Devenir Medecin" onAction="#onDevenirMedecinClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: #ffd700; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+
+            <Button fx:id="btnBlockList" text="  Liste noire" onAction="#onBlockListClick"
+                    prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
+                    style="-fx-background-color: transparent; -fx-text-fill: #fca5a5; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
             <Button fx:id="btnSettings" text="  Parametres" onAction="#onSettingsClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
@@ -89,14 +105,26 @@
     </left>
 
     <center>
-        <StackPane fx:id="contentArea"
-                   style="-fx-background-color: #f0f4f8;">
-            <padding>
-                <Insets top="20" bottom="20" left="20" right="20"/>
-            </padding>
-            <Label text="Bienvenue sur votre espace patient !"
-                   style="-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;"/>
-        </StackPane>
+        <VBox spacing="16" style="-fx-padding: 24; -fx-background-color: #f0f4f8;">
+            <HBox alignment="CENTER_RIGHT" spacing="16" style="-fx-padding: 0 0 10 0;">
+                <Label fx:id="profileBadge" text="Profile 0%"
+                       style="-fx-background-color: #FCE4EC; -fx-text-fill: #C2185B;
+                              -fx-background-radius: 20; -fx-padding: 6 16; -fx-font-size: 13;
+                              -fx-font-weight: bold; -fx-cursor: hand;"/>
+            </HBox>
+
+            <!-- SMART ALERT ZONE -->
+            <VBox fx:id="alertZone" spacing="8" style="-fx-padding: 0 0 4 0;"/>
+
+            <StackPane fx:id="contentArea" VBox.vgrow="ALWAYS"
+                       style="-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 4, 0, 0, 2);">
+                <padding>
+                    <Insets top="20" bottom="20" left="20" right="20"/>
+                </padding>
+                <Label text="Bienvenue sur votre espace patient !"
+                       style="-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;"/>
+            </StackPane>
+        </VBox>
     </center>
 
 </BorderPane>

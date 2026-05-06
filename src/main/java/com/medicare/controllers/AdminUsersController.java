@@ -30,6 +30,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public class AdminUsersController {
 
@@ -50,14 +51,26 @@ public class AdminUsersController {
     private void loadUsers() {
         container.getChildren().clear();
 
+        // 1. Approvals Section (Doctors)
+        container.getChildren().add(com.medicare.ui.UserSectionFactory.createAdminManagementSection(this::loadUsers));
+        
+        container.getChildren().add(new javafx.scene.layout.VBox(20)); // Spacer
+
+        // 2. Main User Management List
         HBox header = new HBox(14);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        Label title = new Label("Gestion des utilisateurs");
+        Label title = new Label("Gestion des comptes");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #7c3aed;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        ComboBox<String> roleFilter = new ComboBox<>();
+        roleFilter.getItems().addAll("Tous", "Patients", "Médecins", "Admins");
+        roleFilter.setValue("Tous");
+        roleFilter.setStyle("-fx-background-radius: 8; -fx-font-size: 13px;");
+        roleFilter.setOnAction(e -> filterUsers(searchField.getText(), roleFilter.getValue()));
 
         Button addBtn = new Button("Ajouter");
         addBtn.setStyle("-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;");
@@ -65,11 +78,11 @@ public class AdminUsersController {
 
         searchField = new TextField();
         searchField.setPromptText("Rechercher...");
-        searchField.setPrefWidth(220);
+        searchField.setPrefWidth(200);
         searchField.setStyle("-fx-background-radius: 8; -fx-font-size: 13px;");
-        searchField.textProperty().addListener((obs, old, val) -> filterUsers(val));
+        searchField.textProperty().addListener((obs, old, val) -> filterUsers(val, roleFilter.getValue()));
 
-        header.getChildren().addAll(title, spacer, addBtn, searchField);
+        header.getChildren().addAll(title, spacer, roleFilter, addBtn, searchField);
         container.getChildren().add(header);
 
         HBox tableHeader = new HBox();
@@ -82,7 +95,8 @@ public class AdminUsersController {
             colLabel("Prenom", 120),
             colLabel("Email", 210),
             colLabel("Role", 100),
-            colLabel("Verifie", 70),
+            colLabel("Note", 60),
+            colLabel("Statut", 70),
             colLabel("Actions", 170)
         );
         container.getChildren().add(tableHeader);
@@ -91,8 +105,8 @@ public class AdminUsersController {
     }
 
     private void addUserRows(List<User> users) {
-        while (container.getChildren().size() > 2) {
-            container.getChildren().remove(2);
+        while (container.getChildren().size() > 4) {
+            container.getChildren().remove(4);
         }
 
         if (users.isEmpty()) {
@@ -121,6 +135,8 @@ public class AdminUsersController {
             Label verified = new Label();
             verified.setGraphic(verifiedIcon);
             verified.setPrefWidth(70);
+
+            Label note = plainLabel(user.getRatingAverage() != null ? String.format("%.1f", user.getRatingAverage()) : "-", 60);
 
             HBox actions = new HBox(6);
             actions.setAlignment(Pos.CENTER);
@@ -153,26 +169,31 @@ public class AdminUsersController {
             btnDelete.setOnAction(e -> showDeleteConfirm(user));
 
             actions.getChildren().addAll(btnView, btnEdit, btnToggle, btnDelete);
-            row.getChildren().addAll(nom, prenom, email, role, verified, actions);
+            row.getChildren().addAll(nom, prenom, email, role, note, verified, actions);
             container.getChildren().add(row);
         }
     }
 
-    private void filterUsers(String search) {
+    private void filterUsers(String search, String roleFilter) {
         List<User> all = userService.getAllUsers();
-        if (search == null || search.trim().isEmpty()) {
-            addUserRows(all);
-            return;
+        Stream<User> stream = all.stream();
+
+        if (search != null && !search.trim().isEmpty()) {
+            String val = search.toLowerCase();
+            stream = stream.filter(u -> 
+                safe(u.getNom()).contains(val) || 
+                safe(u.getPrenom()).contains(val) || 
+                safe(u.getEmail()).contains(val)
+            );
         }
 
-        String value = search.toLowerCase();
-        List<User> filtered = all.stream()
-            .filter(user ->
-                safe(user.getNom()).contains(value)
-                    || safe(user.getPrenom()).contains(value)
-                    || safe(user.getEmail()).contains(value))
-            .toList();
-        addUserRows(filtered);
+        if (roleFilter != null && !roleFilter.equals("Tous")) {
+            String roleBit = roleFilter.equals("Patients") ? "ROLE_USER" : 
+                             roleFilter.equals("Médecins") ? "ROLE_MEDECIN" : "ROLE_ADMIN";
+            stream = stream.filter(u -> safe(u.getRoles()).contains(roleBit));
+        }
+
+        addUserRows(stream.toList());
     }
 
     private void showUserForm(User existingUser) {

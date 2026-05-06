@@ -12,6 +12,8 @@ public class HelloApplication extends Application {
     public void start(Stage stage) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("accueil-view.fxml"));
         Scene scene = new Scene(fxmlLoader.load());
+        String themeUrl = getClass().getResource("css/theme.css").toExternalForm();
+        scene.getStylesheets().add(themeUrl);
         stage.setTitle("Medicare");
         stage.setScene(scene);
         stage.show();

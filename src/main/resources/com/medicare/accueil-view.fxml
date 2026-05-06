@@ -28,8 +28,4 @@
 
     <Button text="Creer un compte" onAction="#onCreerCompteClick" prefWidth="250" prefHeight="40"
             style="-fx-background-color: white; -fx-text-fill: #1a73e8; -fx-font-size: 15px; -fx-border-color: #1a73e8; -fx-border-radius: 8; -fx-background-radius: 8; -fx-cursor: hand;"/>
-
-    <Label fx:id="dbStatusLabel" text=""
-           style="-fx-font-size: 11px;"/>
 </VBox>
-

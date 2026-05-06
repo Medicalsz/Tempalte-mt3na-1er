@@ -1,41 +1,131 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.layout.*?>
 
-<VBox alignment="CENTER" spacing="20" prefWidth="450" prefHeight="400"
-      style="-fx-background-color: #f0f4f8;"
-      xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.medicare.controllers.LoginController">
-    <padding>
-        <Insets bottom="40" left="50" right="50" top="40"/>
-    </padding>
+<StackPane xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.medicare.controllers.LoginController"
+           stylesheets="css/theme.css">
 
-    <Label text="Connexion"
-           style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;"/>
+    <!-- Background gradient -->
+    <VBox style="-fx-background-color: linear-gradient(to bottom right, #FCE4EC, #E8F5E9);"
+          alignment="CENTER" prefWidth="900" prefHeight="720"/>
 
-    <TextField fx:id="emailField" promptText="Email" prefHeight="38"
-               style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
+    <!-- Login card -->
+    <VBox alignment="CENTER" spacing="0" maxWidth="420"
+          styleClass="card" style="-fx-padding: 40;">
 
-    <PasswordField fx:id="passwordField" promptText="Mot de passe" prefHeight="38"
-                   style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
+        <!-- Logo -->
+        <HBox alignment="CENTER" spacing="6" style="-fx-padding: 0 0 24 0;">
+            <Label text="🏥" style="-fx-font-size: 28;"/>
+            <Label text="Medicare" style="-fx-font-size: 26; -fx-font-weight: bold; -fx-text-fill: #C2185B;"/>
+        </HBox>
 
-    <Label fx:id="errorLabel" text=""
-           style="-fx-text-fill: #dc2626; -fx-font-size: 13px;"/>
+        <Label text="Welcome back" style="-fx-font-size: 15; -fx-text-fill: #757575; -fx-padding: 0 0 24 0;"/>
 
-    <Button text="Se connecter" onAction="#onLoginClick" prefWidth="250" prefHeight="40"
-            style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 15px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+        <!-- Previous Login Card for Session Management -->
+        <Button fx:id="previousLoginCard" onAction="#onUsePreviousLogin" prefWidth="340"
+                visible="false" managed="false"
+                style="-fx-background-color: #e5e7eb; -fx-background-radius: 16; -fx-cursor: hand; -fx-padding: 14 18; -fx-border-radius: 16; -fx-margin-bottom: 20px;">
+            <graphic>
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <ImageView fx:id="previousLoginAvatar" fitWidth="46" fitHeight="46" pickOnBounds="true" preserveRatio="false"/>
+                    <VBox spacing="3" alignment="CENTER_LEFT">
+                        <Label fx:id="previousLoginTitle" text="Login as user"
+                               style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #111827;"/>
+                        <Label fx:id="previousLoginName" text=""
+                               style="-fx-font-size: 12px; -fx-text-fill: #4b5563;"/>
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label text=">"
+                           style="-fx-font-size: 18px; -fx-text-fill: #6b7280; -fx-font-weight: bold;"/>
+                </HBox>
+            </graphic>
+        </Button>
 
-    <HBox alignment="CENTER" spacing="5">
-        <Label text="Pas encore de compte ?"
-               style="-fx-font-size: 13px; -fx-text-fill: #666;"/>
-        <Hyperlink text="Creer un compte" onAction="#onGoToRegister"
-                   style="-fx-font-size: 13px; -fx-text-fill: #1a73e8;"/>
-    </HBox>
+        <VBox style="-fx-padding: 0 0 16 0;" spacing="16">
+            <!-- Email -->
+            <VBox spacing="4" maxWidth="340">
+                <Label text="EMAIL" styleClass="field-label"/>
+                <TextField fx:id="emailField" promptText="your@email.com" onAction="#onLoginClick"
+                           styleClass="text-field-medicare" prefWidth="340"/>
+            </VBox>
 
-    <Hyperlink text="Retour a l'accueil" onAction="#onGoToAccueil"
-               style="-fx-font-size: 12px; -fx-text-fill: #999;"/>
-</VBox>
+            <!-- Password -->
+            <VBox spacing="4" maxWidth="340">
+                <Label text="PASSWORD" styleClass="field-label"/>
+                <PasswordField fx:id="passwordField" promptText="••••••••" onAction="#onLoginClick"
+                               styleClass="text-field-medicare" prefWidth="340"/>
+            </VBox>
+        </VBox>
 
+        <!-- Forgot password -->
+        <HBox alignment="CENTER_RIGHT" maxWidth="340" style="-fx-padding: 0 0 20 0;">
+            <!-- Placeholder for forgot password -->
+            <Hyperlink text="Forgot password?"
+                       style="-fx-font-size: 12; -fx-text-fill: #C2185B;"/>
+        </HBox>
+
+        <!-- Error label -->
+        <Label fx:id="errorLabel" text="" wrapText="true" maxWidth="340"
+               style="-fx-text-fill: #B71C1C; -fx-font-size: 12; -fx-padding: 0 0 6 0;" visible="false"/>
+
+        <!-- reCAPTCHA widget (injected programmatically) -->
+        <VBox fx:id="captchaContainer" prefWidth="340" prefHeight="70" style="-fx-padding: 0 0 8 0;"/>
+
+        <!-- Login button -->
+        <Button fx:id="loginButton" text="Sign In" onAction="#onLoginClick"
+                styleClass="btn-pink" prefWidth="340" style="-fx-padding: 12;"/>
+
+        <!-- Divider -->
+        <HBox alignment="CENTER" spacing="10" style="-fx-padding: 18 0;">
+            <Separator prefWidth="140"/>
+            <Label text="or" style="-fx-text-fill: #9E9E9E; -fx-font-size: 12;"/>
+            <Separator prefWidth="140"/>
+        </HBox>
+
+        <!-- ✅ GOOGLE AUTH BUTTON -->
+        <Button fx:id="googleBtn" onAction="#handleGoogleLogin"
+                prefWidth="340" styleClass="btn-google"
+                style="-fx-padding: 11;">
+            <graphic>
+                <HBox spacing="10" alignment="CENTER">
+                    <ImageView fitWidth="18" fitHeight="18" preserveRatio="true">
+                        <image><Image url="@images/google-icon.png"/></image>
+                    </ImageView>
+                    <Label text="Continue with Google" style="-fx-font-size: 14; -fx-text-fill: #3C4043;"/>
+                </HBox>
+            </graphic>
+        </Button>
+
+        <!-- Biometric / Fingerprint login — shown only when biometric is set up for this email -->
+        <Button fx:id="fingerprintBtn" onAction="#onFingerprintLogin" prefWidth="340"
+                visible="false" managed="false"
+                style="-fx-background-color: #EFF6FF; -fx-text-fill: #1D4ED8;
+                       -fx-background-radius: 12; -fx-border-color: #BFDBFE;
+                       -fx-border-radius: 12; -fx-cursor: hand; -fx-padding: 11;
+                       -fx-font-size: 13;">
+            <graphic>
+                <HBox spacing="10" alignment="CENTER">
+                    <Label text="☝️" style="-fx-font-size: 18;"/>
+                    <Label text="Se connecter par empreinte digitale"
+                           style="-fx-font-size: 13; -fx-text-fill: #1D4ED8; -fx-font-weight: bold;"/>
+                </HBox>
+            </graphic>
+        </Button>
+
+        <!-- Register link -->
+        <HBox alignment="CENTER" spacing="4" style="-fx-padding: 10 0 0 0;">
+            <Label text="Don't have an account?" style="-fx-font-size: 13; -fx-text-fill: #757575;"/>
+            <Hyperlink text="Register" onAction="#onGoToRegister"
+                       style="-fx-font-size: 13; -fx-text-fill: #C2185B; -fx-font-weight: bold;"/>
+        </HBox>
+
+        <HBox alignment="CENTER" style="-fx-padding: 6 0 0 0;">
+            <Hyperlink text="Back to home" onAction="#onGoToAccueil"
+                       style="-fx-font-size: 12px; -fx-text-fill: #999;"/>
+        </HBox>
+    </VBox>
+</StackPane>

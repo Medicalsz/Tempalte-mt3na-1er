@@ -20,33 +20,10 @@ public class RendezVousService {
     // ==================== PATIENT ID ====================
 
     public int getPatientIdByUserId(int userId) {
-        String q = "SELECT id FROM patient WHERE user_id = ?";
-        try {
-            PreparedStatement ps = cnx.prepareStatement(q);
-            ps.setInt(1, userId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) return rs.getInt("id");
-        } catch (SQLException e) { System.out.println("Erreur getPatientId: " + e.getMessage()); }
-
-        // Patient n'existe pas → on le crée automatiquement
-        return createPatientForUser(userId);
+        // L'utilisateur IS le patient : on retourne directement son user_id
+        return userId;
     }
 
-    private int createPatientForUser(int userId) {
-        String q = "INSERT INTO patient (user_id) VALUES (?)";
-        try {
-            PreparedStatement ps = cnx.prepareStatement(q, Statement.RETURN_GENERATED_KEYS);
-            ps.setInt(1, userId);
-            ps.executeUpdate();
-            ResultSet keys = ps.getGeneratedKeys();
-            if (keys.next()) {
-                int patientId = keys.getInt(1);
-                System.out.println("Patient cree automatiquement, id=" + patientId);
-                return patientId;
-            }
-        } catch (SQLException e) { System.out.println("Erreur createPatient: " + e.getMessage()); }
-        return -1;
-    }
 
     // ==================== SPECIALITES ====================
 
@@ -309,8 +286,7 @@ public class RendezVousService {
         List<RendezVous> list = new ArrayList<>();
         String q = "SELECT rv.*, u.nom AS pat_nom, u.prenom AS pat_prenom " +
                    "FROM rendez_vous rv " +
-                   "JOIN patient p ON rv.patient_id = p.id " +
-                   "JOIN user u ON p.user_id = u.id " +
+                   "JOIN user u ON rv.patient_id = u.id " +
                    "WHERE rv.medecin_id = ? AND rv.hidden_by_medecin = 0 " +
                    "ORDER BY rv.date DESC, rv.heure DESC";
         try {
@@ -380,8 +356,7 @@ public class RendezVousService {
                    "FROM rendez_vous rv " +
                    "JOIN medecin m ON rv.medecin_id = m.id " +
                    "JOIN user um ON m.user_id = um.id " +
-                   "JOIN patient p ON rv.patient_id = p.id " +
-                   "JOIN user up ON p.user_id = up.id " +
+                   "JOIN user up ON rv.patient_id = up.id " +
                    "LEFT JOIN specialite s ON m.specialite_ref_id = s.id " +
                    "ORDER BY rv.date DESC, rv.heure DESC";
         try {

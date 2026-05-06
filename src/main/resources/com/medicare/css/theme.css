@@ -1,0 +1,201 @@
+/* ===== MEDICARE THEME — Hospital Warm Palette ===== */
+.root {
+    /* Primary Colors */
+    -medicare-pink:          #C2185B;
+    -medicare-pink-light:    #FCE4EC;
+    -medicare-pink-border:   #F48FB1;
+    -medicare-green:         #2E7D32;
+    -medicare-green-sat:     #43A047;
+    -medicare-green-light:   #E8F5E9;
+    -medicare-green-border:  #A5D6A7;
+    -medicare-orange:        #E65100;
+    -medicare-orange-mid:    #F57C00;
+    -medicare-orange-light:  #FFF3E0;
+    -medicare-orange-border: #FFCC80;
+    -medicare-gray:          #546E7A;
+    -medicare-gray-mid:      #78909C;
+    -medicare-gray-light:    #ECEFF1;
+    -medicare-gray-border:   #B0BEC5;
+    -medicare-danger:        #B71C1C;
+    -medicare-danger-light:  #FFEBEE;
+    -medicare-bg:            #FAFAFA;
+    -medicare-text:          #212121;
+    -medicare-muted:         #757575;
+}
+
+/* ===== BASE ===== */
+.app-root {
+    -fx-background-color: -medicare-bg;
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* ===== BUTTONS ===== */
+.btn-pink {
+    -fx-background-color: -medicare-pink;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-padding: 10 24;
+    -fx-cursor: hand;
+    -fx-font-size: 14px;
+}
+.btn-pink:hover    { -fx-background-color: #AD1457; }
+.btn-pink:pressed  { -fx-scale-x: 0.97; -fx-scale-y: 0.97; }
+
+.btn-green {
+    -fx-background-color: -medicare-green-sat;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-padding: 10 24;
+    -fx-cursor: hand;
+}
+.btn-green:hover   { -fx-background-color: -medicare-green; }
+
+.btn-orange {
+    -fx-background-color: -medicare-orange-mid;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12;
+    -fx-padding: 10 24;
+    -fx-cursor: hand;
+}
+
+.btn-outline {
+    -fx-background-color: transparent;
+    -fx-border-color: -medicare-gray-border;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-text-fill: -medicare-gray;
+    -fx-padding: 8 20;
+    -fx-cursor: hand;
+}
+.btn-outline:hover { -fx-border-color: -medicare-gray-mid; }
+
+.btn-google {
+    -fx-background-color: white;
+    -fx-border-color: #DADCE0;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-text-fill: #3C4043;
+    -fx-font-size: 14px;
+    -fx-padding: 10 20;
+    -fx-cursor: hand;
+}
+.btn-google:hover  { -fx-background-color: #F8F9FA; }
+
+/* ===== TILES (Profile Onboarding) ===== */
+.tile {
+    -fx-pref-width: 145px;
+    -fx-pref-height: 145px;
+    -fx-border-width: 2;
+    -fx-border-radius: 18;
+    -fx-background-radius: 18;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-alignment: CENTER;
+    -fx-content-display: TOP;
+    -fx-graphic-text-gap: 8;
+}
+.tile:hover   { -fx-scale-x: 1.04; -fx-scale-y: 1.04; }
+.tile:pressed { -fx-scale-x: 0.96; -fx-scale-y: 0.96; }
+
+.tile-pink   { -fx-background-color: -medicare-pink-light;   -fx-border-color: -medicare-pink-border;   -fx-text-fill: -medicare-pink; }
+.tile-green  { -fx-background-color: -medicare-green-light;  -fx-border-color: -medicare-green-border;  -fx-text-fill: -medicare-green; }
+.tile-orange { -fx-background-color: -medicare-orange-light; -fx-border-color: -medicare-orange-border; -fx-text-fill: -medicare-orange; }
+.tile-gray   { -fx-background-color: -medicare-gray-light;   -fx-border-color: -medicare-gray-border;   -fx-text-fill: -medicare-gray; }
+
+.tile-pink.done   { -fx-border-color: -medicare-pink;       -fx-border-width: 3; }
+.tile-green.done  { -fx-border-color: -medicare-green-sat;  -fx-border-width: 3; }
+.tile-orange.done { -fx-border-color: -medicare-orange-mid; -fx-border-width: 3; }
+.tile-gray.done   { -fx-border-color: -medicare-gray-mid;   -fx-border-width: 3; }
+
+/* ===== ALERT BANNERS ===== */
+.alert-banner {
+    -fx-padding: 12 14;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-width: 1.5;
+    -fx-spacing: 10;
+}
+.alert-critical { -fx-background-color: -medicare-danger-light; -fx-border-color: #EF9A9A; }
+.alert-high     { -fx-background-color: -medicare-orange-light; -fx-border-color: -medicare-orange-border; }
+.alert-medium   { -fx-background-color: -medicare-pink-light;   -fx-border-color: -medicare-pink-border; }
+.alert-low      { -fx-background-color: -medicare-orange-light; -fx-border-color: -medicare-orange-border; }
+
+.alert-title-critical { -fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: -medicare-danger; }
+.alert-title-high     { -fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: -medicare-orange; }
+.alert-title-medium   { -fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: -medicare-pink; }
+.alert-msg            { -fx-font-size: 12; -fx-text-fill: -medicare-muted; -fx-wrap-text: true; }
+
+/* ===== PROGRESS BAR ===== */
+.profile-progress { -fx-pref-height: 8; -fx-background-radius: 4; -fx-border-radius: 4; }
+.profile-progress .bar   { -fx-background-radius: 4; -fx-background-insets: 0; }
+.profile-progress .track { -fx-background-color: #E0E0E0; -fx-background-radius: 4; }
+.progress-low  .bar { -fx-background-color: -medicare-pink; }
+.progress-mid  .bar { -fx-background-color: -medicare-orange-mid; }
+.progress-high .bar { -fx-background-color: -medicare-green-sat; }
+
+/* ===== FORM FIELDS ===== */
+.field-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -medicare-muted;
+    -fx-padding: 0 0 4 0;
+}
+.text-field-medicare, .combo-medicare {
+    -fx-background-color: white;
+    -fx-border-color: -medicare-gray-border;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 9 12;
+    -fx-font-size: 14px;
+}
+.text-field-medicare:focused, .combo-medicare:focused {
+    -fx-border-color: -medicare-pink;
+}
+
+/* ===== CARDS ===== */
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);
+    -fx-padding: 18;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+    -fx-background-color: white;
+    -fx-pref-width: 220;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 2, 0);
+}
+.sidebar-item {
+    -fx-background-color: transparent;
+    -fx-text-fill: -medicare-text;
+    -fx-font-size: 13px;
+    -fx-padding: 10 16;
+    -fx-cursor: hand;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-alignment: CENTER_LEFT;
+    -fx-pref-width: 190px;
+}
+.sidebar-item:hover   { -fx-background-color: -medicare-pink-light; -fx-text-fill: -medicare-pink; }
+.sidebar-item.active  { -fx-background-color: -medicare-pink-light; -fx-text-fill: -medicare-pink; -fx-font-weight: bold; }
+
+/* ===== TOP NAV ===== */
+.topnav {
+    -fx-background-color: white;
+    -fx-pref-height: 56;
+    -fx-padding: 0 24;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 4, 0, 0, 2);
+}
+.topnav-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -medicare-pink;
+}

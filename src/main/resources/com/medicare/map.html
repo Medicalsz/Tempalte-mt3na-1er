@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Localisation</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; overflow:hidden; font-family:Arial,sans-serif; }
+    
+    #search-box {
+      position:absolute; top:10px; left:10px; right:10px; z-index:1000;
+      background:white; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,0.15);
+      display:flex; padding:4px;
+    }
+    #search-box input {
+      flex:1; border:0; padding:8px 12px; font-size:14px; outline:none; border-radius:6px;
+    }
+    #search-box button {
+      border:0; background:#f57c00; color:white; padding:0 15px; 
+      border-radius:6px; cursor:pointer; font-size:16px; transition: background 0.2s;
+    }
+    #search-box button:hover { background: #e67600; }
+
+    #map { position:absolute; top:0; left:0; right:0; bottom:0; background:#eef2f7; }
+    
+    #toast {
+      position:fixed; bottom:10px; left:50%; transform:translateX(-50%);
+      background:rgba(194,24,91,0.92); color:white;
+      padding:5px 16px; border-radius:20px; font-size:12px; font-weight:bold;
+      z-index:9999; opacity:0; transition:opacity 0.25s; pointer-events:none;
+      max-width:88%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    #toast.show { opacity:1; }
+    
+    #offline {
+      display:none; position:fixed; top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      background:white; padding:28px 32px; border-radius:14px;
+      box-shadow:0 6px 24px rgba(0,0,0,0.18);
+      text-align:center; z-index:9999;
+    }
+    #offline p { margin-top:10px; color:#555; font-size:13px; line-height:1.6; }
+    
+    .popup-save {
+      margin-top:8px; border:0; border-radius:7px; padding:7px 10px;
+      background:#f57c00; color:white; font-size:12px; font-weight:bold;
+      cursor:pointer; width:100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="search-box">
+    <input type="text" id="map-search" placeholder="Rechercher une ville ou adresse..." 
+           onkeydown="if(event.key==='Enter') searchAndCenter(this.value)"/>
+    <button onclick="searchAndCenter(document.getElementById('map-search').value)">🔍</button>
+  </div>
+  <div id="toast"></div>
+  <div id="offline"><div style="font-size:36px">!</div><p>Carte non disponible.<br>Entrez la ville manuellement.</p></div>
+
+  <script>
+    window.L_DISABLE_3D = true;
+    var map, marker, searchXhr, pendingInitialLocation, currentSelection;
+
+    function toast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+    }
+
+    function forceMapResize() {
+      if (!map) return;
+      setTimeout(function(){ map.invalidateSize(true); }, 40);
+      setTimeout(function(){ map.invalidateSize(true); }, 220);
+    }
+
+    function cityFromAddress(address) {
+      address = address || {};
+      return address.city || address.town || address.village || address.municipality ||
+             address.county || address.state_district || address.state || '';
+    }
+
+    function cleanText(value) {
+      return (value || '').substring(0, 120);
+    }
+
+    function escapeHtml(value) {
+      return (value || '').replace(/[&<>"']/g, function(ch) {
+        return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
+      });
+    }
+
+    function setMarker(lat, lng, title, address, zoom) {
+      forceMapResize();
+      map.setView([lat, lng], zoom || 14, { animate: true });
+      if (marker) map.removeLayer(marker);
+      currentSelection = {
+        lat: lat,
+        lng: lng,
+        city: title || 'Position',
+        address: address || ''
+      };
+      marker = L.marker([lat, lng]).addTo(map);
+      marker.bindPopup(
+        '<b>' + escapeHtml(title || 'Position') + '</b>' +
+        (address ? '<br><small>' + escapeHtml(address) + '</small>' : '')
+      ).openPopup();
+    }
+
+    function saveSelectedLocation() {
+      if (!currentSelection || !window.javaApp) return;
+      window.javaApp.onSaveLocationRequested(
+        String(currentSelection.lat),
+        String(currentSelection.lng),
+        currentSelection.city,
+        currentSelection.address
+      );
+      toast('Localisation enregistree');
+    }
+
+    function setInitialLocation(lat, lng, city, address) {
+      if (isNaN(lat) || isNaN(lng)) return;
+      if (!map) {
+        pendingInitialLocation = { lat: lat, lng: lng, city: city, address: address };
+        return;
+      }
+      setMarker(lat, lng, city, address, 14);
+    }
+
+    function coordFallback(lat, lng) {
+      if (window.javaApp)
+        window.javaApp.onLocationPicked(String(lat), String(lng), lat.toFixed(4) + ', ' + lng.toFixed(4), '');
+      toast('Position selectionnee');
+    }
+
+    function reverseGeocode(lat, lng) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET',
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat +
+        '&lon=' + lng + '&addressdetails=1&accept-language=fr', true);
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            var full = cleanText(d.display_name);
+            var city = cityFromAddress(d.address) || full.split(',')[0] || (lat.toFixed(4) + ', ' + lng.toFixed(4));
+            setMarker(lat, lng, city || 'Position', full, 15);
+            if (window.javaApp) window.javaApp.onLocationPicked(String(lat), String(lng), city, full);
+            toast(city || 'Position selectionnee');
+          } catch(e) { coordFallback(lat, lng); }
+        } else { coordFallback(lat, lng); }
+      };
+      xhr.onerror = function() { coordFallback(lat, lng); };
+      xhr.send();
+    }
+
+    function searchAndCenter(query) {
+      if (!map || !query || query.trim().length < 2) return;
+      if (searchXhr) searchXhr.abort();
+      toast('Recherche...');
+      searchXhr = new XMLHttpRequest();
+      searchXhr.open('GET',
+        'https://nominatim.openstreetmap.org/search?q=' +
+        encodeURIComponent(query) + '&format=json&limit=1&addressdetails=1&accept-language=fr', true);
+      searchXhr.onload = function() {
+        if (searchXhr.status === 200) {
+          try {
+            var res = JSON.parse(searchXhr.responseText);
+            if (res.length > 0) {
+              var found = res[0];
+              var lat = parseFloat(found.lat);
+              var lng = parseFloat(found.lon);
+              var city = cityFromAddress(found.address);
+              var full = cleanText(found.display_name || query);
+              setMarker(lat, lng, city || query, full, 14);
+              if (window.javaApp) window.javaApp.onSearchResolved(String(lat), String(lng), city || query, full);
+              toast(city || query);
+            } else {
+              toast('Lieu introuvable');
+            }
+          } catch(e) {}
+        }
+      };
+      searchXhr.onerror = function() { toast('Recherche impossible'); };
+      searchXhr.send();
+    }
+
+    function initMap() {
+      map = L.map('map', {
+        zoomControl: true,
+        zoomAnimation: false,
+        fadeAnimation: false,
+        markerZoomAnimation: false
+      }).setView([36.8, 10.18], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+        keepBuffer: 10,
+        updateWhenIdle: false,
+        updateWhenZooming: true
+      }).addTo(map);
+
+      map.on('click', function(e) {
+        var lat = e.latlng.lat, lng = e.latlng.lng;
+        setMarker(lat, lng, 'Chargement...', '', 15);
+        toast('Recuperation de l adresse...');
+        reverseGeocode(lat, lng);
+      });
+
+      forceMapResize();
+      setTimeout(forceMapResize, 600);
+      setTimeout(forceMapResize, 1500);
+
+      if (window.ResizeObserver) {
+        new ResizeObserver(forceMapResize).observe(document.getElementById('map'));
+      }
+      window.addEventListener('resize', forceMapResize);
+      if (pendingInitialLocation) {
+        setInitialLocation(
+          pendingInitialLocation.lat,
+          pendingInitialLocation.lng,
+          pendingInitialLocation.city,
+          pendingInitialLocation.address
+        );
+        pendingInitialLocation = null;
+      }
+    }
+
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = initMap;
+    s.onerror = function() { document.getElementById('offline').style.display='block'; };
+    document.head.appendChild(s);
+  </script>
+</body>
+</html>

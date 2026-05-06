@@ -5,42 +5,49 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
 
-<VBox alignment="CENTER" spacing="15" prefWidth="500" prefHeight="550"
+<VBox alignment="CENTER" spacing="13" prefWidth="500" prefHeight="660"
       style="-fx-background-color: #f0f4f8;"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.medicare.controllers.RegisterController">
     <padding>
-        <Insets bottom="30" left="50" right="50" top="30"/>
+        <Insets bottom="28" left="50" right="50" top="28"/>
     </padding>
 
     <Label text="Creer un compte"
            style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;"/>
 
-    <TextField fx:id="nomField" promptText="Nom" prefHeight="36"
+    <TextField fx:id="nomField" promptText="Nom" prefHeight="36" onAction="#onRegisterClick"
                style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
 
-    <TextField fx:id="prenomField" promptText="Prenom" prefHeight="36"
+    <TextField fx:id="prenomField" promptText="Prenom" prefHeight="36" onAction="#onRegisterClick"
                style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
 
-    <TextField fx:id="emailField" promptText="Email" prefHeight="36"
+    <TextField fx:id="emailField" promptText="Email" prefHeight="36" onAction="#onRegisterClick"
                style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
 
-    <PasswordField fx:id="passwordField" promptText="Mot de passe" prefHeight="36"
+    <PasswordField fx:id="passwordField" promptText="Mot de passe" prefHeight="36" onAction="#onRegisterClick"
                    style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
 
-    <PasswordField fx:id="confirmPasswordField" promptText="Confirmer le mot de passe" prefHeight="36"
+    <PasswordField fx:id="confirmPasswordField" promptText="Confirmer le mot de passe" prefHeight="36" onAction="#onRegisterClick"
                    style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
 
-    <TextField fx:id="numeroField" promptText="Numero de telephone" prefHeight="36"
+    <TextField fx:id="numeroField" promptText="Numero de telephone" prefHeight="36" onAction="#onRegisterClick"
                style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
 
-    <TextField fx:id="adresseField" promptText="Adresse (optionnel)" prefHeight="36"
+    <TextField fx:id="adresseField" promptText="Adresse (optionnel)" prefHeight="36" onAction="#onRegisterClick"
                style="-fx-background-radius: 8; -fx-font-size: 14px;"/>
+
+    <!-- Genre -->
+    <ComboBox fx:id="genderBox" promptText="Genre *" prefHeight="36" maxWidth="400"
+              style="-fx-background-radius: 8; -fx-font-size: 14px; -fx-border-color: #d1d5db; -fx-border-radius: 8;"/>
 
     <Label fx:id="errorLabel" text=""
            style="-fx-text-fill: #dc2626; -fx-font-size: 13px;"/>
 
-    <Button text="S'inscrire" onAction="#onRegisterClick" prefWidth="250" prefHeight="40"
+    <!-- reCAPTCHA widget (injected programmatically) -->
+    <VBox fx:id="captchaContainer" prefHeight="70"/>
+
+    <Button text="S'inscrire" onAction="#onRegisterClick" defaultButton="true" prefWidth="250" prefHeight="40"
             style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 15px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
     <HBox alignment="CENTER" spacing="5">
@@ -53,4 +60,3 @@
     <Hyperlink text="Retour a l'accueil" onAction="#onGoToAccueil"
                style="-fx-font-size: 12px; -fx-text-fill: #999;"/>
 </VBox>
-

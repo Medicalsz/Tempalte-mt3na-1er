@@ -2,6 +2,7 @@ package com.medicare.controllers;
 
 import com.medicare.HelloApplication;
 import com.medicare.models.User;
+import com.medicare.utils.Session;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -41,6 +42,9 @@ public class DashboardAdminController {
 
     @FXML
     private void initialize() {
+        if (currentUser == null) {
+            currentUser = Session.getCurrentUser();
+        }
         if (currentUser != null) {
             userNameLabel.setText(currentUser.getPrenom() + " " + currentUser.getNom());
             userEmailLabel.setText(currentUser.getEmail());
@@ -71,9 +75,7 @@ public class DashboardAdminController {
 
     @FXML private void onAccueilClick() {
         highlightButton(btnAccueil);
-        setContent(new Label("Bienvenue sur le panneau d'administration !") {{
-            setStyle("-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;");
-        }});
+        setContent(com.medicare.ui.UserSectionFactory.createAdminDashboardSection());
     }
 
     @FXML private void onUtilisateursClick() {

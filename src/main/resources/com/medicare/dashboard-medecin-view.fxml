@@ -65,13 +65,18 @@
     </left>
 
     <center>
-        <StackPane fx:id="contentArea"
-                   style="-fx-background-color: #f0f4f8;">
-            <padding>
-                <Insets top="20" bottom="20" left="20" right="20"/>
-            </padding>
-            <Label text="Bienvenue sur votre espace medecin !"
-                   style="-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;"/>
-        </StackPane>
+        <VBox style="-fx-background-color: #f0f4f8;">
+            <HBox alignment="CENTER_RIGHT" style="-fx-padding: 12 20 0 20;">
+                <Label fx:id="profileBadge" text="Profile 0%"
+                       style="-fx-background-color: #CCFBF1; -fx-text-fill: #0d9488;
+                              -fx-background-radius: 20; -fx-padding: 6 16; -fx-font-size: 13;
+                              -fx-font-weight: bold; -fx-cursor: hand;"/>
+            </HBox>
+            <StackPane fx:id="contentArea" VBox.vgrow="ALWAYS">
+                <padding>
+                    <Insets top="10" bottom="20" left="20" right="20"/>
+                </padding>
+            </StackPane>
+        </VBox>
     </center>
 </BorderPane>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      background: #ffffff;
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #f9f9f9;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      padding: 7px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .badge img { width: 32px; height: 32px; flex-shrink: 0; }
+    .info { display: flex; flex-direction: column; }
+    .info .prot {
+      font-family: Roboto, Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: #3c4043;
+    }
+    .info .links {
+      font-family: Roboto, Arial, sans-serif;
+      font-size: 10px;
+      color: #70757a;
+      margin-top: 1px;
+    }
+    .info .links a { color: #70757a; text-decoration: none; }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #9ca3af;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .dot.loading  { background: #fbbc04; }
+    .dot.ready    { background: #34a853; }
+  </style>
+</head>
+<body>
+  <div class="badge">
+    <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" alt="reCAPTCHA"/>
+    <div class="info">
+      <span class="prot">Protégé par reCAPTCHA</span>
+      <span class="links">
+        <a href="https://policies.google.com/privacy" target="_blank">Confidentialité</a>
+        &nbsp;·&nbsp;
+        <a href="https://policies.google.com/terms" target="_blank">Conditions</a>
+      </span>
+    </div>
+    <div id="dot" class="dot"></div>
+  </div>
+
+  <script src="https://www.google.com/recaptcha/api.js?render=6LfimNAsAAAAALpe4cSw95N8bpHOUtVPRFVhXPI1"></script>
+  <script>
+    var _token  = null;
+    var _ready  = false;
+    var SITE_KEY = '6LfimNAsAAAAALpe4cSw95N8bpHOUtVPRFVhXPI1';
+    var dot = document.getElementById('dot');
+
+    grecaptcha.ready(function () {
+      _ready = true;
+      dot.className = 'dot loading';
+      fetchToken('pageload');
+    });
+
+    function fetchToken(action) {
+      grecaptcha.execute(SITE_KEY, { action: action || 'submit' })
+        .then(function (t) {
+          _token = t;
+          dot.className = 'dot ready';
+        });
+    }
+
+    function getToken()    { return _token; }
+    function isReady()     { return _ready && _token !== null; }
+    function resetWidget() {
+      _token = null;
+      dot.className = 'dot loading';
+      fetchToken('submit');
+    }
+  </script>
+</body>
+</html>

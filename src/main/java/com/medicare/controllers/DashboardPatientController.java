@@ -4,6 +4,7 @@ import com.medicare.HelloApplication;
 import com.medicare.models.User;
 import com.medicare.services.RendezVousService;
 import com.medicare.ui.UserSectionFactory;
+import com.medicare.utils.Session;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -13,9 +14,21 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import com.medicare.services.ProfileAlertService;
 import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
+import javafx.animation.ParallelTransition;
+import javafx.animation.TranslateTransition;
+import javafx.util.Duration;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -29,6 +42,8 @@ public class DashboardPatientController {
     @FXML private ImageView userAvatarView;
     @FXML private Button userProfileButton;
     @FXML private StackPane contentArea;
+    @FXML private VBox alertZone;
+    @FXML private Label profileBadge;
 
     @FXML private Button btnAccueil;
     @FXML private Button btnRendezVous;
@@ -36,10 +51,15 @@ public class DashboardPatientController {
     @FXML private Button btnProduit;
     @FXML private Button btnCollaboration;
     @FXML private Button btnForum;
+    @FXML private Button btnMatchDoctors;
     @FXML private Button btnNotifications;
+    @FXML private Circle notifRedDot;
     @FXML private Button btnDevenirMedecin;
+    @FXML private Button btnBlockList;
     @FXML private Button btnSettings;
     @FXML private Button btnLogout;
+    private boolean notifSeen = false;
+    private int dismissCount = 0;
 
     private static User currentUser;
 
@@ -48,6 +68,13 @@ public class DashboardPatientController {
 
     @FXML
     private void initialize() {
+        if (currentUser == null) {
+            currentUser = Session.getCurrentUser();
+        }
+        if (currentUser == null) {
+            // Safety: if still null, return early or handle
+            return;
+        }
         initAvatar();
         refreshUserHeader();
 
@@ -57,12 +84,126 @@ public class DashboardPatientController {
         btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
         btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
+        btnMatchDoctors.setGraphic(icon(FontAwesomeSolid.MAP_MARKER_ALT));
         btnNotifications.setGraphic(icon(FontAwesomeSolid.BELL, Color.web("#fef3c7")));
         btnDevenirMedecin.setGraphic(icon(FontAwesomeSolid.USER_MD, Color.web("#ffd700")));
+        btnBlockList.setGraphic(icon(FontAwesomeSolid.BAN, Color.web("#fca5a5")));
         btnSettings.setGraphic(icon(FontAwesomeSolid.COG, Color.web("#dbeafe")));
         btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#ffcccb")));
 
+        // Show red dot if there is an unread notification (account not yet verified)
+        updateNotifDot();
+
         onAccueilClick();
+
+        int pct = ProfileAlertService.getCompletionPercent(currentUser);
+        if (profileBadge != null) {
+            profileBadge.setText("Profile " + pct + "%");
+            if (pct >= 80) profileBadge.setVisible(false);
+            profileBadge.setOnMouseClicked(e -> navigateToCompleteProfile());
+        }
+
+        // Show alert after 1.5s delay
+        PauseTransition delay = new PauseTransition(Duration.seconds(1.5));
+        delay.setOnFinished(e -> injectAlert());
+        delay.play();
+    }
+
+    private void updateNotifDot() {
+        boolean hasUnread = currentUser != null && !currentUser.isVerified() && !notifSeen;
+        if (notifRedDot != null) {
+            notifRedDot.setVisible(hasUnread);
+            if (hasUnread) {
+                // Pulsing animation on the red dot
+                Timeline pulse = new Timeline(
+                    new KeyFrame(Duration.ZERO,   new KeyValue(notifRedDot.scaleXProperty(), 1.0),
+                                                  new KeyValue(notifRedDot.scaleYProperty(), 1.0)),
+                    new KeyFrame(Duration.millis(700), new KeyValue(notifRedDot.scaleXProperty(), 1.4),
+                                                       new KeyValue(notifRedDot.scaleYProperty(), 1.4)),
+                    new KeyFrame(Duration.millis(1400), new KeyValue(notifRedDot.scaleXProperty(), 1.0),
+                                                        new KeyValue(notifRedDot.scaleYProperty(), 1.0))
+                );
+                pulse.setCycleCount(Timeline.INDEFINITE);
+                pulse.play();
+            }
+        }
+    }
+
+    private void injectAlert() {
+        if (alertZone == null || currentUser == null) return;
+        ProfileAlertService.SmartAlert alert = ProfileAlertService.getSmartAlert(currentUser);
+        if (alert.level() == ProfileAlertService.AlertLevel.NONE) return;
+
+        alertZone.getChildren().clear();
+
+        HBox banner = new HBox(12);
+        String cssClass = switch (alert.level()) {
+            case CRITICAL -> "alert-critical";
+            case HIGH     -> "alert-high";
+            case MEDIUM   -> "alert-medium";
+            default       -> "alert-low";
+        };
+        banner.getStyleClass().addAll("alert-banner", cssClass);
+        banner.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        VBox body = new VBox(3);
+        Label title = new Label(alert.title());
+        String titleCss = switch (alert.level()) {
+            case CRITICAL -> "alert-title-critical";
+            case HIGH     -> "alert-title-high";
+            default       -> "alert-title-medium";
+        };
+        title.getStyleClass().add(titleCss);
+
+        Label msg = new Label(alert.message());
+        msg.getStyleClass().add("alert-msg");
+        msg.setMaxWidth(600);
+        body.getChildren().addAll(title, msg);
+        HBox.setHgrow(body, Priority.ALWAYS);
+
+        Button complete = new Button("Complete now →");
+        complete.getStyleClass().add("btn-pink");
+        complete.setStyle("-fx-font-size: 12; -fx-padding: 6 14;");
+        complete.setOnAction(e -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("complete-profile-view.fxml"));
+                Stage stage = (Stage) contentArea.getScene().getWindow();
+                stage.setScene(new Scene(loader.load()));
+                stage.setTitle("Medicare - Complete Profile");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        Button close = new Button("✕");
+        close.getStyleClass().add("btn-outline");
+        close.setStyle("-fx-font-size: 12; -fx-padding: 5 10;");
+        close.setOnAction(e -> dismissAndReschedule());
+
+        banner.getChildren().addAll(body, complete, close);
+
+        // Slide-in animation
+        FadeTransition ft = new FadeTransition(Duration.millis(300), banner);
+        ft.setFromValue(0); ft.setToValue(1);
+        TranslateTransition tt = new TranslateTransition(Duration.millis(300), banner);
+        tt.setFromY(-15); tt.setToY(0);
+        new ParallelTransition(ft, tt).play();
+
+        alertZone.getChildren().add(banner);
+    }
+
+    private void dismissAndReschedule() {
+        if (alertZone == null) return;
+        alertZone.getChildren().clear();
+        dismissCount++;
+        int pct = ProfileAlertService.getCompletionPercent(currentUser);
+        if (pct >= 50 || dismissCount > 5) return;
+
+        int[] waitSecs = {5, 5, 10, 15, 25};
+        int secs = waitSecs[Math.min(dismissCount - 1, waitSecs.length - 1)];
+        PauseTransition retry = new PauseTransition(Duration.seconds(secs));
+        retry.setOnFinished(e -> injectAlert());
+        retry.play();
     }
 
     private void initAvatar() {
@@ -83,7 +224,6 @@ public class DashboardPatientController {
 
     @FXML
     private void onProfileClick() {
-        highlightButton(btnSettings);
         openProfilePage();
     }
 
@@ -150,8 +290,16 @@ public class DashboardPatientController {
     }
 
     @FXML
+    private void onMatchDoctorsClick() {
+        highlightButton(btnMatchDoctors);
+        setContent(UserSectionFactory.createMatchDoctorsSection(currentUser));
+    }
+
+    @FXML
     private void onNotificationsClick() {
         highlightButton(btnNotifications);
+        notifSeen = true;
+        if (notifRedDot != null) notifRedDot.setVisible(false);
         setContent(UserSectionFactory.createNotificationsSection(currentUser));
     }
 
@@ -162,9 +310,15 @@ public class DashboardPatientController {
     }
 
     @FXML
+    private void onBlockListClick() {
+        highlightButton(btnBlockList);
+        setContent(UserSectionFactory.createBlockListSection(currentUser));
+    }
+
+    @FXML
     private void onSettingsClick() {
         highlightButton(btnSettings);
-        openProfilePage();
+        openSettingsPage();
     }
 
     @FXML
@@ -184,17 +338,30 @@ public class DashboardPatientController {
     private void updateAvatar(String photoPath) {
         try {
             if (photoPath == null || photoPath.isBlank()) {
+                userAvatarView.setViewport(null);
                 userAvatarView.setImage(new Image(HelloApplication.class.getResource("images/logo.png").toExternalForm(), true));
                 return;
             }
             String source = photoPath.startsWith("file:/") ? photoPath : Path.of(photoPath).toUri().toString();
-            userAvatarView.setImage(new Image(source, true));
+            Image image = new Image(source, false);
+            userAvatarView.setImage(image);
+            applyCenteredSquareViewport(userAvatarView, image);
         } catch (Exception e) {
+            userAvatarView.setViewport(null);
             userAvatarView.setImage(new Image(HelloApplication.class.getResource("images/logo.png").toExternalForm(), true));
         }
     }
 
+    private void applyCenteredSquareViewport(ImageView view, Image image) {
+        double width = image.getWidth();
+        double height = image.getHeight();
+        if (width <= 0 || height <= 0) return;
+        double side = Math.min(width, height);
+        view.setViewport(new javafx.geometry.Rectangle2D((width - side) / 2, (height - side) / 2, side, side));
+    }
+
     private void openProfilePage() {
+        resetSidebarButtons();
         setContent(UserSectionFactory.createProfileSection(
             currentUser,
             contentArea.getScene().getWindow(),
@@ -204,6 +371,31 @@ public class DashboardPatientController {
             },
             this::logoutToAccueil
         ));
+        userProfileButton.setStyle("-fx-background-color: rgba(255,255,255,0.22); -fx-background-radius: 16; -fx-cursor: hand; -fx-padding: 12;");
+    }
+
+    private void openSettingsPage() {
+        setContent(UserSectionFactory.createSettingsSection(
+            currentUser,
+            contentArea.getScene().getWindow(),
+            user -> {
+                currentUser = user;
+                refreshUserHeader();
+            },
+            this::logoutToAccueil,
+            this::navigateToCompleteProfile
+        ));
+    }
+
+    private void navigateToCompleteProfile() {
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("complete-profile-view.fxml"));
+            Stage stage = (Stage) contentArea.getScene().getWindow();
+            stage.setScene(new Scene(loader.load()));
+            stage.setTitle("Medicare - Complete Profile");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void logoutToAccueil() {
@@ -228,17 +420,23 @@ public class DashboardPatientController {
         String normalGoldStyle = "-fx-background-color: transparent; -fx-text-fill: #ffd700; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
         String activeStyle = "-fx-background-color: #4a9af5; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
 
+        resetSidebarButtons();
+        btnDevenirMedecin.setStyle(normalGoldStyle);
+        active.setStyle(activeStyle);
+    }
+
+    private void resetSidebarButtons() {
+        String normalStyle = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
         btnAccueil.setStyle(normalStyle);
         btnRendezVous.setStyle(normalStyle);
         btnDonation.setStyle(normalStyle);
         btnProduit.setStyle(normalStyle);
         btnCollaboration.setStyle(normalStyle);
         btnForum.setStyle(normalStyle);
+        btnMatchDoctors.setStyle(normalStyle);
         btnNotifications.setStyle(normalStyle);
+        btnBlockList.setStyle("-fx-background-color: transparent; -fx-text-fill: #fca5a5; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;");
         btnSettings.setStyle(normalStyle);
-        btnDevenirMedecin.setStyle(normalGoldStyle);
         userProfileButton.setStyle("-fx-background-color: rgba(255,255,255,0.12); -fx-background-radius: 16; -fx-cursor: hand; -fx-padding: 12;");
-
-        active.setStyle(activeStyle);
     }
 }
