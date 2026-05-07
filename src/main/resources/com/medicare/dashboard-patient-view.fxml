@@ -15,7 +15,7 @@
 <BorderPane prefWidth="900" prefHeight="600"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.medicare.controllers.DashboardPatientController"
-            stylesheets="css/theme.css">
+            stylesheets="@css/theme.css">
 
     <left>
         <VBox prefWidth="220" spacing="8"

@@ -7,7 +7,7 @@
 
 <StackPane xmlns:fx="http://javafx.com/fxml"
            fx:controller="com.medicare.controllers.LoginController"
-           stylesheets="css/theme.css">
+           stylesheets="@css/theme.css">
 
     <!-- Background gradient -->
     <VBox style="-fx-background-color: linear-gradient(to bottom right, #FCE4EC, #E8F5E9);"
