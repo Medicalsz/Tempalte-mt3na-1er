@@ -1,0 +1,48 @@
+.main-container {
+    -fx-background-color: #f3f4f6; /* Same as contentArea background */
+}
+
+.header-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #1f2937;
+    -fx-padding: 10px 0 10px 0;
+}
+
+/* --- Insight Card --- */
+.insight-card {
+    -fx-background-color: white;
+    -fx-padding: 20px;
+    -fx-background-radius: 12px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.07), 10, 0.1, 0, 2);
+    -fx-spacing: 10px;
+}
+
+.insight-card-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4f46e5; /* Indigo */
+}
+
+.insight-card-content {
+    -fx-font-size: 14px;
+    -fx-text-fill: #374151;
+    -fx-wrap-text: true;
+}
+
+.insight-card-suggestion {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #166534; /* Dark Green */
+    -fx-wrap-text: true;
+}
+
+/* ==========================================================================
+   Validation Error Styling
+   ========================================================================== */
+
+.validation-error {
+    -fx-border-color: red;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+}

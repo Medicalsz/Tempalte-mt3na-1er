@@ -184,10 +184,37 @@ public class DashboardAdminController {
 
     @FXML private void onCollaborationClick() {
         setSubMenuOpen(false);
+        navigateToCollaborationsWithFilter(null);
+    }
+
+    public void navigateToCollaborationsWithFilter(String status) {
         highlightButton(btnCollaboration);
-        setContent(new Label("Gestion des Collaborations") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("admin-collaborations-view.fxml"));
+            Node view = loader.load();
+            AdminCollaborationsController ctrl = loader.getController();
+            ctrl.setInitialStatusFilter(status);
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement collaborations") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
+    }
+
+    public void navigateToPartners() {
+        highlightButton(btnCollaboration);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("admin-partners-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement partenaires") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML private void onForumClick() {

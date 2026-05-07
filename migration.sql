@@ -137,6 +137,71 @@ CREATE TABLE IF NOT EXISTS notification (
   PRIMARY KEY (id)
 );
 
+CREATE TABLE IF NOT EXISTS partner (
+  id                INT(11) NOT NULL AUTO_INCREMENT,
+  name              VARCHAR(255) NOT NULL,
+  type_partenaire   VARCHAR(120) NULL,
+  email             VARCHAR(255) NULL,
+  telephone         VARCHAR(50) NULL,
+  adresse           TEXT NULL,
+  statut            VARCHAR(50) NULL DEFAULT 'actif',
+  date_partenariat  DATE NULL,
+  image_name        VARCHAR(500) NULL,
+  updated_at        DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS collaboration (
+  id            INT(11) NOT NULL AUTO_INCREMENT,
+  partner_id    INT(11) NOT NULL,
+  user_id       INT(11) NULL,
+  date_debut    DATE NULL,
+  date_fin      DATE NULL,
+  titre         VARCHAR(255) NOT NULL,
+  description   TEXT NULL,
+  statut        VARCHAR(50) NULL DEFAULT 'en_attente',
+  image_name    VARCHAR(500) NULL,
+  updated_at    DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  FOREIGN KEY (partner_id) REFERENCES partner(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS partner_rating (
+  id          INT(11) NOT NULL AUTO_INCREMENT,
+  partner_id  INT(11) NOT NULL,
+  author_id   INT(11) NULL,
+  rating      INT(11) NOT NULL,
+  comment     TEXT NULL,
+  sentiment   VARCHAR(50) NULL,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  FOREIGN KEY (partner_id) REFERENCES partner(id) ON DELETE CASCADE,
+  FOREIGN KEY (author_id) REFERENCES user(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS badges (
+  id           VARCHAR(80) NOT NULL,
+  name         VARCHAR(120) NOT NULL,
+  description  TEXT NULL,
+  icon_path    VARCHAR(500) NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS partner_badges (
+  partner_id  INT(11) NOT NULL,
+  badge_id    VARCHAR(80) NOT NULL,
+  PRIMARY KEY (partner_id, badge_id),
+  FOREIGN KEY (partner_id) REFERENCES partner(id) ON DELETE CASCADE,
+  FOREIGN KEY (badge_id) REFERENCES badges(id) ON DELETE CASCADE
+);
+
+INSERT IGNORE INTO badges (id, name, description, icon_path) VALUES
+('reliable', 'Reliable', 'Partenaire fiable', '/icons/badges/reliable.png'),
+('superstar', 'Superstar', 'Partenaire exceptionnel', '/icons/badges/superstar.png'),
+('top_rated', 'Top rated', 'Tres bien note', '/icons/badges/top_rated.png'),
+('veteran', 'Veteran', 'Partenaire experimente', '/icons/badges/veteran.png');
+
 -- ============================================================
 -- DONE! Verify with:
 --   DESCRIBE user;

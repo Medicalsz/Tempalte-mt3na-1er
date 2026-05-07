@@ -1,6 +1,7 @@
 module com.medicare.medicarejavafx {
     requires javafx.controls;
     requires javafx.fxml;
+    requires javafx.swing;
     requires java.sql;
     requires java.prefs;
     requires jbcrypt;
@@ -24,6 +25,11 @@ module com.medicare.medicarejavafx {
     requires jakarta.mail;
     requires com.google.zxing;
     requires com.google.zxing.javase;
+    requires org.apache.pdfbox;
+    requires org.apache.fontbox;
+    requires commons.csv;
+    requires java.dotenv;
+    requires net.sf.biweekly;
     opens com.medicare to javafx.fxml;
     opens com.medicare.controllers to javafx.fxml;
     opens com.medicare.models to javafx.fxml;

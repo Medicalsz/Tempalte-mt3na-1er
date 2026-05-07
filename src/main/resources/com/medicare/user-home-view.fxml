@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import java.net.URL?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.medicare.controllers.UserHomeController"
+      styleClass="main-container">
+
+    <stylesheets>
+        <URL value="@user-home-style.css"/>
+    </stylesheets>
+
+    <Label fx:id="welcomeTitle" text="Bienvenue sur votre espace patient !" styleClass="welcome-title"/>
+    <Label text="Accédez rapidement à nos services principaux ci-dessous." styleClass="welcome-subtitle"/>
+
+    <GridPane fx:id="actionsGrid" styleClass="actions-grid">
+        <columnConstraints>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+        </columnConstraints>
+    </GridPane>
+
+</VBox>

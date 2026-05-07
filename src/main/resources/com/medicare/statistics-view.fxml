@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.medicare.controllers.StatisticsController"
+      spacing="20" style="-fx-padding: 20; -fx-background-color: #f3f4f6;">
+    <children>
+        <Label text="Statistiques Générales" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #7c3aed;"/>
+
+        <HBox spacing="20" alignment="CENTER">
+                    <VBox spacing="10" alignment="CENTER" HBox.hgrow="ALWAYS"
+                          style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);">
+                        <Label text="Statut des Collaborations"
+                               style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #4b5563;"/>
+                        <PieChart fx:id="statusPieChart" title="" legendVisible="true" prefHeight="300"/>
+                    </VBox>
+                    <VBox spacing="10" alignment="CENTER" HBox.hgrow="ALWAYS"
+                          style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);">
+                        <Label text="Répartition des Rôles Utilisateur"
+                               style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #4b5563;"/>
+                        <PieChart fx:id="userRolesPieChart" title="" legendVisible="true" prefHeight="300"/>
+                    </VBox>
+                    <VBox spacing="15" alignment="CENTER_LEFT"
+                          style="-fx-background-color: white; -fx-padding: 40 20; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-min-width: 300;">
+                        <Label text="Faits Amusants du Mini-Jeu"
+                               style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #4b5563;"/>
+                        <HBox spacing="10" alignment="CENTER_LEFT">
+                            <Label text="Parties Jouées:" style="-fx-font-size: 14px;"/>
+                    <Label fx:id="gamesPlayedLabel" text="0" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                </HBox>
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Meilleur Temps:" style="-fx-font-size: 14px;"/>
+                    <Label fx:id="bestTimeLabel" text="N/A" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                </HBox>
+            </VBox>
+        </HBox>
+    </children>
+</VBox>

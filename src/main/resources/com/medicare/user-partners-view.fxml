@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox styleClass="collaborations-container" spacing="10" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.UserPartnersController">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10" />
+    </padding>
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <TextField fx:id="searchField" promptText="Rechercher un partenaire..." HBox.hgrow="ALWAYS" />
+        <ComboBox fx:id="categoryComboBox" promptText="Toutes les catégories" />
+        <ComboBox fx:id="sortComboBox" promptText="Trier par..." />
+    </HBox>
+    <ScrollPane fx:id="scrollPane" fitToWidth="true" styleClass="scroll-pane" VBox.vgrow="ALWAYS">
+        <TilePane fx:id="partnersPane" hgap="15" vgap="15" styleClass="tile-pane" />
+    </ScrollPane>
+</VBox>

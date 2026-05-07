@@ -285,9 +285,18 @@ public class DashboardPatientController {
     @FXML
     private void onCollaborationClick() {
         highlightButton(btnCollaboration);
-        setContent(new Label("Collaborer") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-collaborations-view.fxml"));
+            Node view = loader.load();
+            UserPartnershipsController ctrl = loader.getController();
+            ctrl.setDashboardStackPane(contentArea);
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement collaborations") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML
