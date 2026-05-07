@@ -2,60 +2,58 @@ package com.medicare.services;
 
 import com.medicare.models.ChatAssistantRecommendation;
 import com.medicare.models.ChatAssistantResponse;
+import com.medicare.models.ChatMessage;
+import com.medicare.models.ContentModerationResult;
 import com.medicare.models.ForumComment;
 import com.medicare.models.ForumTopic;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class ChatAssistantService {
-    private static final String DEFAULT_ENDPOINT = "http://127.0.0.1:5000/chat-assistant";
-    private static final String DEFAULT_PYTHON_COMMAND = "python";
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);
-    private static final Duration HEALTH_TIMEOUT = Duration.ofSeconds(2);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
-    private static final Duration STARTUP_WAIT = Duration.ofSeconds(12);
-    private static final Object START_LOCK = new Object();
+    private static final String MEDICAL_DISCLAIMER = "Ces informations ne remplacent pas un avis medical professionnel.";
+    private static final int MAX_HISTORY_MESSAGES = 10;
+    private static final int MAX_COMMENTS_IN_CONTEXT = 8;
+    private static final int MAX_RELATED_TOPICS = 4;
 
-    private static Process assistantProcess;
-    private static long lastStartAttemptAt;
+    private static final List<String> SUMMARY_HINTS = List.of("resume", "resume-moi", "resumer", "resume", "synthese");
+    private static final List<String> RELATED_HINTS = List.of("similaire", "similaires", "proches", "recommande", "suggestion", "autre sujet", "forum");
+    private static final List<String> WELLNESS_HINTS = List.of("stress", "sommeil", "hydration", "alimentation", "bien-etre", "bien etre", "fatigue");
+    private static final List<String> EMERGENCY_HINTS = List.of(
+            "douleur thoracique", "difficulte a respirer", "convulsion", "convulsions", "perte de connaissance",
+            "idee suicidaire", "idees suicidaires", "hemorragie", "saignement important", "avc", "empoisonnement"
+    );
+    private static final List<String> DANGEROUS_ADVICE_HINTS = List.of(
+            "doublez la dose", "arretez votre traitement", "sans ordonnance",
+            "ne consultez pas", "utilisez des antibiotiques restants", "prenez n'importe", "ignorez vos symptomes",
+            "fabriquez", "fabrique une solution maison", "automedication agressive", "auto medication agressive"
+    );
 
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(CONNECT_TIMEOUT)
-            .build();
-    private final String endpointUrl;
-    private final String healthUrl;
-    private final String pythonCommand;
-    private final Path assistantDirectory;
-    private final Path runtimeOutLog;
-    private final Path runtimeErrLog;
-
-    public ChatAssistantService() {
-        this.endpointUrl = resolveEndpointUrl();
-        this.healthUrl = resolveHealthUrl();
-        this.pythonCommand = resolvePythonCommand();
-        this.assistantDirectory = resolveAssistantDirectory();
-        this.runtimeOutLog = resolveRuntimeLogPath("chat-assistant-runtime.out.log");
-        this.runtimeErrLog = resolveRuntimeLogPath("chat-assistant-runtime.err.log");
-    }
+    private final OpenRouterService openRouterService = new OpenRouterService();
+    private final ContentModerationService contentModerationService = new ContentModerationService();
 
     public void warmUp() {
-        ensureAssistantAvailable();
+        try {
+            openRouterService.validateConfiguration();
+        } catch (IllegalStateException ignored) {
+            // The forum assistant can still operate in local fallback mode.
+        }
     }
 
     public ChatAssistantResponse askAssistant(String message,
                                              ForumTopic topic,
                                              List<ForumComment> comments,
                                              List<ForumTopic> relatedTopics) {
+        return askAssistant(message, topic, comments, relatedTopics, List.of());
+    }
+
+    public ChatAssistantResponse askAssistant(String message,
+                                             ForumTopic topic,
+                                             List<ForumComment> comments,
+                                             List<ForumTopic> relatedTopics,
+                                             List<ChatMessage> conversationHistory) {
         if (message == null || message.isBlank()) {
             throw new IllegalStateException("Le message du chatbot ne peut pas etre vide.");
         }
@@ -63,531 +61,510 @@ public class ChatAssistantService {
             throw new IllegalStateException("Le sujet du forum est introuvable.");
         }
 
-        ensureAssistantAvailable();
-        String payload = buildPayload(message, topic, comments, relatedTopics);
-        HttpRequest request = HttpRequest.newBuilder(URI.create(endpointUrl))
-                .header("Content-Type", "application/json")
-                .timeout(REQUEST_TIMEOUT)
-                .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
-                .build();
+        String trimmedMessage = message.trim();
+        ContentModerationResult moderationResult = contentModerationService.moderateLocally(trimmedMessage);
+        if (moderationResult.hasToxicContent() || containsAny(normalize(trimmedMessage), EMERGENCY_HINTS)) {
+            return buildProtectedResponse(moderationResult, relatedTopics);
+        }
+
+        AssistantIntent intent = detectIntent(trimmedMessage);
+        String prompt = buildPrompt(trimmedMessage, topic, comments, relatedTopics, conversationHistory, intent);
 
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("Le service chatbot a repondu avec le statut HTTP " + response.statusCode() + ".");
-            }
-            return parseResponse(response.body());
-        } catch (IOException e) {
-            throw new IllegalStateException("Le service chatbot local est indisponible. Verifiez que Flask est demarre sur " + endpointUrl + ".", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("La requete vers le chatbot a ete interrompue.", e);
-        }
-    }
+            OpenRouterService.ChatCompletionResult apiResult = openRouterService.sendMessage(prompt);
+            String safeReply = postProcessReply(apiResult.reply());
 
-    private String resolveEndpointUrl() {
-        String systemProperty = System.getProperty("medicare.chatAssistantUrl");
-        if (systemProperty != null && !systemProperty.isBlank()) {
-            return systemProperty.trim();
-        }
-
-        String environment = System.getenv("MEDICARE_CHAT_ASSISTANT_URL");
-        if (environment != null && !environment.isBlank()) {
-            return environment.trim();
-        }
-
-        return DEFAULT_ENDPOINT;
-    }
-
-    private String resolveHealthUrl() {
-        URI endpoint = URI.create(endpointUrl);
-        return new StringBuilder()
-                .append(endpoint.getScheme() != null ? endpoint.getScheme() : "http")
-                .append("://")
-                .append(endpoint.getHost() != null ? endpoint.getHost() : "127.0.0.1")
-                .append(endpoint.getPort() > 0 ? ":" + endpoint.getPort() : "")
-                .append("/health")
-                .toString();
-    }
-
-    private String resolvePythonCommand() {
-        String systemProperty = System.getProperty("medicare.chatAssistantPython");
-        if (systemProperty != null && !systemProperty.isBlank()) {
-            return systemProperty.trim();
-        }
-
-        String environment = System.getenv("MEDICARE_CHAT_ASSISTANT_PYTHON");
-        if (environment != null && !environment.isBlank()) {
-            return environment.trim();
-        }
-
-        return DEFAULT_PYTHON_COMMAND;
-    }
-
-    private Path resolveAssistantDirectory() {
-        String systemProperty = System.getProperty("medicare.chatAssistantDir");
-        if (systemProperty != null && !systemProperty.isBlank()) {
-            return Path.of(systemProperty.trim()).toAbsolutePath().normalize();
-        }
-
-        String environment = System.getenv("MEDICARE_CHAT_ASSISTANT_DIR");
-        if (environment != null && !environment.isBlank()) {
-            return Path.of(environment.trim()).toAbsolutePath().normalize();
-        }
-
-        Path workingDirectory = Path.of(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
-        List<Path> candidates = List.of(
-                workingDirectory.resolve("ai_summarizer"),
-                workingDirectory.resolveSibling("Medicare - Copie").resolve("Medicare").resolve("ai_summarizer"),
-                workingDirectory.resolveSibling("Medicare").resolve("ai_summarizer")
-        );
-
-        for (Path candidate : candidates) {
-            if (Files.isDirectory(candidate) && Files.exists(candidate.resolve("app.py"))) {
-                return candidate;
-            }
-        }
-
-        return candidates.get(1);
-    }
-
-    private Path resolveRuntimeLogPath(String fileName) {
-        Path workingDirectory = Path.of(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
-        return workingDirectory.resolve(fileName);
-    }
-
-    private void ensureAssistantAvailable() {
-        if (isAssistantReachable()) {
-            return;
-        }
-
-        attemptLocalAssistantStart();
-        waitForAssistantStartup();
-    }
-
-    private boolean isAssistantReachable() {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(healthUrl))
-                .timeout(HEALTH_TIMEOUT)
-                .GET()
-                .build();
-
-        try {
-            HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-            return response.statusCode() >= 200 && response.statusCode() < 300;
-        } catch (IOException e) {
-            return false;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        }
-    }
-
-    private void attemptLocalAssistantStart() {
-        if (!usesLocalAssistantEndpoint()) {
-            return;
-        }
-
-        synchronized (START_LOCK) {
-            if (isAssistantReachable()) {
-                return;
-            }
-            if (assistantProcess != null && assistantProcess.isAlive()) {
-                return;
+            if (containsAny(normalize(safeReply), DANGEROUS_ADVICE_HINTS)) {
+                safeReply = buildSafetyFallback();
             }
 
-            long now = System.currentTimeMillis();
-            if (now - lastStartAttemptAt < 1500) {
-                return;
-            }
-            lastStartAttemptAt = now;
-
-            if (!Files.isDirectory(assistantDirectory) || !Files.exists(assistantDirectory.resolve("app.py"))) {
-                return;
-            }
-
-            try {
-                Files.createDirectories(runtimeOutLog.getParent());
-
-                ProcessBuilder builder = new ProcessBuilder(pythonCommand, "app.py");
-                builder.directory(assistantDirectory.toFile());
-                builder.environment().put("PYTHONIOENCODING", "utf-8");
-                builder.redirectOutput(ProcessBuilder.Redirect.appendTo(runtimeOutLog.toFile()));
-                builder.redirectError(ProcessBuilder.Redirect.appendTo(runtimeErrLog.toFile()));
-                assistantProcess = builder.start();
-            } catch (IOException ignored) {
-                assistantProcess = null;
-            }
+            ChatAssistantResponse response = new ChatAssistantResponse();
+            response.setReply(safeReply);
+            response.setIntent(intent.name().toLowerCase(Locale.ROOT));
+            response.setConfidence(0.92d);
+            response.setFallbackResponse(false);
+            response.setModel(apiResult.model());
+            response.setRecommendations(selectRecommendations(intent, relatedTopics, trimmedMessage));
+            return response;
+        } catch (IllegalStateException openAiFailure) {
+            return buildLocalFallbackResponse(trimmedMessage, topic, comments, relatedTopics, intent, openAiFailure.getMessage());
         }
     }
 
-    private void waitForAssistantStartup() {
-        long deadline = System.nanoTime() + STARTUP_WAIT.toNanos();
-        while (System.nanoTime() < deadline) {
-            if (isAssistantReachable()) {
-                return;
-            }
-
-            try {
-                Thread.sleep(400);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("La requete vers le chatbot a ete interrompue.", e);
-            }
-        }
-
-        throw new IllegalStateException(buildUnavailableMessage());
-    }
-
-    private boolean usesLocalAssistantEndpoint() {
-        URI endpoint = URI.create(endpointUrl);
-        String host = endpoint.getHost();
-        return "127.0.0.1".equals(host) || "localhost".equalsIgnoreCase(host);
-    }
-
-    private String buildUnavailableMessage() {
-        StringBuilder builder = new StringBuilder("Le service chatbot local est indisponible. Verifiez que Flask est demarre sur ")
-                .append(endpointUrl)
-                .append(".");
-
-        if (usesLocalAssistantEndpoint()) {
-            builder.append(" Demarrage automatique tente");
-            if (assistantDirectory != null) {
-                builder.append(" depuis ").append(assistantDirectory);
-            }
-            builder.append(".");
-        }
-
-        return builder.toString();
-    }
-
-    private String buildPayload(String message,
-                                ForumTopic topic,
-                                List<ForumComment> comments,
-                                List<ForumTopic> relatedTopics) {
-        StringBuilder builder = new StringBuilder();
-        builder.append('{');
-        builder.append("\"message\":").append(toJsonString(message.trim())).append(',');
-        builder.append("\"topic\":").append(buildTopicJson(topic, comments)).append(',');
-        builder.append("\"related_topics\":").append(buildRelatedTopicsJson(relatedTopics));
-        builder.append('}');
-        return builder.toString();
-    }
-
-    private String buildTopicJson(ForumTopic topic, List<ForumComment> comments) {
-        StringBuilder builder = new StringBuilder();
-        builder.append('{');
-        builder.append("\"id\":").append(topic.getId()).append(',');
-        builder.append("\"title\":").append(toJsonString(topic.getTitle())).append(',');
-        builder.append("\"content\":").append(toJsonString(topic.getContent())).append(',');
-        builder.append("\"summary\":").append(toJsonString(topic.getSummary())).append(',');
-        builder.append("\"tags\":").append(buildTagsJson(topic)).append(',');
-        builder.append("\"comments\":").append(buildCommentsJson(comments));
-        builder.append('}');
-        return builder.toString();
-    }
-
-    private String buildTagsJson(ForumTopic topic) {
-        List<String> tags = new ArrayList<>();
-        String tagsDisplay = topic.getTagsDisplay();
-        if (!tagsDisplay.isBlank()) {
-            for (String rawTag : tagsDisplay.split(",")) {
-                String cleaned = rawTag.trim();
-                if (!cleaned.isEmpty()) {
-                    tags.add(toJsonString(cleaned.replace("#", "")));
-                }
-            }
-        }
-        return '[' + String.join(",", tags) + ']';
-    }
-
-    private String buildCommentsJson(List<ForumComment> comments) {
-        List<String> values = new ArrayList<>();
-        if (comments != null) {
-            for (ForumComment comment : comments) {
-                if (comment.getContent() != null && !comment.getContent().isBlank()) {
-                    values.add(toJsonString(comment.getContent()));
-                }
-            }
-        }
-        return '[' + String.join(",", values) + ']';
-    }
-
-    private String buildRelatedTopicsJson(List<ForumTopic> relatedTopics) {
-        List<String> values = new ArrayList<>();
-        if (relatedTopics != null) {
-            for (ForumTopic relatedTopic : relatedTopics) {
-                StringBuilder topicJson = new StringBuilder();
-                topicJson.append('{');
-                topicJson.append("\"id\":").append(relatedTopic.getId()).append(',');
-                topicJson.append("\"title\":").append(toJsonString(relatedTopic.getTitle())).append(',');
-                topicJson.append("\"content\":").append(toJsonString(relatedTopic.getContent()));
-                topicJson.append('}');
-                values.add(topicJson.toString());
-            }
-        }
-        return '[' + String.join(",", values) + ']';
-    }
-
-    private ChatAssistantResponse parseResponse(String json) {
+    private ChatAssistantResponse buildProtectedResponse(ContentModerationResult moderationResult, List<ForumTopic> relatedTopics) {
         ChatAssistantResponse response = new ChatAssistantResponse();
-        response.setReply(defaultIfBlank(extractString(json, "reply"), "Je peux vous aider a analyser ce sujet, mais je n'ai pas recu de reponse exploitable."));
-        response.setIntent(defaultIfBlank(extractString(json, "intent"), "unknown"));
-        response.setConfidence(extractNumber(json, "confidence"));
-        response.setRecommendations(extractRecommendations(json));
+        StringBuilder builder = new StringBuilder();
+        if (moderationResult != null && moderationResult.hasToxicContent() && moderationResult.getMessage() != null && !moderationResult.getMessage().isBlank()) {
+            builder.append(moderationResult.getMessage()).append('\n').append('\n');
+        } else {
+            builder.append("Je ne peux pas aider sur une demande potentiellement dangereuse ou urgente. ")
+                    .append("Contactez rapidement un professionnel de sante ou les urgences si la situation est immediate.")
+                    .append('\n').append('\n');
+        }
+        builder.append(MEDICAL_DISCLAIMER);
+
+        response.setReply(builder.toString());
+        response.setIntent(AssistantIntent.SAFETY.name().toLowerCase(Locale.ROOT));
+        response.setConfidence(1.0d);
+        response.setFallbackResponse(true);
+        response.setModel(OpenRouterService.DEFAULT_MODEL);
+        response.setRecommendations(selectRecommendations(AssistantIntent.RELATED, relatedTopics, "similaire"));
         return response;
     }
 
-    private List<ChatAssistantRecommendation> extractRecommendations(String json) {
-        String rawArray = extractRawValue(json, "recommendations");
-        if (rawArray == null || rawArray.isBlank() || "null".equals(rawArray)) {
+    private ChatAssistantResponse buildLocalFallbackResponse(String message,
+                                                             ForumTopic topic,
+                                                             List<ForumComment> comments,
+                                                             List<ForumTopic> relatedTopics,
+                                                             AssistantIntent intent,
+                                                             String cause) {
+        ChatAssistantResponse response = new ChatAssistantResponse();
+        response.setReply(postProcessReply(buildLocalReply(message, topic, comments, relatedTopics, intent, cause)));
+        response.setIntent(intent.name().toLowerCase(Locale.ROOT));
+        response.setConfidence(0.68d);
+        response.setFallbackResponse(true);
+        response.setModel("local-medical-fallback");
+        response.setRecommendations(selectRecommendations(intent, relatedTopics, message));
+        return response;
+    }
+
+    private String buildLocalReply(String message,
+                                   ForumTopic topic,
+                                   List<ForumComment> comments,
+                                   List<ForumTopic> relatedTopics,
+                                   AssistantIntent intent,
+                                   String cause) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Mode local Medicare actif");
+        if (cause != null && !cause.isBlank()) {
+            builder.append(" car l'API externe gratuite n'est pas disponible pour ce projet pour le moment.");
+        } else {
+            builder.append(".");
+        }
+        builder.append("\n\n");
+
+        switch (intent) {
+            case SUMMARY -> builder.append(buildLocalSummary(topic, comments));
+            case RELATED -> builder.append(buildLocalRelatedTopics(topic, relatedTopics));
+            case WELLNESS -> builder.append(buildLocalWellnessAdvice(message, topic, comments));
+            case GENERAL -> builder.append(buildLocalGeneralHealthAnswer(message, topic, comments, relatedTopics));
+            case SAFETY -> builder.append(buildSafetyFallback());
+        }
+
+        return builder.toString();
+    }
+
+    private String buildLocalSummary(ForumTopic topic, List<ForumComment> comments) {
+        List<String> bulletPoints = new ArrayList<>();
+        bulletPoints.add("Le sujet porte surtout sur \"" + safeValue(topic.getTitle()) + "\".");
+
+        String summary = topic.getDisplaySummary();
+        if (summary != null && !summary.isBlank()) {
+            bulletPoints.add("L'idee principale est : " + compact(summary, 180) + ".");
+        } else {
+            bulletPoints.add("Le contenu met en avant : " + compact(topic.getContent(), 180) + ".");
+        }
+
+        String commentPulse = buildCommentPulse(comments);
+        if (!commentPulse.isBlank()) {
+            bulletPoints.add(commentPulse);
+        } else if (topic.getTagsDisplay() != null && !topic.getTagsDisplay().isBlank()) {
+            bulletPoints.add("Les themes associes sont : " + topic.getTagsDisplay() + ".");
+        } else {
+            bulletPoints.add("C'est un sujet de type " + safeValue(topic.getDisplayType()).toLowerCase(Locale.ROOT) + " partage sur le forum.");
+        }
+
+        StringBuilder builder = new StringBuilder("Voici un resume en 3 points :\n");
+        for (String bulletPoint : bulletPoints) {
+            builder.append("- ").append(cleanSentenceEnding(bulletPoint)).append('\n');
+        }
+        return builder.toString().trim();
+    }
+
+    private String buildLocalRelatedTopics(ForumTopic topic, List<ForumTopic> relatedTopics) {
+        StringBuilder builder = new StringBuilder("Je peux deja vous orienter vers des sujets proches de \"")
+                .append(safeValue(topic.getTitle()))
+                .append("\" :\n");
+
+        if (relatedTopics == null || relatedTopics.isEmpty()) {
+            builder.append("- Aucun sujet similaire n'est remonte pour le moment.\n");
+            builder.append("- Vous pouvez aussi explorer les tags de ce sujet : ").append(safeValue(topic.getTagsDisplay())).append(".\n");
+            builder.append("- Si vous voulez, je peux aussi resumer la discussion actuelle.");
+            return builder.toString();
+        }
+
+        int count = 0;
+        for (ForumTopic relatedTopic : relatedTopics) {
+            if (relatedTopic == null || relatedTopic.getTitle() == null || relatedTopic.getTitle().isBlank()) {
+                continue;
+            }
+
+            builder.append("- ").append(relatedTopic.getTitle());
+            if (relatedTopic.getTagsDisplay() != null && !relatedTopic.getTagsDisplay().isBlank()) {
+                builder.append(" (tags : ").append(relatedTopic.getTagsDisplay()).append(")");
+            }
+            builder.append('\n');
+            count++;
+            if (count >= 4) {
+                break;
+            }
+        }
+
+        builder.append("Je peux aussi resumer celui-ci ou vous dire pourquoi ces sujets se ressemblent.");
+        return builder.toString().trim();
+    }
+
+    private String buildLocalWellnessAdvice(String message, ForumTopic topic, List<ForumComment> comments) {
+        String normalized = normalize(message + " " + safeValue(topic.getTitle()) + " " + safeValue(topic.getTagsDisplay()));
+        StringBuilder builder = new StringBuilder("Voici quelques conseils simples et prudents :\n");
+
+        if (normalized.contains("stress") || normalized.contains("anxiete") || normalized.contains("mental")) {
+            builder.append("- Essayez de faire de courtes pauses, de ralentir la respiration et de structurer la journee avec des priorites realistes.\n");
+            builder.append("- Un sommeil regulier, moins d'ecrans le soir et un peu de marche ou d'etirements peuvent aider a diminuer la tension.\n");
+            builder.append("- Si le stress devient constant, tres intense ou bloque vos activites, il vaut mieux en parler a un professionnel de sante.\n");
+        } else if (normalized.contains("sommeil")) {
+            builder.append("- Gardez des horaires de coucher assez stables, meme le week-end.\n");
+            builder.append("- Limitez cafe, boissons energisantes et telephone juste avant de dormir.\n");
+            builder.append("- Si les troubles du sommeil durent ou s'aggravent, demandez un avis medical personnalise.\n");
+        } else if (normalized.contains("alimentation") || normalized.contains("nutrition")) {
+            builder.append("- Visez des repas reguliers, une bonne hydratation et des aliments simples plutot que des changements extremes.\n");
+            builder.append("- Evitez l'automedication ou les complements pris sans avis adapte a votre situation.\n");
+            builder.append("- En cas de perte de poids, douleurs digestives ou malaise associe, consultez un professionnel de sante.\n");
+        } else {
+            builder.append("- Reposez-vous suffisamment, hydratez-vous bien et surveillez l'evolution des symptomes dans le temps.\n");
+            builder.append("- Evitez les conseils extremes, les doses improvisees ou l'arret d'un traitement sans avis professionnel.\n");
+            builder.append("- Si un symptome devient fort, inhabituel ou inquietant, il vaut mieux demander un avis medical reel.\n");
+        }
+
+        String commentPulse = buildCommentPulse(comments);
+        if (!commentPulse.isBlank()) {
+            builder.append("\nDans cette discussion, ").append(lowercaseFirst(commentPulse));
+        }
+        return builder.toString().trim();
+    }
+
+    private String buildLocalGeneralHealthAnswer(String message,
+                                                 ForumTopic topic,
+                                                 List<ForumComment> comments,
+                                                 List<ForumTopic> relatedTopics) {
+        String normalized = normalize(message + " " + safeValue(topic.getTitle()) + " " + safeValue(topic.getContent()));
+        StringBuilder builder = new StringBuilder();
+
+        if (normalized.contains("stress") || normalized.contains("anxiete")) {
+            builder.append("Sur ce theme, on parle surtout de gestion du stress et d'equilibre mental. ");
+            builder.append("Des approches simples comme la respiration lente, l'organisation du travail, le sommeil regulier et une activite physique douce peuvent aider dans beaucoup de situations.");
+        } else if (normalized.contains("fatigue")) {
+            builder.append("La fatigue peut avoir des causes tres variees : sommeil insuffisant, stress, rythme trop charge, alimentation, ou autre probleme de sante. ");
+            builder.append("Observer depuis quand elle dure, ce qui l'aggrave et les signes associes aide deja a mieux orienter la suite.");
+        } else if (normalized.contains("sommeil")) {
+            builder.append("Le sujet fait penser a une question de sommeil ou de recuperation. ");
+            builder.append("Une routine stable, moins d'ecrans le soir et un environnement calme peuvent etre utiles avant de chercher des solutions plus fortes.");
+        } else {
+            builder.append("A partir de ce sujet, je peux donner une orientation generale mais pas un diagnostic. ");
+            builder.append("Le plus utile est de regarder les symptomes, leur duree, leur intensite et les facteurs qui les declenchent.");
+        }
+
+        String summary = topic.getDisplaySummary();
+        if (summary != null && !summary.isBlank()) {
+            builder.append("\n\nDans le sujet actuel, l'idee centrale est : ").append(compact(summary, 170)).append(".");
+        }
+
+        String commentPulse = buildCommentPulse(comments);
+        if (!commentPulse.isBlank()) {
+            builder.append("\n").append(commentPulse);
+        }
+
+        if (relatedTopics != null && !relatedTopics.isEmpty()) {
+            ForumTopic firstRelated = relatedTopics.getFirst();
+            if (firstRelated != null && firstRelated.getTitle() != null && !firstRelated.getTitle().isBlank()) {
+                builder.append("\n\nSi vous voulez poursuivre, je peux aussi vous rapprocher du sujet similaire \"")
+                        .append(firstRelated.getTitle())
+                        .append("\".");
+            }
+        }
+
+        return builder.toString().trim();
+    }
+
+    private String buildCommentPulse(List<ForumComment> comments) {
+        if (comments == null || comments.isEmpty()) {
+            return "";
+        }
+
+        List<String> visibleComments = new ArrayList<>();
+        for (ForumComment comment : comments) {
+            if (comment == null || comment.isHidden() || comment.getContent() == null || comment.getContent().isBlank()) {
+                continue;
+            }
+            visibleComments.add(compact(comment.getContent(), 120));
+            if (visibleComments.size() >= 2) {
+                break;
+            }
+        }
+
+        if (visibleComments.isEmpty()) {
+            return "";
+        }
+        if (visibleComments.size() == 1) {
+            return "un commentaire met en avant : " + visibleComments.getFirst() + ".";
+        }
+        return "les commentaires insistent surtout sur : " + visibleComments.getFirst() + " / " + visibleComments.get(1) + ".";
+    }
+
+    private String buildPrompt(String message,
+                               ForumTopic topic,
+                               List<ForumComment> comments,
+                               List<ForumTopic> relatedTopics,
+                               List<ChatMessage> conversationHistory,
+                               AssistantIntent intent) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Tu es un assistant medical educatif integre au forum Medicare.\n");
+        builder.append("Tu reponds en francais, de facon conversationnelle, chaleureuse et concise.\n");
+        builder.append("Tu peux repondre a des questions medicales generales, resumer le sujet du forum, proposer des conseils bien-etre simples et recommander des sujets similaires.\n");
+        builder.append("Regles obligatoires:\n");
+        builder.append("- N'etablis jamais de diagnostic definitif.\n");
+        builder.append("- Ne prescris pas de traitement, de posologie, ni d'automedication risquee.\n");
+        builder.append("- Si une urgence ou un danger apparait, oriente immediatement vers un professionnel de sante ou les urgences.\n");
+        builder.append("- Ne promets jamais de guerison.\n");
+        builder.append("- Termine TOUJOURS la reponse par la phrase exacte: ").append(MEDICAL_DISCLAIMER).append("\n");
+        builder.append("- Si la demande concerne des sujets similaires, cite prioritairement les titres du forum fournis dans le contexte.\n");
+        builder.append("- Si un resume est demande, fais une synthese claire du sujet courant avant toute suggestion.\n\n");
+
+        builder.append("Type de demande detecte: ").append(intent.description).append("\n\n");
+        builder.append("Sujet forum courant:\n");
+        builder.append("Titre: ").append(safeValue(topic.getTitle())).append("\n");
+        builder.append("Type: ").append(safeValue(topic.getDisplayType())).append("\n");
+        builder.append("Resume existant: ").append(safeValue(topic.getDisplaySummary())).append("\n");
+        builder.append("Contenu principal: ").append(safeValue(compact(topic.getContent(), 1800))).append("\n");
+        builder.append("Tags: ").append(safeValue(topic.getTagsDisplay())).append("\n\n");
+
+        builder.append("Commentaires du sujet:\n");
+        appendComments(builder, comments);
+        builder.append('\n');
+
+        builder.append("Sujets similaires deja trouves dans le forum:\n");
+        appendRelatedTopics(builder, relatedTopics);
+        builder.append('\n');
+
+        builder.append("Historique recent de la conversation:\n");
+        appendConversationHistory(builder, conversationHistory);
+        builder.append('\n');
+
+        builder.append("Nouvelle demande de l'utilisateur:\n");
+        builder.append(message).append('\n').append('\n');
+        builder.append("Format attendu:\n");
+        builder.append("- 1 a 3 courts paragraphes maximum.\n");
+        builder.append("- Ajoute de petites puces seulement si cela clarifie la reponse.\n");
+        builder.append("- Reste prudent et utile.\n");
+        return builder.toString();
+    }
+
+    private void appendComments(StringBuilder builder, List<ForumComment> comments) {
+        if (comments == null || comments.isEmpty()) {
+            builder.append("- Aucun commentaire utile pour le moment.\n");
+            return;
+        }
+
+        int count = 0;
+        for (ForumComment comment : comments) {
+            if (comment == null || comment.getContent() == null || comment.getContent().isBlank() || comment.isHidden()) {
+                continue;
+            }
+
+            builder.append("- ")
+                    .append(safeValue(comment.getAuthorName()))
+                    .append(": ")
+                    .append(safeValue(compact(comment.getContent(), 220)))
+                    .append('\n');
+
+            count++;
+            if (count >= MAX_COMMENTS_IN_CONTEXT) {
+                break;
+            }
+        }
+
+        if (count == 0) {
+            builder.append("- Aucun commentaire utile pour le moment.\n");
+        }
+    }
+
+    private void appendRelatedTopics(StringBuilder builder, List<ForumTopic> relatedTopics) {
+        if (relatedTopics == null || relatedTopics.isEmpty()) {
+            builder.append("- Aucun sujet similaire disponible.\n");
+            return;
+        }
+
+        int count = 0;
+        for (ForumTopic relatedTopic : relatedTopics) {
+            if (relatedTopic == null || relatedTopic.getTitle() == null || relatedTopic.getTitle().isBlank()) {
+                continue;
+            }
+
+            builder.append("- [ID ").append(relatedTopic.getId()).append("] ")
+                    .append(safeValue(relatedTopic.getTitle()))
+                    .append(" | Tags: ").append(safeValue(relatedTopic.getTagsDisplay()))
+                    .append(" | Resume: ").append(safeValue(compact(relatedTopic.getDisplaySummary(), 140)))
+                    .append('\n');
+
+            count++;
+            if (count >= MAX_RELATED_TOPICS) {
+                break;
+            }
+        }
+
+        if (count == 0) {
+            builder.append("- Aucun sujet similaire disponible.\n");
+        }
+    }
+
+    private void appendConversationHistory(StringBuilder builder, List<ChatMessage> conversationHistory) {
+        if (conversationHistory == null || conversationHistory.isEmpty()) {
+            builder.append("- Debut de conversation.\n");
+            return;
+        }
+
+        List<ChatMessage> eligibleMessages = conversationHistory.stream()
+                .filter(ChatMessage::shouldIncludeInPrompt)
+                .toList();
+
+        if (eligibleMessages.isEmpty()) {
+            builder.append("- Debut de conversation.\n");
+            return;
+        }
+
+        int startIndex = Math.max(0, eligibleMessages.size() - MAX_HISTORY_MESSAGES);
+        for (int i = startIndex; i < eligibleMessages.size(); i++) {
+            ChatMessage chatMessage = eligibleMessages.get(i);
+            builder.append("- ")
+                    .append(chatMessage.isUser() ? "Utilisateur" : "Assistant")
+                    .append(": ")
+                    .append(safeValue(compact(chatMessage.getContent(), 260)))
+                    .append('\n');
+        }
+    }
+
+    private AssistantIntent detectIntent(String message) {
+        String normalized = normalize(message);
+        if (containsAny(normalized, SUMMARY_HINTS)) {
+            return AssistantIntent.SUMMARY;
+        }
+        if (containsAny(normalized, RELATED_HINTS)) {
+            return AssistantIntent.RELATED;
+        }
+        if (containsAny(normalized, WELLNESS_HINTS)) {
+            return AssistantIntent.WELLNESS;
+        }
+        return AssistantIntent.GENERAL;
+    }
+
+    private String postProcessReply(String reply) {
+        String sanitized = compact(reply, 2400).trim();
+        if (sanitized.isEmpty()) {
+            sanitized = "Je n'ai pas pu formuler une reponse exploitable pour le moment.";
+        }
+
+        if (!normalize(sanitized).contains(normalize(MEDICAL_DISCLAIMER))) {
+            sanitized = sanitized + "\n\n" + MEDICAL_DISCLAIMER;
+        }
+        return sanitized;
+    }
+
+    private String buildSafetyFallback() {
+        return "Je prefere rester prudent sur ce point. Pour ce type de situation, le plus sur est de demander un avis medical personnalise plutot que de suivre un conseil potentiellement risque.\n\n"
+                + MEDICAL_DISCLAIMER;
+    }
+
+    private List<ChatAssistantRecommendation> selectRecommendations(AssistantIntent intent,
+                                                                    List<ForumTopic> relatedTopics,
+                                                                    String message) {
+        if (relatedTopics == null || relatedTopics.isEmpty()) {
+            return List.of();
+        }
+
+        String normalized = normalize(message);
+        boolean shouldSuggest = intent == AssistantIntent.RELATED
+                || intent == AssistantIntent.SUMMARY
+                || normalized.contains("forum")
+                || normalized.contains("sujet");
+
+        if (!shouldSuggest) {
             return List.of();
         }
 
         List<ChatAssistantRecommendation> recommendations = new ArrayList<>();
-        int index = 0;
-        while (index < rawArray.length()) {
-            char current = rawArray.charAt(index);
-            if (current == '{') {
-                BalancedValue objectValue = readBalanced(rawArray, index, '{', '}');
-                String objectJson = objectValue.text();
-                String title = extractString(objectJson, "title");
-                int id = (int) extractNumber(objectJson, "id");
-                if (title != null && !title.isBlank()) {
-                    recommendations.add(new ChatAssistantRecommendation(id, title));
-                }
-                index = objectValue.nextIndex();
+        int limit = intent == AssistantIntent.RELATED ? 4 : 2;
+        for (ForumTopic relatedTopic : relatedTopics) {
+            if (relatedTopic == null || relatedTopic.getTitle() == null || relatedTopic.getTitle().isBlank()) {
                 continue;
             }
-            index++;
+            recommendations.add(new ChatAssistantRecommendation(relatedTopic.getId(), relatedTopic.getTitle()));
+            if (recommendations.size() >= limit) {
+                break;
+            }
         }
         return recommendations;
     }
 
-    private String extractString(String json, String key) {
-        int start = findValueStart(json, key);
-        if (start < 0) {
-            return null;
-        }
-
-        int valueStart = skipWhitespace(json, start);
-        if (valueStart >= json.length() || json.charAt(valueStart) != '"') {
-            return null;
-        }
-
-        return parseJsonString(json, valueStart).text();
-    }
-
-    private double extractNumber(String json, String key) {
-        int start = findValueStart(json, key);
-        if (start < 0) {
-            return 0.0d;
-        }
-
-        int index = skipWhitespace(json, start);
-        int end = index;
-        while (end < json.length()) {
-            char current = json.charAt(end);
-            if ((current >= '0' && current <= '9') || current == '-' || current == '+'
-                    || current == '.' || current == 'e' || current == 'E') {
-                end++;
-                continue;
-            }
-            break;
-        }
-
-        if (end == index) {
-            return 0.0d;
-        }
-
-        try {
-            return Double.parseDouble(json.substring(index, end));
-        } catch (NumberFormatException ignored) {
-            return 0.0d;
-        }
-    }
-
-    private String extractRawValue(String json, String key) {
-        int start = findValueStart(json, key);
-        if (start < 0) {
-            return null;
-        }
-
-        int index = skipWhitespace(json, start);
-        if (index >= json.length()) {
-            return null;
-        }
-
-        char current = json.charAt(index);
-        if (current == '[') {
-            return readBalanced(json, index, '[', ']').text();
-        }
-        if (current == '{') {
-            return readBalanced(json, index, '{', '}').text();
-        }
-        if (current == '"') {
-            return parseJsonString(json, index).text();
-        }
-
-        int end = index;
-        while (end < json.length() && ",}]".indexOf(json.charAt(end)) == -1) {
-            end++;
-        }
-        return json.substring(index, end).trim();
-    }
-
-    private int findValueStart(String json, String key) {
-        String search = "\"" + key + "\"";
-        int keyIndex = json.indexOf(search);
-        if (keyIndex < 0) {
-            return -1;
-        }
-
-        int colonIndex = json.indexOf(':', keyIndex + search.length());
-        return colonIndex < 0 ? -1 : colonIndex + 1;
-    }
-
-    private int skipWhitespace(String value, int index) {
-        int cursor = index;
-        while (cursor < value.length() && Character.isWhitespace(value.charAt(cursor))) {
-            cursor++;
-        }
-        return cursor;
-    }
-
-    private ParsedString parseJsonString(String json, int quoteIndex) {
-        StringBuilder builder = new StringBuilder();
-        boolean escaped = false;
-
-        for (int i = quoteIndex + 1; i < json.length(); i++) {
-            char current = json.charAt(i);
-            if (escaped) {
-                builder.append(unescape(current, json, i));
-                if (current == 'u' && i + 4 < json.length()) {
-                    i += 4;
-                }
-                escaped = false;
-                continue;
-            }
-
-            if (current == '\\') {
-                escaped = true;
-                continue;
-            }
-
-            if (current == '"') {
-                return new ParsedString(builder.toString(), i + 1);
-            }
-
-            builder.append(current);
-        }
-
-        return new ParsedString(builder.toString(), json.length());
-    }
-
-    private BalancedValue readBalanced(String json, int start, char opening, char closing) {
-        int depth = 0;
-        boolean inString = false;
-        boolean escaped = false;
-
-        for (int i = start; i < json.length(); i++) {
-            char current = json.charAt(i);
-            if (inString) {
-                if (escaped) {
-                    escaped = false;
-                    continue;
-                }
-                if (current == '\\') {
-                    escaped = true;
-                    continue;
-                }
-                if (current == '"') {
-                    inString = false;
-                }
-                continue;
-            }
-
-            if (current == '"') {
-                inString = true;
-                continue;
-            }
-            if (current == opening) {
-                depth++;
-            } else if (current == closing) {
-                depth--;
-                if (depth == 0) {
-                    return new BalancedValue(json.substring(start, i + 1), i + 1);
-                }
+    private boolean containsAny(String normalizedValue, List<String> candidates) {
+        for (String candidate : candidates) {
+            if (normalizedValue.contains(normalize(candidate))) {
+                return true;
             }
         }
-
-        return new BalancedValue(json.substring(start), json.length());
+        return false;
     }
 
-    private String unescape(char escapedChar, String json, int currentIndex) {
-        return switch (escapedChar) {
-            case '"', '\\', '/' -> String.valueOf(escapedChar);
-            case 'b' -> "\b";
-            case 'f' -> "\f";
-            case 'n' -> "\n";
-            case 'r' -> "\r";
-            case 't' -> "\t";
-            case 'u' -> decodeUnicode(json, currentIndex);
-            default -> String.valueOf(escapedChar);
-        };
-    }
-
-    private String decodeUnicode(String json, int currentIndex) {
-        if (currentIndex + 4 >= json.length()) {
-            return "u";
-        }
-
-        String hex = json.substring(currentIndex + 1, currentIndex + 5);
-        try {
-            return String.valueOf((char) Integer.parseInt(hex, 16));
-        } catch (NumberFormatException ignored) {
-            return "u" + hex;
-        }
-    }
-
-    private String toJsonString(String value) {
+    private String normalize(String value) {
         if (value == null) {
-            return "null";
+            return "";
         }
 
-        StringBuilder builder = new StringBuilder("\"");
-        for (int i = 0; i < value.length(); i++) {
-            char current = value.charAt(i);
-            switch (current) {
-                case '\\' -> builder.append("\\\\");
-                case '"' -> builder.append("\\\"");
-                case '\n' -> builder.append("\\n");
-                case '\r' -> builder.append("\\r");
-                case '\t' -> builder.append("\\t");
-                case '\b' -> builder.append("\\b");
-                case '\f' -> builder.append("\\f");
-                default -> {
-                    if (current < 32) {
-                        builder.append(String.format("\\u%04x", (int) current));
-                    } else {
-                        builder.append(current);
-                    }
-                }
-            }
-        }
-        builder.append('"');
-        return builder.toString();
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
-    private String defaultIfBlank(String value, String fallback) {
+    private String compact(String value, int maxLength) {
         if (value == null || value.isBlank()) {
-            return fallback;
+            return "";
         }
-        return value;
+
+        String compact = value.replaceAll("\\s+", " ").trim();
+        return compact.length() <= maxLength ? compact : compact.substring(0, maxLength - 3) + "...";
     }
 
-    private record ParsedString(String text, int nextIndex) {
+    private String safeValue(String value) {
+        return value == null || value.isBlank() ? "-" : value.trim();
     }
 
-    private record BalancedValue(String text, int nextIndex) {
+    private String cleanSentenceEnding(String value) {
+        String cleaned = value == null ? "" : value.trim();
+        if (cleaned.endsWith(".") || cleaned.endsWith("!") || cleaned.endsWith("?")) {
+            return cleaned;
+        }
+        return cleaned + ".";
+    }
+
+    private String lowercaseFirst(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return Character.toLowerCase(value.charAt(0)) + value.substring(1);
+    }
+
+    private enum AssistantIntent {
+        GENERAL("question medicale generale"),
+        SUMMARY("resume du sujet"),
+        RELATED("recommandation de sujets similaires"),
+        WELLNESS("conseils bien-etre"),
+        SAFETY("blocage de securite");
+
+        private final String description;
+
+        AssistantIntent(String description) {
+            this.description = description;
+        }
     }
 }

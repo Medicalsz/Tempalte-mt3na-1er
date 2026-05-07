@@ -1,5 +1,6 @@
 package com.medicare.controllers;
 
+import com.medicare.models.ChatMessage;
 import com.medicare.models.ChatAssistantRecommendation;
 import com.medicare.models.ChatAssistantResponse;
 import com.medicare.models.ContentModerationResult;
@@ -12,14 +13,29 @@ import com.medicare.services.CommentReactionService;
 import com.medicare.services.ContentModerationService;
 import com.medicare.services.ForumService;
 import com.medicare.services.ForumRecommendationService;
+import com.medicare.services.TranslationService;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.ParallelTransition;
+import javafx.animation.Timeline;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.geometry.NodeOrientation;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
@@ -29,10 +45,13 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.TextAlignment;
 import javafx.scene.web.WebView;
+import javafx.util.Duration;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,6 +69,11 @@ public class ForumDetailController extends ForumController {
     @FXML private VBox summaryBox;
     @FXML private Label summaryLabel;
     @FXML private Label contentLabel;
+    @FXML private Label topicTranslationTitleLabel;
+    @FXML private ComboBox<TranslationService.SupportedLanguage> topicTranslationLanguageComboBox;
+    @FXML private Button topicTranslateButton;
+    @FXML private Label topicTranslationStatusLabel;
+    @FXML private VBox topicTranslationContainer;
     @FXML private VBox videoBox;
     @FXML private Label videoFallbackLabel;
     @FXML private WebView videoWebView;
@@ -63,6 +87,7 @@ public class ForumDetailController extends ForumController {
     @FXML private ScrollPane assistantMessagesScrollPane;
     @FXML private VBox assistantMessagesContainer;
     @FXML private TextArea assistantInputArea;
+    @FXML private ProgressIndicator assistantLoadingIndicator;
     @FXML private Label assistantStatusLabel;
     @FXML private Button assistantSendButton;
     @FXML private TextArea newCommentArea;
@@ -79,34 +104,71 @@ public class ForumDetailController extends ForumController {
     private final ChatAssistantService chatAssistantService = new ChatAssistantService();
     private final ContentModerationService contentModerationService = new ContentModerationService();
     private final ForumRecommendationService forumRecommendationService = new ForumRecommendationService();
+    private final TranslationService translationService = new TranslationService();
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final String DEFAULT_TRANSLATION_LANGUAGE_CODE = "en";
+    private final ObservableList<TranslationService.SupportedLanguage> translationLanguages =
+            FXCollections.observableArrayList(translationService.supportedLanguages());
 
     private int topicId;
     private ForumTopic currentTopic;
     private List<ForumComment> currentComments = List.of();
     private List<ForumTopic> currentRelatedTopics = List.of();
+    private final ObservableList<ChatMessage> assistantConversation = FXCollections.observableArrayList();
     private boolean assistantRequestInProgress;
     private int assistantInitializedTopicId = -1;
     private int assistantWarmupTopicId = -1;
+    private Timeline assistantTypingTimeline;
+    private Label assistantTypingLabel;
+    private HBox assistantTypingRow;
+    private ChatMessage assistantTypingMessage;
+    private int assistantTypingFrameIndex;
+    private final DateTimeFormatter assistantTimeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+    private final Map<String, TranslationService.TopicTranslation> topicTranslationCache = new LinkedHashMap<>();
+    private final Map<String, TranslationService.CommentTranslation> commentTranslationCache = new LinkedHashMap<>();
+    private final Map<Integer, String> activeCommentTranslationLanguageByCommentId = new LinkedHashMap<>();
+    private final Map<Integer, String> selectedCommentLanguageByCommentId = new LinkedHashMap<>();
+    private String activeTopicTranslationLanguageCode;
 
     @FXML
     private void initialize() {
+        initializeTranslationControls();
         assistantSendButton.setDisable(true);
+        assistantInputArea.setDisable(true);
         assistantStatusLabel.setText("Chargez un sujet pour discuter avec l'assistant.");
-        assistantMessagesContainer.getChildren().clear();
-        appendAssistantBubble(
-                "Je peux vous aider a resumer un sujet, suggerer des discussions proches et fournir des informations generales a partir du contenu du forum."
-        );
+        if (assistantMessagesContainer != null) {
+            assistantMessagesContainer.setFillWidth(true);
+            assistantMessagesContainer.setSpacing(16);
+            assistantMessagesContainer.setPadding(new Insets(22, 20, 22, 20));
+            assistantMessagesContainer.heightProperty().addListener((observable, oldValue, newValue) -> scrollAssistantToBottom());
+        }
+        if (assistantMessagesScrollPane != null) {
+            assistantMessagesScrollPane.setFitToWidth(true);
+        }
+        if (assistantLoadingIndicator != null) {
+            assistantLoadingIndicator.setVisible(false);
+            assistantLoadingIndicator.setManaged(false);
+        }
+        clearAssistantConversation();
+        appendChatMessage(createAssistantMessage(
+                "Assistant Medicare AI",
+                "Je peux repondre a des questions medicales generales, resumer un sujet de forum, suggerer des conseils bien-etre simples et recommander des discussions proches.\n\n"
+                        + "Ces informations ne remplacent pas un avis medical professionnel.",
+                List.of()
+        ));
     }
 
     public void setTopicId(int topicId) {
         System.out.println("[ForumDetailController] setTopicId topicId=" + topicId);
         if (this.topicId != topicId) {
+            resetTranslationState();
             assistantInitializedTopicId = -1;
             assistantWarmupTopicId = -1;
             assistantRequestInProgress = false;
             currentComments = List.of();
             currentRelatedTopics = List.of();
+            stopTypingIndicator();
+            clearAssistantConversation();
         }
         this.topicId = topicId;
         loadTopicAndComments();
@@ -149,9 +211,11 @@ public class ForumDetailController extends ForumController {
             return;
         }
 
-        appendUserBubble(message);
+        appendChatMessage(createUserMessage(message));
+        List<ChatMessage> historySnapshot = new ArrayList<>(assistantConversation);
         assistantInputArea.clear();
-        setAssistantLoading(true, "Assistant en train d'analyser le sujet...");
+        setAssistantLoading(true, "Assistant en train d'ecrire...");
+        showTypingIndicator();
 
         ForumTopic topicSnapshot = currentTopic;
         List<ForumComment> commentsSnapshot = new ArrayList<>(currentComments);
@@ -160,19 +224,27 @@ public class ForumDetailController extends ForumController {
         Task<ChatAssistantResponse> task = new Task<>() {
             @Override
             protected ChatAssistantResponse call() {
-                return chatAssistantService.askAssistant(message, topicSnapshot, commentsSnapshot, relatedTopicsSnapshot);
+                return chatAssistantService.askAssistant(message, topicSnapshot, commentsSnapshot, relatedTopicsSnapshot, historySnapshot);
             }
         };
 
         task.setOnSucceeded(event -> {
-            setAssistantLoading(false, "Assistant pret.");
+            stopTypingIndicator();
             ChatAssistantResponse response = task.getValue();
-            appendAssistantBubble(response.getReply(), response.getRecommendations());
+            String status = "Assistant pret.";
+            if ("local-medical-fallback".equalsIgnoreCase(response.getModel())) {
+                status = "Mode local actif.";
+            } else if (response.isFallbackResponse()) {
+                status = "Reponse securisee prete.";
+            }
+            setAssistantLoading(false, status);
+            appendChatMessage(createAssistantMessage("Assistant Medicare AI", response.getReply(), response.getRecommendations()));
         });
 
         task.setOnFailed(event -> {
+            stopTypingIndicator();
             setAssistantLoading(false, "Assistant indisponible.");
-            appendAssistantError(task.getException());
+            appendChatMessage(createErrorMessage(formatAssistantError(task.getException())));
         });
 
         Thread assistantThread = new Thread(task, "forum-chat-assistant");
@@ -181,8 +253,91 @@ public class ForumDetailController extends ForumController {
     }
 
     @FXML
+    private void onTopicTranslateClick() {
+        if (currentTopic == null) {
+            setTranslationStatus(topicTranslationStatusLabel, "Le sujet n'est pas disponible pour la traduction.", true);
+            return;
+        }
+
+        TranslationService.SupportedLanguage selectedLanguage = getSelectedTopicTranslationLanguage();
+        if (selectedLanguage == null) {
+            setTranslationStatus(topicTranslationStatusLabel, "Veuillez choisir une langue de traduction.", true);
+            return;
+        }
+
+        String translationKey = buildTopicTranslationKey(currentTopic.getId(), selectedLanguage.code());
+        if (translationKey.equals(activeTopicTranslationLanguageCode) && topicTranslationContainer.isVisible()) {
+            hideTranslationBox(topicTranslationContainer);
+            activeTopicTranslationLanguageCode = null;
+            clearTranslationStatus(topicTranslationStatusLabel);
+            updateTopicTranslateButtonLabel(false);
+            return;
+        }
+
+        TranslationService.TopicTranslation cachedTranslation = topicTranslationCache.get(translationKey);
+        if (cachedTranslation != null) {
+            renderTopicTranslation(cachedTranslation);
+            activeTopicTranslationLanguageCode = translationKey;
+            clearTranslationStatus(topicTranslationStatusLabel);
+            updateTopicTranslateButtonLabel(false);
+            return;
+        }
+
+        setTopicTranslationLoading(true, "Traduction en cours...", false);
+        ForumTopic topicSnapshot = currentTopic;
+        Task<TranslationService.TopicTranslation> task = new Task<>() {
+            @Override
+            protected TranslationService.TopicTranslation call() {
+                return translationService.translateTopic(topicSnapshot, selectedLanguage.code());
+            }
+        };
+
+        task.setOnSucceeded(event -> {
+            TranslationService.TopicTranslation translation = task.getValue();
+            topicTranslationCache.put(translationKey, translation);
+            activeTopicTranslationLanguageCode = translationKey;
+            renderTopicTranslation(translation);
+            setTopicTranslationLoading(false,
+                    translation.partialTranslation()
+                            ? "Traduction affichee. Les textes tres longs sont envoyes partiellement."
+                            : "",
+                    false
+            );
+        });
+
+        task.setOnFailed(event -> setTopicTranslationLoading(false, formatTranslationError(task.getException()), true));
+
+        Thread translationThread = new Thread(task, "forum-topic-translation");
+        translationThread.setDaemon(true);
+        translationThread.start();
+    }
+
+    @FXML
     private void onBackClick() {
         openForumList();
+    }
+
+    private void initializeTranslationControls() {
+        if (topicTranslationTitleLabel != null) {
+            topicTranslationTitleLabel.setGraphic(createToolbarIcon(FontAwesomeSolid.GLOBE, "#4f46e5", 13));
+            topicTranslationTitleLabel.setContentDisplay(ContentDisplay.LEFT);
+            topicTranslationTitleLabel.setGraphicTextGap(8);
+        }
+
+        if (topicTranslationLanguageComboBox != null) {
+            topicTranslationLanguageComboBox.setItems(translationLanguages);
+            configureTranslationLanguageComboBox(topicTranslationLanguageComboBox);
+            topicTranslationLanguageComboBox.getSelectionModel().select(findTranslationLanguage(DEFAULT_TRANSLATION_LANGUAGE_CODE));
+            topicTranslationLanguageComboBox.valueProperty().addListener((observable, oldValue, newValue) -> syncTopicTranslationSelection());
+        }
+
+        if (topicTranslateButton != null) {
+            topicTranslateButton.setDisable(true);
+            topicTranslateButton.setText("Traduire");
+        }
+
+        clearTranslationStatus(topicTranslationStatusLabel);
+        hideTranslationBox(topicTranslationContainer);
     }
 
     @FXML
@@ -343,6 +498,10 @@ public class ForumDetailController extends ForumController {
         summaryLabel.setText(currentTopic.getSummary());
 
         contentLabel.setText(currentTopic.getContent());
+        if (topicTranslateButton != null) {
+            topicTranslateButton.setDisable(false);
+        }
+        syncTopicTranslationSelection();
 
         renderVideoBlock();
 
@@ -376,6 +535,158 @@ public class ForumDetailController extends ForumController {
             toggleReportedButton.setText(currentTopic.isReported() ? "Retirer signalement" : "Signaler");
             toggleHiddenButton.setText(currentTopic.isHidden() ? "Afficher le sujet" : "Masquer le sujet");
         }
+    }
+
+    private void syncTopicTranslationSelection() {
+        if (topicTranslationContainer == null || topicTranslateButton == null) {
+            return;
+        }
+
+        TranslationService.SupportedLanguage selectedLanguage = getSelectedTopicTranslationLanguage();
+        if (currentTopic == null || selectedLanguage == null) {
+            hideTranslationBox(topicTranslationContainer);
+            activeTopicTranslationLanguageCode = null;
+            updateTopicTranslateButtonLabel(false);
+            return;
+        }
+
+        String translationKey = buildTopicTranslationKey(currentTopic.getId(), selectedLanguage.code());
+        TranslationService.TopicTranslation cachedTranslation = topicTranslationCache.get(translationKey);
+        if (cachedTranslation != null) {
+            renderTopicTranslation(cachedTranslation);
+            activeTopicTranslationLanguageCode = translationKey;
+        } else {
+            hideTranslationBox(topicTranslationContainer);
+            activeTopicTranslationLanguageCode = null;
+        }
+
+        clearTranslationStatus(topicTranslationStatusLabel);
+        updateTopicTranslateButtonLabel(false);
+    }
+
+    private TranslationService.SupportedLanguage getSelectedTopicTranslationLanguage() {
+        if (topicTranslationLanguageComboBox == null) {
+            return null;
+        }
+        TranslationService.SupportedLanguage selected = topicTranslationLanguageComboBox.getValue();
+        if (selected != null) {
+            return selected;
+        }
+        TranslationService.SupportedLanguage fallback = findTranslationLanguage(DEFAULT_TRANSLATION_LANGUAGE_CODE);
+        topicTranslationLanguageComboBox.getSelectionModel().select(fallback);
+        return fallback;
+    }
+
+    private void renderTopicTranslation(TranslationService.TopicTranslation translation) {
+        if (topicTranslationContainer == null || translation == null) {
+            return;
+        }
+
+        topicTranslationContainer.getChildren().clear();
+
+        Label headerLabel = new Label("Traduction " + translation.languageLabel());
+        headerLabel.getStyleClass().add("translation-card-header");
+        headerLabel.setGraphic(createToolbarIcon(FontAwesomeSolid.GLOBE, "#4f46e5", 12));
+        headerLabel.setContentDisplay(ContentDisplay.LEFT);
+        headerLabel.setGraphicTextGap(7);
+
+        if (translation.translatedTitle() != null && !translation.translatedTitle().isBlank()) {
+            topicTranslationContainer.getChildren().add(createTranslationField(
+                    "Titre traduit",
+                    translation.translatedTitle(),
+                    translation.rightToLeft(),
+                    true
+            ));
+        }
+
+        if (translation.translatedSummary() != null && !translation.translatedSummary().isBlank()) {
+            topicTranslationContainer.getChildren().add(createTranslationField(
+                    "Resume traduit",
+                    translation.translatedSummary(),
+                    translation.rightToLeft(),
+                    false
+            ));
+        }
+
+        if (translation.translatedContent() != null && !translation.translatedContent().isBlank()) {
+            topicTranslationContainer.getChildren().add(createTranslationField(
+                    "Contenu traduit",
+                    translation.translatedContent(),
+                    translation.rightToLeft(),
+                    false
+            ));
+        }
+
+        topicTranslationContainer.getChildren().add(0, headerLabel);
+        if (translation.partialTranslation()) {
+            topicTranslationContainer.getChildren().add(createTranslationNote(
+                    "Les textes tres longs sont tronques avant l'appel a l'API pour garder une reponse fiable."
+            ));
+        }
+        showTranslationBox(topicTranslationContainer);
+    }
+
+    private VBox createTranslationField(String fieldTitle, String text, boolean rightToLeft, boolean prominent) {
+        VBox fieldBox = new VBox(5);
+        fieldBox.getStyleClass().add("translation-field");
+
+        Label fieldLabel = new Label(fieldTitle);
+        fieldLabel.getStyleClass().add("translation-field-title");
+
+        Label content = new Label(text);
+        content.setWrapText(true);
+        content.setMaxWidth(Double.MAX_VALUE);
+        content.getStyleClass().add(prominent ? "translation-topic-title" : "translation-field-text");
+        applyTranslatedTextOrientation(content, rightToLeft);
+
+        fieldBox.getChildren().addAll(fieldLabel, content);
+        return fieldBox;
+    }
+
+    private Label createTranslationNote(String text) {
+        Label noteLabel = new Label(text);
+        noteLabel.setWrapText(true);
+        noteLabel.getStyleClass().add("translation-note");
+        return noteLabel;
+    }
+
+    private void applyTranslatedTextOrientation(Label label, boolean rightToLeft) {
+        if (label == null) {
+            return;
+        }
+
+        label.setNodeOrientation(rightToLeft ? NodeOrientation.RIGHT_TO_LEFT : NodeOrientation.LEFT_TO_RIGHT);
+        label.setAlignment(rightToLeft ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        label.setTextAlignment(rightToLeft ? TextAlignment.RIGHT : TextAlignment.LEFT);
+    }
+
+    private void setTopicTranslationLoading(boolean loading, String status, boolean error) {
+        if (topicTranslationLanguageComboBox != null) {
+            topicTranslationLanguageComboBox.setDisable(loading);
+        }
+        if (topicTranslateButton != null) {
+            topicTranslateButton.setDisable(loading || currentTopic == null);
+        }
+        updateTopicTranslateButtonLabel(loading);
+        if (status == null || status.isBlank()) {
+            clearTranslationStatus(topicTranslationStatusLabel);
+        } else {
+            setTranslationStatus(topicTranslationStatusLabel, status, error);
+        }
+    }
+
+    private void updateTopicTranslateButtonLabel(boolean loading) {
+        if (topicTranslateButton == null) {
+            return;
+        }
+
+        if (loading) {
+            topicTranslateButton.setText("Traduction...");
+            return;
+        }
+
+        boolean visible = topicTranslationContainer != null && topicTranslationContainer.isVisible();
+        topicTranslateButton.setText(visible ? "Masquer traduction" : "Traduire");
     }
 
     private void populateRecommendations() {
@@ -731,6 +1042,7 @@ public class ForumDetailController extends ForumController {
         content.setWrapText(true);
         content.setStyle("-fx-font-size: 13px; -fx-text-fill: #334155; -fx-line-spacing: 2;");
         contentBox.getChildren().add(content);
+        contentBox.getChildren().add(createCommentTranslationSection(comment));
 
         HBox actionsRow = new HBox(10);
         actionsRow.setAlignment(Pos.CENTER_LEFT);
@@ -771,6 +1083,213 @@ public class ForumDetailController extends ForumController {
 
         card.getChildren().addAll(header, contentBox, actionsRow, replyFormBox);
         return card;
+    }
+
+    private VBox createCommentTranslationSection(ForumComment comment) {
+        VBox section = new VBox(8);
+        section.getStyleClass().add("comment-translation-section");
+
+        HBox toolbar = new HBox(10);
+        toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.getStyleClass().add("translation-toolbar");
+
+        Label toolbarTitle = new Label("Traduction");
+        toolbarTitle.getStyleClass().addAll("translation-toolbar-title", "translation-toolbar-title-small");
+        toolbarTitle.setGraphic(createToolbarIcon(FontAwesomeSolid.GLOBE, "#4f46e5", 11));
+        toolbarTitle.setContentDisplay(ContentDisplay.LEFT);
+        toolbarTitle.setGraphicTextGap(7);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        ComboBox<TranslationService.SupportedLanguage> languageComboBox = new ComboBox<>(FXCollections.observableArrayList(translationLanguages));
+        languageComboBox.getStyleClass().add("translation-language-combo");
+        languageComboBox.setPrefWidth(160);
+        configureTranslationLanguageComboBox(languageComboBox);
+
+        Button translateButton = new Button("Traduire");
+        translateButton.getStyleClass().addAll("translation-action-button", "translation-action-button-small");
+
+        toolbar.getChildren().addAll(toolbarTitle, spacer, languageComboBox, translateButton);
+
+        Label statusLabel = new Label();
+        statusLabel.setWrapText(true);
+        statusLabel.setVisible(false);
+        statusLabel.setManaged(false);
+        statusLabel.getStyleClass().add("translation-status");
+
+        VBox translationBox = new VBox(10);
+        translationBox.getStyleClass().addAll("translation-card", "translation-card-compact");
+        hideTranslationBox(translationBox);
+
+        languageComboBox.valueProperty().addListener((observable, oldValue, newValue) ->
+                syncCommentTranslationSelection(comment.getId(), newValue, translationBox, translateButton, statusLabel));
+        translateButton.setOnAction(event -> onCommentTranslateClick(comment, languageComboBox, translateButton, statusLabel, translationBox));
+
+        TranslationService.SupportedLanguage selectedLanguage = findTranslationLanguage(
+                selectedCommentLanguageByCommentId.getOrDefault(comment.getId(), DEFAULT_TRANSLATION_LANGUAGE_CODE)
+        );
+        languageComboBox.getSelectionModel().select(selectedLanguage);
+
+        section.getChildren().addAll(toolbar, statusLabel, translationBox);
+        return section;
+    }
+
+    private void configureTranslationLanguageComboBox(ComboBox<TranslationService.SupportedLanguage> comboBox) {
+        if (comboBox == null) {
+            return;
+        }
+
+        comboBox.setButtonCell(createTranslationLanguageCell());
+        comboBox.setCellFactory(listView -> createTranslationLanguageCell());
+    }
+
+    private ListCell<TranslationService.SupportedLanguage> createTranslationLanguageCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(TranslationService.SupportedLanguage item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.displayLabel());
+            }
+        };
+    }
+
+    private void syncCommentTranslationSelection(int commentId,
+                                                 TranslationService.SupportedLanguage language,
+                                                 VBox translationBox,
+                                                 Button translateButton,
+                                                 Label statusLabel) {
+        if (language == null) {
+            hideTranslationBox(translationBox);
+            activeCommentTranslationLanguageByCommentId.remove(commentId);
+            translateButton.setText("Traduire");
+            clearTranslationStatus(statusLabel);
+            return;
+        }
+
+        selectedCommentLanguageByCommentId.put(commentId, language.code());
+        String translationKey = buildCommentTranslationKey(commentId, language.code());
+        TranslationService.CommentTranslation cachedTranslation = commentTranslationCache.get(translationKey);
+        if (cachedTranslation != null) {
+            renderCommentTranslation(translationBox, cachedTranslation);
+            activeCommentTranslationLanguageByCommentId.put(commentId, translationKey);
+            translateButton.setText("Masquer traduction");
+        } else {
+            hideTranslationBox(translationBox);
+            activeCommentTranslationLanguageByCommentId.remove(commentId);
+            translateButton.setText("Traduire");
+        }
+        clearTranslationStatus(statusLabel);
+    }
+
+    private void onCommentTranslateClick(ForumComment comment,
+                                         ComboBox<TranslationService.SupportedLanguage> languageComboBox,
+                                         Button translateButton,
+                                         Label statusLabel,
+                                         VBox translationBox) {
+        TranslationService.SupportedLanguage selectedLanguage = languageComboBox.getValue();
+        if (selectedLanguage == null) {
+            setTranslationStatus(statusLabel, "Veuillez choisir une langue de traduction.", true);
+            return;
+        }
+
+        String translationKey = buildCommentTranslationKey(comment.getId(), selectedLanguage.code());
+        if (translationKey.equals(activeCommentTranslationLanguageByCommentId.get(comment.getId())) && translationBox.isVisible()) {
+            hideTranslationBox(translationBox);
+            activeCommentTranslationLanguageByCommentId.remove(comment.getId());
+            translateButton.setText("Traduire");
+            clearTranslationStatus(statusLabel);
+            return;
+        }
+
+        TranslationService.CommentTranslation cachedTranslation = commentTranslationCache.get(translationKey);
+        if (cachedTranslation != null) {
+            renderCommentTranslation(translationBox, cachedTranslation);
+            activeCommentTranslationLanguageByCommentId.put(comment.getId(), translationKey);
+            translateButton.setText("Masquer traduction");
+            clearTranslationStatus(statusLabel);
+            return;
+        }
+
+        setInlineTranslationLoading(languageComboBox, translateButton, statusLabel, true, "Traduction en cours...", false);
+        ForumComment commentSnapshot = comment;
+        Task<TranslationService.CommentTranslation> task = new Task<>() {
+            @Override
+            protected TranslationService.CommentTranslation call() {
+                return translationService.translateComment(commentSnapshot, selectedLanguage.code());
+            }
+        };
+
+        task.setOnSucceeded(event -> {
+            TranslationService.CommentTranslation translation = task.getValue();
+            commentTranslationCache.put(translationKey, translation);
+            activeCommentTranslationLanguageByCommentId.put(comment.getId(), translationKey);
+            renderCommentTranslation(translationBox, translation);
+            setInlineTranslationLoading(
+                    languageComboBox,
+                    translateButton,
+                    statusLabel,
+                    false,
+                    translation.partialTranslation()
+                            ? "Traduction partielle affichee pour ce texte long."
+                            : "",
+                    false
+            );
+            translateButton.setText("Masquer traduction");
+        });
+
+        task.setOnFailed(event -> setInlineTranslationLoading(
+                languageComboBox,
+                translateButton,
+                statusLabel,
+                false,
+                formatTranslationError(task.getException()),
+                true
+        ));
+
+        Thread translationThread = new Thread(task, "forum-comment-translation-" + comment.getId());
+        translationThread.setDaemon(true);
+        translationThread.start();
+    }
+
+    private void renderCommentTranslation(VBox translationBox, TranslationService.CommentTranslation translation) {
+        translationBox.getChildren().clear();
+
+        Label headerLabel = new Label("Traduction " + translation.languageLabel());
+        headerLabel.getStyleClass().add("translation-card-header");
+        headerLabel.setGraphic(createToolbarIcon(FontAwesomeSolid.GLOBE, "#4f46e5", 11));
+        headerLabel.setContentDisplay(ContentDisplay.LEFT);
+        headerLabel.setGraphicTextGap(6);
+
+        Label translatedContent = new Label(translation.translatedContent());
+        translatedContent.setWrapText(true);
+        translatedContent.setMaxWidth(Double.MAX_VALUE);
+        translatedContent.getStyleClass().add("translation-field-text");
+        applyTranslatedTextOrientation(translatedContent, translation.rightToLeft());
+
+        translationBox.getChildren().addAll(headerLabel, translatedContent);
+        if (translation.partialTranslation()) {
+            translationBox.getChildren().add(createTranslationNote(
+                    "Les commentaires tres longs sont tronques avant la traduction."
+            ));
+        }
+        showTranslationBox(translationBox);
+    }
+
+    private void setInlineTranslationLoading(ComboBox<TranslationService.SupportedLanguage> languageComboBox,
+                                             Button translateButton,
+                                             Label statusLabel,
+                                             boolean loading,
+                                             String status,
+                                             boolean error) {
+        languageComboBox.setDisable(loading);
+        translateButton.setDisable(loading);
+        translateButton.setText(loading ? "Traduction..." : "Traduire");
+        if (status == null || status.isBlank()) {
+            clearTranslationStatus(statusLabel);
+        } else {
+            setTranslationStatus(statusLabel, status, error);
+        }
     }
 
     private VBox createReplyForm(ForumComment parentComment) {
@@ -894,9 +1413,6 @@ public class ForumDetailController extends ForumController {
     }
 
     private void initializeAssistantForCurrentTopic() {
-        assistantSendButton.setDisable(false);
-        assistantInputArea.setDisable(false);
-
         if (currentTopic == null) {
             assistantStatusLabel.setText("Le sujet n'est pas disponible.");
             return;
@@ -910,17 +1426,41 @@ public class ForumDetailController extends ForumController {
         }
 
         assistantInitializedTopicId = currentTopic.getId();
-        assistantMessagesContainer.getChildren().clear();
-
-        StringBuilder welcome = new StringBuilder();
-        welcome.append("Je peux vous aider a resumer ce sujet, repondre a des questions simples a partir des commentaires et proposer des sujets similaires");
-        if (!currentRelatedTopics.isEmpty()) {
-            welcome.append(" deja trouves dans le forum");
-        }
-        welcome.append(". Ces informations sont generales et ne remplacent pas l'avis d'un professionnel de sante.");
-        appendAssistantBubble(welcome.toString());
-        assistantStatusLabel.setText("Preparation de l'assistant...");
+        assistantInputArea.clear();
+        clearAssistantConversation();
+        appendChatMessage(createAssistantMessage("Assistant Medicare AI", buildAssistantWelcomeMessage(), buildWelcomeRecommendations()));
+        assistantStatusLabel.setText("Verification de la configuration de l'API externe...");
         warmUpAssistant();
+    }
+
+    private String buildAssistantWelcomeMessage() {
+        StringBuilder builder = new StringBuilder("Je suis votre assistant medical educatif pour ce sujet de forum, alimente par une API externe gratuite.");
+        String quickSummary = currentTopic.getDisplaySummary();
+        if (quickSummary != null && !quickSummary.isBlank()) {
+            builder.append("\n\nResume rapide du sujet : ").append(quickSummary);
+        }
+        builder.append("\n\nJe peux ensuite : resumer plus finement la discussion, repondre a une question sante generale, proposer des conseils bien-etre prudents et recommander des sujets similaires.");
+        builder.append("\n\nExemples : \"Resume ce sujet\", \"Quels sujets similaires me recommandes-tu ?\", \"Quels conseils simples pour mieux gerer le stress ?\"");
+        builder.append("\n\nCes informations ne remplacent pas un avis medical professionnel.");
+        return builder.toString();
+    }
+
+    private List<ChatAssistantRecommendation> buildWelcomeRecommendations() {
+        List<ChatAssistantRecommendation> recommendations = new ArrayList<>();
+        if (currentRelatedTopics == null) {
+            return recommendations;
+        }
+
+        for (ForumTopic relatedTopic : currentRelatedTopics) {
+            if (relatedTopic == null || relatedTopic.getTitle() == null || relatedTopic.getTitle().isBlank()) {
+                continue;
+            }
+            recommendations.add(new ChatAssistantRecommendation(relatedTopic.getId(), relatedTopic.getTitle()));
+            if (recommendations.size() >= 2) {
+                break;
+            }
+        }
+        return recommendations;
     }
 
     private void toggleCommentReaction(ForumComment comment, String type) {
@@ -1032,111 +1572,560 @@ public class ForumDetailController extends ForumController {
         return button;
     }
 
+    private void resetTranslationState() {
+        topicTranslationCache.clear();
+        commentTranslationCache.clear();
+        activeCommentTranslationLanguageByCommentId.clear();
+        selectedCommentLanguageByCommentId.clear();
+        activeTopicTranslationLanguageCode = null;
+        clearTranslationStatus(topicTranslationStatusLabel);
+        hideTranslationBox(topicTranslationContainer);
+        if (topicTranslationLanguageComboBox != null) {
+            topicTranslationLanguageComboBox.getSelectionModel().select(findTranslationLanguage(DEFAULT_TRANSLATION_LANGUAGE_CODE));
+            topicTranslationLanguageComboBox.setDisable(false);
+        }
+        if (topicTranslateButton != null) {
+            topicTranslateButton.setDisable(true);
+            topicTranslateButton.setText("Traduire");
+        }
+    }
+
+    private TranslationService.SupportedLanguage findTranslationLanguage(String languageCode) {
+        if (languageCode == null || languageCode.isBlank()) {
+            return translationLanguages.isEmpty() ? null : translationLanguages.get(0);
+        }
+
+        for (TranslationService.SupportedLanguage language : translationLanguages) {
+            if (language != null && language.code().equalsIgnoreCase(languageCode)) {
+                return language;
+            }
+        }
+        return translationLanguages.isEmpty() ? null : translationLanguages.get(0);
+    }
+
+    private String buildTopicTranslationKey(int translatedTopicId, String languageCode) {
+        return "topic:" + translatedTopicId + ":" + languageCode;
+    }
+
+    private String buildCommentTranslationKey(int commentId, String languageCode) {
+        return "comment:" + commentId + ":" + languageCode;
+    }
+
+    private FontIcon createToolbarIcon(FontAwesomeSolid iconType, String color, int size) {
+        FontIcon icon = new FontIcon(iconType);
+        icon.setIconSize(size);
+        icon.setIconColor(Color.web(color));
+        return icon;
+    }
+
+    private void showTranslationBox(VBox translationBox) {
+        if (translationBox == null) {
+            return;
+        }
+        translationBox.setVisible(true);
+        translationBox.setManaged(true);
+    }
+
+    private void hideTranslationBox(VBox translationBox) {
+        if (translationBox == null) {
+            return;
+        }
+        translationBox.setVisible(false);
+        translationBox.setManaged(false);
+    }
+
+    private void setTranslationStatus(Label statusLabel, String message, boolean error) {
+        if (statusLabel == null) {
+            return;
+        }
+
+        statusLabel.setText(message != null ? message : "");
+        statusLabel.setVisible(message != null && !message.isBlank());
+        statusLabel.setManaged(statusLabel.isVisible());
+        statusLabel.getStyleClass().remove("translation-status-error");
+        if (error && !statusLabel.getStyleClass().contains("translation-status-error")) {
+            statusLabel.getStyleClass().add("translation-status-error");
+        }
+    }
+
+    private void clearTranslationStatus(Label statusLabel) {
+        if (statusLabel == null) {
+            return;
+        }
+
+        statusLabel.setText("");
+        statusLabel.setVisible(false);
+        statusLabel.setManaged(false);
+        statusLabel.getStyleClass().remove("translation-status-error");
+    }
+
+    private String formatTranslationError(Throwable throwable) {
+        if (throwable != null && throwable.getMessage() != null && !throwable.getMessage().isBlank()) {
+            return throwable.getMessage();
+        }
+        return "La traduction externe est indisponible pour le moment. Verifiez votre connexion et reessayez.";
+    }
+
     private void setAssistantLoading(boolean loading, String status) {
         assistantRequestInProgress = loading;
         assistantInputArea.setDisable(loading);
         assistantSendButton.setDisable(loading || currentTopic == null);
+        assistantSendButton.setText(loading ? "Envoi..." : "Envoyer");
+        if (assistantLoadingIndicator != null) {
+            assistantLoadingIndicator.setVisible(loading);
+            assistantLoadingIndicator.setManaged(loading);
+        }
         assistantStatusLabel.setText(status);
     }
 
-    private void appendUserBubble(String message) {
-        appendChatBubble(
-                "Vous",
-                message,
-                Pos.CENTER_RIGHT,
-                "-fx-background-color: #2563eb; -fx-background-radius: 16; -fx-padding: 10 12;",
-                "-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #dbeafe;",
-                "-fx-font-size: 13px; -fx-text-fill: white; -fx-line-spacing: 2;",
-                List.of()
-        );
+    private ChatMessage createUserMessage(String message) {
+        ChatMessage chatMessage = new ChatMessage(ChatMessage.ROLE_USER, "Vous", message);
+        chatMessage.setCreatedAt(LocalDateTime.now());
+        return chatMessage;
     }
 
-    private void appendAssistantBubble(String message) {
-        appendAssistantBubble(message, List.of());
+    private ChatMessage createAssistantMessage(String author, String message, List<ChatAssistantRecommendation> recommendations) {
+        ChatMessage chatMessage = new ChatMessage(ChatMessage.ROLE_ASSISTANT, author, message);
+        chatMessage.setCreatedAt(LocalDateTime.now());
+        chatMessage.setRecommendations(recommendations);
+        return chatMessage;
     }
 
-    private void appendAssistantBubble(String message, List<ChatAssistantRecommendation> recommendations) {
-        appendChatBubble(
-                "Assistant medical local",
-                message,
-                Pos.CENTER_LEFT,
-                "-fx-background-color: #f8fafc; -fx-background-radius: 16; -fx-border-color: #dbeafe; " +
-                        "-fx-border-radius: 16; -fx-padding: 10 12;",
-                "-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #2563eb;",
-                "-fx-font-size: 13px; -fx-text-fill: #1e293b; -fx-line-spacing: 2;",
-                recommendations
-        );
+    private ChatMessage createTypingMessage() {
+        ChatMessage chatMessage = new ChatMessage(ChatMessage.ROLE_ASSISTANT, "Assistant Medicare AI", "Assistant en train d'ecrire");
+        chatMessage.setCreatedAt(LocalDateTime.now());
+        chatMessage.setTyping(true);
+        return chatMessage;
     }
 
-    private void appendAssistantError(Throwable throwable) {
-        appendChatBubble(
-                "Assistant medical local",
-                formatAssistantError(throwable),
-                Pos.CENTER_LEFT,
-                "-fx-background-color: #fff7ed; -fx-background-radius: 16; -fx-border-color: #fdba74; " +
-                        "-fx-border-radius: 16; -fx-padding: 10 12;",
-                "-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #c2410c;",
-                "-fx-font-size: 13px; -fx-text-fill: #9a3412; -fx-line-spacing: 2;",
-                List.of()
-        );
+    private ChatMessage createErrorMessage(String message) {
+        ChatMessage chatMessage = createAssistantMessage("Assistant Medicare AI", message, List.of());
+        chatMessage.setError(true);
+        return chatMessage;
     }
 
-    private void appendChatBubble(String author,
-                                  String message,
-                                  Pos alignment,
-                                  String bubbleStyle,
-                                  String authorStyle,
-                                  String messageStyle,
-                                  List<ChatAssistantRecommendation> recommendations) {
-        HBox row = new HBox();
-        row.setAlignment(alignment);
+    private void appendChatMessage(ChatMessage chatMessage) {
+        assistantConversation.add(chatMessage);
+        HBox row = buildChatRow(chatMessage);
+        assistantMessagesContainer.getChildren().add(row);
+        scrollAssistantToBottom();
+    }
 
-        VBox bubble = new VBox(6);
-        bubble.setMaxWidth(540);
-        bubble.setStyle(bubbleStyle);
+    private HBox buildChatRow(ChatMessage chatMessage) {
+        boolean userMessage = chatMessage.isUser();
 
-        Label authorLabel = new Label(author);
-        authorLabel.setStyle(authorStyle);
+        HBox row = new HBox(12);
+        row.setAlignment(Pos.TOP_LEFT);
+        row.setMaxWidth(Double.MAX_VALUE);
+        row.getStyleClass().addAll("chat-row", userMessage ? "chat-row-user" : "chat-row-assistant");
 
-        Label messageLabel = new Label(message);
-        messageLabel.setWrapText(true);
-        messageLabel.setMaxWidth(516);
-        messageLabel.setStyle(messageStyle);
+        Label avatar = new Label(userMessage ? "U" : "AI");
+        avatar.getStyleClass().addAll("assistant-avatar", userMessage ? "assistant-avatar-user" : "assistant-avatar-ai");
 
-        bubble.getChildren().addAll(authorLabel, messageLabel);
+        VBox bubble = new VBox(10);
+        bubble.setMinWidth(Region.USE_PREF_SIZE);
+        bubble.setFillWidth(true);
+        bubble.getStyleClass().add("chat-bubble");
+        applyAdaptiveBubbleWidth(bubble);
+        if (chatMessage.isError()) {
+            bubble.getStyleClass().add("chat-bubble-error");
+        } else if (userMessage) {
+            bubble.getStyleClass().add("chat-bubble-user");
+        } else {
+            bubble.getStyleClass().add("chat-bubble-assistant");
+        }
 
-        if (recommendations != null && !recommendations.isEmpty()) {
-            Label recommendationsLabel = new Label("Sujets suggeres :");
-            recommendationsLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #475569;");
+        Label authorLabel = new Label(chatMessage.getAuthor() != null ? chatMessage.getAuthor() : (userMessage ? "Vous" : "Assistant"));
+        authorLabel.getStyleClass().addAll("chat-author", userMessage ? "chat-author-user" : "chat-author-assistant");
 
-            FlowPane recommendationsPane = new FlowPane(8, 8);
-            for (ChatAssistantRecommendation recommendation : recommendations) {
+        Node messageNode = buildChatMessageNode(chatMessage, userMessage);
+        VBox.setMargin(messageNode, new Insets(2, 0, 0, 0));
+
+        Label timeLabel = new Label((chatMessage.getCreatedAt() != null ? chatMessage.getCreatedAt() : LocalDateTime.now()).format(assistantTimeFormatter));
+        timeLabel.getStyleClass().add("chat-time");
+
+        bubble.getChildren().addAll(authorLabel, messageNode);
+
+        if (chatMessage.getRecommendations() != null && !chatMessage.getRecommendations().isEmpty()) {
+            Label recommendationsLabel = new Label("Sujets suggeres");
+            recommendationsLabel.getStyleClass().add("chat-recommendations-title");
+
+            FlowPane recommendationsPane = new FlowPane(10, 10);
+            recommendationsPane.getStyleClass().add("chat-recommendations-pane");
+            recommendationsPane.prefWrapLengthProperty().bind(Bindings.createDoubleBinding(
+                    () -> Math.max(220.0d, bubble.getMaxWidth() - 40.0d),
+                    bubble.maxWidthProperty()
+            ));
+            for (ChatAssistantRecommendation recommendation : chatMessage.getRecommendations()) {
                 if (recommendation.getTitle() == null || recommendation.getTitle().isBlank()) {
                     continue;
                 }
 
                 Button recommendationButton = new Button(recommendation.getTitle());
-                recommendationButton.setStyle("-fx-background-color: white; -fx-text-fill: #1d4ed8; " +
-                        "-fx-font-size: 12px; -fx-font-weight: bold; -fx-background-radius: 999; " +
-                        "-fx-border-color: #bfdbfe; -fx-border-radius: 999; -fx-cursor: hand; -fx-padding: 6 12;");
+                recommendationButton.getStyleClass().add("chat-recommendation-button");
                 recommendationButton.setDisable(recommendation.getId() <= 0 || recommendation.getId() == topicId);
                 recommendationButton.setOnAction(event -> openForumDetail(recommendation.getId()));
                 recommendationsPane.getChildren().add(recommendationButton);
             }
 
             if (!recommendationsPane.getChildren().isEmpty()) {
+                VBox.setMargin(recommendationsLabel, new Insets(8, 0, 0, 0));
                 bubble.getChildren().addAll(recommendationsLabel, recommendationsPane);
             }
         }
 
-        row.getChildren().add(bubble);
-        assistantMessagesContainer.getChildren().add(row);
-        scrollAssistantToBottom();
+        VBox.setMargin(timeLabel, new Insets(6, 0, 0, 0));
+        bubble.getChildren().add(timeLabel);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        if (userMessage) {
+            row.getChildren().addAll(spacer, bubble, avatar);
+        } else {
+            row.getChildren().addAll(avatar, bubble, spacer);
+        }
+
+        row.setOpacity(0.0d);
+        row.setTranslateY(10.0d);
+        FadeTransition fadeTransition = new FadeTransition(Duration.millis(220), row);
+        fadeTransition.setFromValue(0.0d);
+        fadeTransition.setToValue(1.0d);
+
+        TranslateTransition slideTransition = new TranslateTransition(Duration.millis(260), row);
+        slideTransition.setFromY(10.0d);
+        slideTransition.setToY(0.0d);
+        slideTransition.setInterpolator(Interpolator.EASE_OUT);
+
+        ParallelTransition appearanceTransition = new ParallelTransition(fadeTransition, slideTransition);
+        appearanceTransition.setOnFinished(event -> scrollAssistantToBottom());
+        appearanceTransition.play();
+
+        if (chatMessage.isTyping() && messageNode instanceof Label messageLabel) {
+            assistantTypingLabel = messageLabel;
+            assistantTypingRow = row;
+        }
+
+        return row;
+    }
+
+    private Node buildChatMessageNode(ChatMessage chatMessage, boolean userMessage) {
+        String content = chatMessage.getContent() != null ? chatMessage.getContent() : "";
+        if (userMessage || chatMessage.isTyping() || chatMessage.isError()) {
+            Label messageLabel = createWrappedChatLabel(content);
+            messageLabel.getStyleClass().add("chat-message");
+            if (chatMessage.isError()) {
+                messageLabel.getStyleClass().add("chat-message-error");
+            } else if (chatMessage.isTyping()) {
+                messageLabel.getStyleClass().add("chat-message-typing");
+            } else if (userMessage) {
+                messageLabel.getStyleClass().add("chat-message-user");
+            } else {
+                messageLabel.getStyleClass().add("chat-message-assistant");
+            }
+            return messageLabel;
+        }
+        return buildFormattedAssistantContent(content);
+    }
+
+    private Label createWrappedChatLabel(String text) {
+        Label label = new Label(text != null ? text : "");
+        label.setWrapText(true);
+        label.setMaxWidth(Double.MAX_VALUE);
+        return label;
+    }
+
+    private VBox buildFormattedAssistantContent(String rawContent) {
+        VBox contentBox = new VBox(12);
+        contentBox.setFillWidth(true);
+        contentBox.setMaxWidth(Double.MAX_VALUE);
+        contentBox.getStyleClass().add("chat-markdown-content");
+
+        String normalizedContent = rawContent != null
+                ? rawContent.replace("\r\n", "\n").replace('\r', '\n').replace("\u2022 ", "* ")
+                : "";
+        List<String> paragraphLines = new ArrayList<>();
+        List<String> listItems = new ArrayList<>();
+
+        for (String rawLine : normalizedContent.split("\n", -1)) {
+            String trimmedLine = rawLine.trim();
+
+            if (trimmedLine.isEmpty()) {
+                flushAssistantParagraph(contentBox, paragraphLines);
+                flushAssistantList(contentBox, listItems);
+                continue;
+            }
+
+            if (isMarkdownSeparator(trimmedLine)) {
+                flushAssistantParagraph(contentBox, paragraphLines);
+                flushAssistantList(contentBox, listItems);
+                contentBox.getChildren().add(createMarkdownSeparator());
+                continue;
+            }
+
+            String headingText = extractMarkdownHeading(trimmedLine);
+            if (headingText != null) {
+                flushAssistantParagraph(contentBox, paragraphLines);
+                flushAssistantList(contentBox, listItems);
+                contentBox.getChildren().add(createMarkdownTitleLabel(headingText));
+                continue;
+            }
+
+            String listItemText = extractMarkdownListItem(trimmedLine);
+            if (listItemText != null) {
+                flushAssistantParagraph(contentBox, paragraphLines);
+                listItems.add(listItemText);
+                continue;
+            }
+
+            flushAssistantList(contentBox, listItems);
+            paragraphLines.add(cleanInlineMarkdown(rawLine));
+        }
+
+        flushAssistantParagraph(contentBox, paragraphLines);
+        flushAssistantList(contentBox, listItems);
+
+        if (contentBox.getChildren().isEmpty()) {
+            Label fallbackLabel = createWrappedChatLabel(cleanInlineMarkdown(normalizedContent));
+            fallbackLabel.getStyleClass().addAll("chat-message", "chat-message-assistant", "chat-markdown-text");
+            contentBox.getChildren().add(fallbackLabel);
+        }
+
+        return contentBox;
+    }
+
+    private void flushAssistantParagraph(VBox contentBox, List<String> paragraphLines) {
+        if (paragraphLines.isEmpty()) {
+            return;
+        }
+
+        String paragraphText = String.join("\n", paragraphLines).trim();
+        paragraphLines.clear();
+        if (paragraphText.isEmpty()) {
+            return;
+        }
+
+        Label paragraphLabel = createWrappedChatLabel(paragraphText);
+        paragraphLabel.getStyleClass().addAll("chat-message", "chat-message-assistant", "chat-markdown-text");
+        contentBox.getChildren().add(paragraphLabel);
+    }
+
+    private void flushAssistantList(VBox contentBox, List<String> listItems) {
+        if (listItems.isEmpty()) {
+            return;
+        }
+
+        VBox listBox = new VBox(8);
+        listBox.setFillWidth(true);
+        listBox.getStyleClass().add("chat-markdown-list");
+
+        for (String itemText : listItems) {
+            HBox itemRow = new HBox(8);
+            itemRow.setAlignment(Pos.TOP_LEFT);
+            itemRow.getStyleClass().add("chat-markdown-list-item");
+
+            Label bulletLabel = new Label("\u2022");
+            bulletLabel.getStyleClass().add("chat-markdown-bullet");
+
+            Label itemLabel = createWrappedChatLabel(itemText);
+            itemLabel.setMaxWidth(Double.MAX_VALUE);
+            itemLabel.getStyleClass().addAll("chat-message", "chat-markdown-list-text");
+            HBox.setHgrow(itemLabel, Priority.ALWAYS);
+
+            itemRow.getChildren().addAll(bulletLabel, itemLabel);
+            listBox.getChildren().add(itemRow);
+        }
+
+        listItems.clear();
+        contentBox.getChildren().add(listBox);
+    }
+
+    private Label createMarkdownTitleLabel(String text) {
+        Label titleLabel = createWrappedChatLabel(text);
+        titleLabel.getStyleClass().add("chat-markdown-title");
+        return titleLabel;
+    }
+
+    private Region createMarkdownSeparator() {
+        Region separator = new Region();
+        separator.setMinHeight(1);
+        separator.setPrefHeight(1);
+        separator.setMaxHeight(1);
+        separator.setMaxWidth(Double.MAX_VALUE);
+        separator.getStyleClass().add("chat-markdown-separator");
+        VBox.setMargin(separator, new Insets(6, 0, 6, 0));
+        return separator;
+    }
+
+    private boolean isMarkdownSeparator(String line) {
+        String compact = line.replace(" ", "");
+        if (compact.length() < 3) {
+            return false;
+        }
+
+        char marker = compact.charAt(0);
+        if (marker != '-' && marker != '*' && marker != '_') {
+            return false;
+        }
+
+        for (int i = 1; i < compact.length(); i++) {
+            if (compact.charAt(i) != marker) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String extractMarkdownHeading(String line) {
+        int markerCount = 0;
+        while (markerCount < line.length() && line.charAt(markerCount) == '#') {
+            markerCount++;
+        }
+
+        if (markerCount == 0 || markerCount > 6 || markerCount >= line.length() || !Character.isWhitespace(line.charAt(markerCount))) {
+            return null;
+        }
+
+        String heading = line.substring(markerCount).trim();
+        while (!heading.isEmpty() && heading.charAt(heading.length() - 1) == '#') {
+            heading = heading.substring(0, heading.length() - 1).trim();
+        }
+
+        heading = cleanInlineMarkdown(heading);
+        return heading.isEmpty() ? null : heading;
+    }
+
+    private String extractMarkdownListItem(String line) {
+        if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ")) {
+            String item = cleanInlineMarkdown(line.substring(2).trim());
+            return item.isEmpty() ? null : item;
+        }
+
+        int cursor = 0;
+        while (cursor < line.length() && Character.isDigit(line.charAt(cursor))) {
+            cursor++;
+        }
+
+        if (cursor > 0
+                && cursor + 1 < line.length()
+                && (line.charAt(cursor) == '.' || line.charAt(cursor) == ')')
+                && Character.isWhitespace(line.charAt(cursor + 1))) {
+            String item = cleanInlineMarkdown(line.substring(cursor + 1).trim());
+            return item.isEmpty() ? null : item;
+        }
+
+        return null;
+    }
+
+    private String cleanInlineMarkdown(String text) {
+        if (text == null) {
+            return "";
+        }
+
+        String cleaned = text.replace('\t', ' ').trim();
+        if (cleaned.startsWith(">")) {
+            cleaned = cleaned.substring(1).trim();
+        }
+
+        cleaned = cleaned
+                .replace("**", "")
+                .replace("__", "")
+                .replace("~~", "")
+                .replace("`", "")
+                .replace("*", "");
+
+        while (cleaned.contains("  ")) {
+            cleaned = cleaned.replace("  ", " ");
+        }
+
+        return cleaned.trim();
+    }
+
+    private void applyAdaptiveBubbleWidth(VBox bubble) {
+        if (bubble == null) {
+            return;
+        }
+
+        if (assistantMessagesContainer == null) {
+            bubble.setMaxWidth(520);
+            return;
+        }
+
+        bubble.maxWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> {
+                    double containerWidth = assistantMessagesContainer.getWidth();
+                    if (containerWidth <= 0) {
+                        return 520.0d;
+                    }
+
+                    double responsiveWidth = containerWidth * 0.76d;
+                    return Math.max(220.0d, Math.min(520.0d, responsiveWidth));
+                },
+                assistantMessagesContainer.widthProperty()
+        ));
+    }
+
+    private void showTypingIndicator() {
+        stopTypingIndicator();
+        assistantTypingFrameIndex = 0;
+        assistantTypingMessage = createTypingMessage();
+        appendChatMessage(assistantTypingMessage);
+        assistantTypingTimeline = new Timeline(new KeyFrame(Duration.millis(450), event -> advanceTypingFrame()));
+        assistantTypingTimeline.setCycleCount(Timeline.INDEFINITE);
+        assistantTypingTimeline.play();
+    }
+
+    private void advanceTypingFrame() {
+        if (assistantTypingLabel == null) {
+            return;
+        }
+
+        String[] frames = {
+                "Assistant en train d'ecrire",
+                "Assistant en train d'ecrire.",
+                "Assistant en train d'ecrire..",
+                "Assistant en train d'ecrire..."
+        };
+        assistantTypingLabel.setText(frames[assistantTypingFrameIndex % frames.length]);
+        assistantTypingFrameIndex++;
+    }
+
+    private void stopTypingIndicator() {
+        if (assistantTypingTimeline != null) {
+            assistantTypingTimeline.stop();
+            assistantTypingTimeline = null;
+        }
+
+        if (assistantTypingMessage != null) {
+            assistantConversation.remove(assistantTypingMessage);
+        }
+        if (assistantTypingRow != null) {
+            assistantMessagesContainer.getChildren().remove(assistantTypingRow);
+        }
+
+        assistantTypingLabel = null;
+        assistantTypingRow = null;
+        assistantTypingMessage = null;
+        assistantTypingFrameIndex = 0;
+    }
+
+    private void clearAssistantConversation() {
+        stopTypingIndicator();
+        assistantConversation.clear();
+        if (assistantMessagesContainer != null) {
+            assistantMessagesContainer.getChildren().clear();
+        }
     }
 
     private void scrollAssistantToBottom() {
         Platform.runLater(() -> {
-            if (assistantMessagesScrollPane != null) {
+            if (assistantMessagesScrollPane != null && assistantMessagesContainer != null) {
+                assistantMessagesContainer.applyCss();
+                assistantMessagesContainer.layout();
+                assistantMessagesScrollPane.layout();
+                assistantMessagesScrollPane.setVvalue(1.0);
+                Platform.runLater(() -> assistantMessagesScrollPane.setVvalue(1.0));
+            } else if (assistantMessagesScrollPane != null) {
                 assistantMessagesScrollPane.setVvalue(1.0);
             }
         });
@@ -1146,7 +2135,7 @@ public class ForumDetailController extends ForumController {
         if (throwable != null && throwable.getMessage() != null && !throwable.getMessage().isBlank()) {
             return throwable.getMessage();
         }
-        return "Le chatbot local est indisponible pour le moment. Verifiez que le service Flask est bien demarre.";
+        return "L'assistant externe est indisponible pour le moment. Verifiez votre connexion reseau et la configuration de l'API.";
     }
 
     private void applyAutomaticFlag(ForumComment comment, ContentModerationResult moderationResult) {
@@ -1162,8 +2151,8 @@ public class ForumDetailController extends ForumController {
 
     private void warmUpAssistant() {
         if (currentTopic == null || assistantWarmupTopicId == currentTopic.getId()) {
-            if (!assistantRequestInProgress && currentTopic != null && "Preparation de l'assistant...".equals(assistantStatusLabel.getText())) {
-                assistantStatusLabel.setText("Essayez par exemple : Resume ce sujet.");
+            if (!assistantRequestInProgress && currentTopic != null && "Verification de la configuration de l'API externe...".equals(assistantStatusLabel.getText())) {
+                assistantStatusLabel.setText("Assistant pret. Essayez par exemple : Resume ce sujet.");
             }
             return;
         }
@@ -1179,16 +2168,25 @@ public class ForumDetailController extends ForumController {
         };
 
         task.setOnSucceeded(event -> {
+            assistantInputArea.setDisable(false);
+            assistantSendButton.setDisable(false);
             if (!assistantRequestInProgress) {
-                assistantStatusLabel.setText("Assistant pret. Essayez par exemple : Resume ce sujet.");
+                assistantStatusLabel.setText("Assistant pret. Mode local disponible si besoin.");
             }
         });
 
         task.setOnFailed(event -> {
             assistantWarmupTopicId = -1;
+            assistantInputArea.setDisable(false);
+            assistantSendButton.setDisable(false);
             if (!assistantRequestInProgress) {
-                assistantStatusLabel.setText("Assistant indisponible.");
+                assistantStatusLabel.setText("Mode local actif.");
             }
+            appendChatMessage(createAssistantMessage(
+                    "Assistant Medicare AI",
+                    "Le mode local Medicare prend le relais. Vous pouvez continuer a poser des questions sur le sujet, demander un resume ou chercher des sujets similaires.\n\nCes informations ne remplacent pas un avis medical professionnel.",
+                    buildWelcomeRecommendations()
+            ));
         });
 
         Thread warmupThread = new Thread(task, "forum-chat-assistant-warmup");

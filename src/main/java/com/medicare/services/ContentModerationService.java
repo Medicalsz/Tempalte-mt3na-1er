@@ -72,6 +72,13 @@ public class ContentModerationService {
         return analyzeLocally(text);
     }
 
+    public ContentModerationResult moderateLocally(String text) {
+        if (text == null || text.isBlank()) {
+            return ContentModerationResult.clean();
+        }
+        return analyzeLocally(text);
+    }
+
     ContentModerationResult analyzeLocally(String text) {
         String normalized = normalize(text);
         if (normalized.isBlank()) {

@@ -7,6 +7,8 @@ public class ChatAssistantResponse {
     private String reply;
     private String intent;
     private double confidence;
+    private boolean fallbackResponse;
+    private String model;
     private List<ChatAssistantRecommendation> recommendations = new ArrayList<>();
 
     public String getReply() {
@@ -31,6 +33,22 @@ public class ChatAssistantResponse {
 
     public void setConfidence(double confidence) {
         this.confidence = confidence;
+    }
+
+    public boolean isFallbackResponse() {
+        return fallbackResponse;
+    }
+
+    public void setFallbackResponse(boolean fallbackResponse) {
+        this.fallbackResponse = fallbackResponse;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public void setModel(String model) {
+        this.model = model;
     }
 
     public List<ChatAssistantRecommendation> getRecommendations() {
