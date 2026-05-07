@@ -69,6 +69,18 @@ ALTER TABLE medecin
   ADD COLUMN IF NOT EXISTS created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ADD COLUMN IF NOT EXISTS updated_at DATETIME NULL;
 
+-- ==================== RENDEZ_VOUS TABLE SYNC ====================
+-- Add columns used by the RDV module (safe to run multiple times)
+ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS motif VARCHAR(500) NULL;
+ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS motif_annulation VARCHAR(500) NULL;
+ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS rappel_envoye TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS hidden_by_patient TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS hidden_by_medecin TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS proposed_date DATE NULL;
+ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS proposed_heure TIME NULL;
+ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS report_pending_patient_response TINYINT(1) NOT NULL DEFAULT 0;
+
+
 -- ==================== NEW TABLES ====================
 
 CREATE TABLE IF NOT EXISTS user_block (

@@ -60,6 +60,7 @@ public class DashboardPatientController {
     @FXML private Button btnLogout;
     private boolean notifSeen = false;
     private int dismissCount = 0;
+    private final com.medicare.services.DonationService donationService = new com.medicare.services.DonationService();
 
     private static User currentUser;
 
@@ -77,6 +78,7 @@ public class DashboardPatientController {
         }
         initAvatar();
         refreshUserHeader();
+        javafx.application.Platform.runLater(this::checkConfirmedDonsWithoutAddress);
 
         btnAccueil.setGraphic(icon(FontAwesomeSolid.HOME));
         btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
@@ -260,9 +262,16 @@ public class DashboardPatientController {
     @FXML
     private void onDonationClick() {
         highlightButton(btnDonation);
-        setContent(new Label("Faire un don") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-donation-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement donations") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML
@@ -405,6 +414,45 @@ public class DashboardPatientController {
             Stage stage = (Stage) contentArea.getScene().getWindow();
             stage.setScene(new Scene(loader.load()));
             stage.setTitle("Medicare");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void checkConfirmedDonsWithoutAddress() {
+        if (currentUser == null) return;
+
+        java.util.List<com.medicare.models.Don> myDons = donationService.getDonsByUserId(currentUser.getId());
+        for (com.medicare.models.Don don : myDons) {
+            if ("materiel".equals(don.getType())
+                    && "confirme".equalsIgnoreCase(don.getStatut())
+                    && (don.getAdresse() == null || don.getAdresse().trim().isEmpty()
+                    || don.getAdresse().equalsIgnoreCase("pas d'adresse"))) {
+                showAddressPopup(don);
+                break;
+            }
+        }
+    }
+
+    private void showAddressPopup(com.medicare.models.Don don) {
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("donation-address-popup.fxml"));
+            javafx.scene.Parent root = loader.load();
+
+            DonationAddressPopupController controller = loader.getController();
+            controller.setDon(don);
+
+            Stage stage = new Stage();
+            stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            stage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+            stage.setScene(new Scene(root));
+            stage.getScene().setFill(Color.TRANSPARENT);
+
+            if (userNameLabel.getScene() != null && userNameLabel.getScene().getWindow() != null) {
+                stage.initOwner(userNameLabel.getScene().getWindow());
+            }
+
+            stage.show();
         } catch (Exception e) {
             e.printStackTrace();
         }

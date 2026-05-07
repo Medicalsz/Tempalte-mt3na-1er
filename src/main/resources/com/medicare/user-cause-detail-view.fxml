@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.UserCauseDetailController">
+   <padding>
+      <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+   </padding>
+   <children>
+      <Button fx:id="btnBack" onAction="#onBackClick" text="Retour aux causes" style="-fx-background-color: transparent; -fx-text-fill: #10b981; -fx-font-weight: bold; -fx-cursor: hand;">
+         <graphic>
+            <FontIcon iconLiteral="fas-arrow-left" iconSize="14" iconColor="#10b981" />
+         </graphic>
+      </Button>
+      
+      <Label fx:id="causeTitleLabel" text="Titre de la cause" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+      
+      <HBox spacing="30.0">
+         <children>
+            <!-- Partie Gauche : Image et Description -->
+            <VBox spacing="20.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <ImageView fx:id="causeImageView" fitHeight="400.0" fitWidth="700.0" preserveRatio="false" style="-fx-background-radius: 15;">
+                     <!-- L'image sera chargée dynamiquement -->
+                  </ImageView>
+                  <Label text="À propos de cette cause" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <Label fx:id="causeDescLabel" text="Description détaillée..." wrapText="true" style="-fx-font-size: 15px; -fx-text-fill: #64748b; -fx-line-spacing: 5;" />
+               </children>
+            </VBox>
+            
+            <!-- Partie Droite : Widget de Don -->
+            <VBox prefWidth="350.0" spacing="20.0" style="-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 20, 0, 0, 10); -fx-padding: 25;">
+               <children>
+                  <HBox alignment="BOTTOM_LEFT" spacing="5.0">
+                     <children>
+                        <Label fx:id="currentAmountLabel" text="10000 DT" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #10b981;" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Label fx:id="goalAmountLabel" text="Objectif : 45000 DT" style="-fx-font-size: 14px; -fx-text-fill: #64748b;" />
+                     </children>
+                  </HBox>
+                  
+                  <ProgressBar fx:id="progressBar" prefHeight="12.0" prefWidth="300.0" progress="0.22" style="-fx-accent: #10b981; -fx-control-inner-background: #f1f5f9;" />
+                  
+                  <Label fx:id="percentReachedLabel" text="22% de l'objectif atteint" style="-fx-font-size: 13px; -fx-text-fill: #64748b; -fx-alignment: center;" />
+                  
+                  <Button fx:id="btnDonateNow" onAction="#onDonateNowClick" text="Faire un don maintenant" maxWidth="Infinity" style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px; -fx-padding: 15; -fx-background-radius: 30; -fx-cursor: hand;" />
+                  
+                  <Region prefHeight="10.0" />
+                  
+                  <HBox spacing="15.0" alignment="CENTER_LEFT" style="-fx-border-color: #e2e8f0; -fx-border-width: 1 0 0 0; -fx-padding: 20 0 0 0;">
+                     <children>
+                        <FontIcon iconLiteral="fas-shield-alt" iconSize="24" iconColor="#10b981" />
+                        <VBox>
+                           <children>
+                              <Label text="Don sécurisé" style="-fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                              <Label text="Vos informations sont protégées" style="-fx-font-size: 12px; -fx-text-fill: #64748b;" />
+                           </children>
+                        </VBox>
+                     </children>
+                  </HBox>
+
+                  <HBox fx:id="badgeContainer" spacing="15.0" alignment="CENTER_LEFT" style="-fx-background-color: #f8fafc; -fx-background-radius: 10; -fx-padding: 15; -fx-border-color: #e2e8f0; -fx-border-width: 1; -fx-border-radius: 10;">
+                     <children>
+                        <ImageView fx:id="badgeImageView" fitHeight="45.0" fitWidth="45.0" preserveRatio="true" />
+                        <VBox spacing="2.0">
+                           <children>
+                              <Label fx:id="badgeNameLabel" text="Badge Bronze" style="-fx-font-weight: bold; -fx-text-fill: #1e293b; -fx-font-size: 14px;" />
+                              <Label fx:id="totalDonatedLabel" text="Total des dons : 0 DT" style="-fx-font-size: 12px; -fx-text-fill: #64748b;" />
+                           </children>
+                        </VBox>
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+   </children>
+</VBox>

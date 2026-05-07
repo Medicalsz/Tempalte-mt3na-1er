@@ -29,9 +29,7 @@ public class RendezVousService {
 
     public List<Specialite> getAllSpecialites() {
         List<Specialite> list = new ArrayList<>();
-        String q = "SELECT DISTINCT s.* FROM specialite s " +
-                   "JOIN medecin m ON m.specialite_ref_id = s.id " +
-                   "ORDER BY s.nom";
+        String q = "SELECT * FROM specialite WHERE active = 1 ORDER BY nom";
         try {
             ResultSet rs = cnx.createStatement().executeQuery(q);
             while (rs.next()) {
@@ -42,7 +40,6 @@ public class RendezVousService {
                 s.setActive(rs.getBoolean("active"));
                 list.add(s);
             }
-            System.out.println("Specialites chargees (avec medecins): " + list.size());
         } catch (SQLException e) { System.out.println("Erreur specialites: " + e.getMessage()); }
         return list;
     }
@@ -51,12 +48,19 @@ public class RendezVousService {
 
     public List<Medecin> getMedecinsBySpecialite(int specialiteId) {
         List<Medecin> list = new ArrayList<>();
-        String q = "SELECT m.*, u.nom, u.prenom, u.email FROM medecin m " +
+        // Match by specialite_ref_id OR by specialite text name (fallback for doctors without ref_id set)
+        String q = "SELECT m.id, m.user_id, m.specialite, m.cabinet, m.bio, m.specialite_ref_id, " +
+                   "m.rating_average, m.experience_years, m.consultation_duration, m.is_available_online, " +
+                   "u.nom, u.prenom, u.email, u.photo " +
+                   "FROM medecin m " +
                    "JOIN user u ON m.user_id = u.id " +
-                   "WHERE m.specialite_ref_id = ? ORDER BY u.nom";
+                   "WHERE m.specialite_ref_id = ? " +
+                   "   OR m.specialite = (SELECT nom FROM specialite WHERE id = ?) " +
+                   "ORDER BY u.nom";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, specialiteId);
+            ps.setInt(2, specialiteId);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Medecin m = new Medecin();
@@ -68,6 +72,11 @@ public class RendezVousService {
                 m.setNom(rs.getString("nom"));
                 m.setPrenom(rs.getString("prenom"));
                 m.setEmail(rs.getString("email"));
+                m.setPhoto(rs.getString("photo"));
+                m.setRatingAverage(rs.getDouble("rating_average"));
+                m.setExperienceYears(rs.getInt("experience_years"));
+                m.setConsultationDuration(rs.getInt("consultation_duration"));
+                m.setAvailableOnline(rs.getBoolean("is_available_online"));
                 list.add(m);
             }
         } catch (SQLException e) { System.out.println("Erreur medecins: " + e.getMessage()); }
@@ -162,7 +171,7 @@ public class RendezVousService {
     // ==================== CRUD RENDEZ-VOUS ====================
 
     public boolean create(RendezVous rv) {
-        String q = "INSERT INTO rendez_vous (medecin_id, patient_id, date, heure, statut) VALUES (?, ?, ?, ?, ?)";
+        String q = "INSERT INTO rendez_vous (medecin_id, patient_id, date, heure, statut, motif) VALUES (?, ?, ?, ?, ?, ?)";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, rv.getMedecinId());
@@ -170,24 +179,57 @@ public class RendezVousService {
             ps.setDate(3, Date.valueOf(rv.getDate()));
             ps.setTime(4, Time.valueOf(rv.getHeure()));
             ps.setString(5, rv.getStatut());
+            ps.setString(6, rv.getMotif());
             ps.executeUpdate();
             return true;
-        } catch (SQLException e) { System.out.println("Erreur create RV: " + e.getMessage()); }
+        } catch (SQLException e) {
+            // Fallback: column might not exist yet (pre-migration DB)
+            if (e.getMessage() != null && e.getMessage().contains("motif")) {
+                try {
+                    PreparedStatement ps2 = cnx.prepareStatement(
+                        "INSERT INTO rendez_vous (medecin_id, patient_id, date, heure, statut) VALUES (?, ?, ?, ?, ?)");
+                    ps2.setInt(1, rv.getMedecinId());
+                    ps2.setInt(2, rv.getPatientId());
+                    ps2.setDate(3, Date.valueOf(rv.getDate()));
+                    ps2.setTime(4, Time.valueOf(rv.getHeure()));
+                    ps2.setString(5, rv.getStatut());
+                    ps2.executeUpdate();
+                    return true;
+                } catch (SQLException e2) { System.out.println("Erreur create RV fallback: " + e2.getMessage()); }
+            } else {
+                System.out.println("Erreur create RV: " + e.getMessage());
+            }
+        }
         return false;
     }
 
     public List<RendezVous> getByPatient(int patientId) {
         List<RendezVous> list = new ArrayList<>();
+        // Try with hidden_by_patient filter (requires migration); fall back without it
         String q = "SELECT rv.*, u.nom AS med_nom, u.prenom AS med_prenom, m.specialite " +
                    "FROM rendez_vous rv " +
                    "JOIN medecin m ON rv.medecin_id = m.id " +
                    "JOIN user u ON m.user_id = u.id " +
                    "WHERE rv.patient_id = ? AND rv.hidden_by_patient = 0 " +
                    "ORDER BY rv.date DESC, rv.heure DESC";
+        String qFallback = "SELECT rv.*, u.nom AS med_nom, u.prenom AS med_prenom, m.specialite " +
+                   "FROM rendez_vous rv " +
+                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN user u ON m.user_id = u.id " +
+                   "WHERE rv.patient_id = ? " +
+                   "ORDER BY rv.date DESC, rv.heure DESC";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, patientId);
-            ResultSet rs = ps.executeQuery();
+            ResultSet rs;
+            try {
+                rs = ps.executeQuery();
+            } catch (SQLException ex) {
+                // hidden_by_patient column not yet in DB — use fallback
+                ps = cnx.prepareStatement(qFallback);
+                ps.setInt(1, patientId);
+                rs = ps.executeQuery();
+            }
             while (rs.next()) {
                 RendezVous rv = new RendezVous();
                 rv.setId(rs.getInt("id"));
@@ -199,6 +241,16 @@ public class RendezVousService {
                 rv.setMedecinNom(rs.getString("med_nom"));
                 rv.setMedecinPrenom(rs.getString("med_prenom"));
                 rv.setSpecialite(rs.getString("specialite"));
+                try { rv.setMotif(rs.getString("motif")); } catch (SQLException ignore) {}
+                try { rv.setReportPending(rs.getBoolean("report_pending_patient_response")); } catch (SQLException ignore) {}
+                try {
+                    java.sql.Date pd = rs.getDate("proposed_date");
+                    if (pd != null) rv.setProposedDate(pd.toLocalDate());
+                } catch (SQLException ignore) {}
+                try {
+                    java.sql.Time ph = rs.getTime("proposed_heure");
+                    if (ph != null) rv.setProposedHeure(ph.toLocalTime());
+                } catch (SQLException ignore) {}
                 list.add(rv);
             }
         } catch (SQLException e) { System.out.println("Erreur list RV: " + e.getMessage()); }
@@ -206,10 +258,13 @@ public class RendezVousService {
     }
 
     public RendezVous getById(int id) {
-        String q = "SELECT rv.*, u.nom AS med_nom, u.prenom AS med_prenom, m.specialite, m.cabinet " +
+        String q = "SELECT rv.*, " +
+                   "um.nom AS med_nom, um.prenom AS med_prenom, m.specialite, m.cabinet, " +
+                   "up.nom AS pat_nom, up.prenom AS pat_prenom " +
                    "FROM rendez_vous rv " +
                    "JOIN medecin m ON rv.medecin_id = m.id " +
-                   "JOIN user u ON m.user_id = u.id " +
+                   "JOIN user um ON m.user_id = um.id " +
+                   "JOIN user up ON rv.patient_id = up.id " +
                    "WHERE rv.id = ?";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
@@ -225,7 +280,20 @@ public class RendezVousService {
                 rv.setStatut(rs.getString("statut"));
                 rv.setMedecinNom(rs.getString("med_nom"));
                 rv.setMedecinPrenom(rs.getString("med_prenom"));
+                rv.setPatientNom(rs.getString("pat_nom"));
+                rv.setPatientPrenom(rs.getString("pat_prenom"));
                 rv.setSpecialite(rs.getString("specialite"));
+                try { rv.setMotif(rs.getString("motif")); } catch (SQLException ignore) {}
+                try { rv.setMotifAnnulation(rs.getString("motif_annulation")); } catch (SQLException ignore) {}
+                try { rv.setReportPending(rs.getBoolean("report_pending_patient_response")); } catch (SQLException ignore) {}
+                try {
+                    java.sql.Date pd = rs.getDate("proposed_date");
+                    if (pd != null) rv.setProposedDate(pd.toLocalDate());
+                } catch (SQLException ignore) {}
+                try {
+                    java.sql.Time ph = rs.getTime("proposed_heure");
+                    if (ph != null) rv.setProposedHeure(ph.toLocalTime());
+                } catch (SQLException ignore) {}
                 return rv;
             }
         } catch (SQLException e) { System.out.println("Erreur getById RV: " + e.getMessage()); }
@@ -233,14 +301,15 @@ public class RendezVousService {
     }
 
     public boolean update(RendezVous rv) {
-        String q = "UPDATE rendez_vous SET medecin_id=?, date=?, heure=?, statut=? WHERE id=?";
+        String q = "UPDATE rendez_vous SET medecin_id=?, date=?, heure=?, statut=?, motif=? WHERE id=?";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, rv.getMedecinId());
             ps.setDate(2, Date.valueOf(rv.getDate()));
             ps.setTime(3, Time.valueOf(rv.getHeure()));
             ps.setString(4, rv.getStatut());
-            ps.setInt(5, rv.getId());
+            ps.setString(5, rv.getMotif());
+            ps.setInt(6, rv.getId());
             ps.executeUpdate();
             return true;
         } catch (SQLException e) { System.out.println("Erreur update RV: " + e.getMessage()); }
@@ -289,10 +358,22 @@ public class RendezVousService {
                    "JOIN user u ON rv.patient_id = u.id " +
                    "WHERE rv.medecin_id = ? AND rv.hidden_by_medecin = 0 " +
                    "ORDER BY rv.date DESC, rv.heure DESC";
+        String qFallback = "SELECT rv.*, u.nom AS pat_nom, u.prenom AS pat_prenom " +
+                   "FROM rendez_vous rv " +
+                   "JOIN user u ON rv.patient_id = u.id " +
+                   "WHERE rv.medecin_id = ? " +
+                   "ORDER BY rv.date DESC, rv.heure DESC";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, medecinId);
-            ResultSet rs = ps.executeQuery();
+            ResultSet rs;
+            try {
+                rs = ps.executeQuery();
+            } catch (SQLException ex) {
+                ps = cnx.prepareStatement(qFallback);
+                ps.setInt(1, medecinId);
+                rs = ps.executeQuery();
+            }
             while (rs.next()) {
                 RendezVous rv = new RendezVous();
                 rv.setId(rs.getInt("id"));
@@ -301,8 +382,17 @@ public class RendezVousService {
                 rv.setDate(rs.getDate("date").toLocalDate());
                 rv.setHeure(rs.getTime("heure").toLocalTime());
                 rv.setStatut(rs.getString("statut"));
-                rv.setMedecinNom(rs.getString("pat_nom"));
-                rv.setMedecinPrenom(rs.getString("pat_prenom"));
+                rv.setPatientNom(rs.getString("pat_nom"));
+                rv.setPatientPrenom(rs.getString("pat_prenom"));
+                try { rv.setReportPending(rs.getBoolean("report_pending_patient_response")); } catch (SQLException ignore) {}
+                try {
+                    java.sql.Date pd = rs.getDate("proposed_date");
+                    if (pd != null) rv.setProposedDate(pd.toLocalDate());
+                } catch (SQLException ignore) {}
+                try {
+                    java.sql.Time ph = rs.getTime("proposed_heure");
+                    if (ph != null) rv.setProposedHeure(ph.toLocalTime());
+                } catch (SQLException ignore) {}
                 list.add(rv);
             }
         } catch (SQLException e) { System.out.println("Erreur getByMedecin: " + e.getMessage()); }

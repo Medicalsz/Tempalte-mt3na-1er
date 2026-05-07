@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<?import javafx.scene.layout.StackPane?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.UserDonationController">
+   <children>
+      <VBox spacing="20.0" style="-fx-background-color: #f8fafc;">
+         <padding>
+            <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+         </padding>
+         <children>
+            <HBox alignment="CENTER_LEFT" spacing="20.0">
+               <children>
+                  <VBox>
+                     <children>
+                        <Label text="Soutenir une cause" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                        <Label text="Chaque don compte. Aidez-nous à faire la différence." style="-fx-font-size: 13px; -fx-text-fill: #64748b;" />
+                     </children>
+                  </VBox>
+                  <Region HBox.hgrow="ALWAYS" />
+                  <Button fx:id="btnMyDons" onAction="#onMyDonsClick" text="Mes dons" style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;" />
+               </children>
+            </HBox>
+            <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;">
+               <content>
+                  <FlowPane fx:id="donationContainer" hgap="25.0" vgap="25.0" style="-fx-padding: 10;">
+                     <!-- Les causes seront ajoutées ici dynamiquement -->
+                  </FlowPane>
+               </content>
+            </ScrollPane>
+         </children>
+      </VBox>
+      
+      <!-- Assistant Bubble (Conversation) -->
+      <VBox fx:id="assistantBubble" maxWidth="380.0" prefWidth="380.0" spacing="18.0" visible="false" style="-fx-background-color: white; -fx-background-radius: 25 25 0 25; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 20, 0, 0, 10); -fx-padding: 25; -fx-border-color: #10b981; -fx-border-radius: 25 25 0 25; -fx-border-width: 2.5;" StackPane.alignment="BOTTOM_RIGHT">
+         <StackPane.margin>
+            <Insets bottom="120.0" right="20.0" />
+         </StackPane.margin>
+         <children>
+            <Label text="Assistant Medicare" style="-fx-font-weight: bold; -fx-text-fill: #10b981; -fx-font-size: 18px;" />
+            <Label fx:id="assistantText" wrapText="true" style="-fx-text-fill: #1e293b; -fx-font-size: 15px; -fx-line-spacing: 1.5; -fx-font-family: 'Segoe UI';" />
+            <HBox spacing="15.0" alignment="CENTER_RIGHT">
+               <children>
+                  <Button fx:id="btnAssistantNo" onAction="#onAssistantNo" text="Pas maintenant" style="-fx-background-color: #f1f5f9; -fx-text-fill: #64748b; -fx-font-weight: bold; -fx-padding: 12 20; -fx-background-radius: 15; -fx-cursor: hand; -fx-font-size: 14px;" />
+                  <Button fx:id="btnAssistantYes" onAction="#onAssistantYes" text="Oui, je veux aider !" style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 20; -fx-background-radius: 15; -fx-cursor: hand; -fx-font-size: 14px;" />
+               </children>
+            </HBox>
+         </children>
+      </VBox>
+      
+      <!-- Assistant Button (Floating) -->
+      <Button fx:id="btnAssistant" onAction="#onAssistantClick" prefHeight="60.0" prefWidth="60.0" style="-fx-background-color: #10b981; -fx-background-radius: 50; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 10, 0, 0, 4); -fx-cursor: hand;" StackPane.alignment="BOTTOM_RIGHT">
+         <StackPane.margin>
+            <Insets bottom="30.0" right="30.0" />
+         </StackPane.margin>
+         <graphic>
+            <FontIcon iconLiteral="fas-robot" iconSize="24" iconColor="white" />
+         </graphic>
+      </Button>
+   </children>
+</StackPane>

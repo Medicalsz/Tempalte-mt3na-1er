@@ -40,6 +40,17 @@ public class RendezVousFormController {
     @FXML private Label errorLabel;
     @FXML private Label formTitle;
     @FXML private TextArea motifArea;
+    @FXML private VBox patientInfoBox;
+    @FXML private Label patientNameLabel;
+    @FXML private javafx.scene.image.ImageView patientAvatarView;
+    @FXML private VBox medecinInfoBox;
+    @FXML private Label medecinNameLabel;
+    @FXML private Label medecinCabinetLabel;
+    @FXML private Label medecinRatingLabel;
+    @FXML private Label medecinExperienceLabel;
+    @FXML private Label medecinDurationLabel;
+    @FXML private Label medecinOnlineLabel;
+    @FXML private javafx.scene.image.ImageView medecinAvatarView;
 
     private final RendezVousService   service             = new RendezVousService();
     private final EmailService        emailService        = new EmailService();
@@ -51,7 +62,58 @@ public class RendezVousFormController {
     private RendezVous rvToEdit;
 
     public void setContentArea(StackPane contentArea) { this.contentArea = contentArea; }
-    public void setPatientId(int patientId) { this.patientId = patientId; }
+
+    public void setPatientId(int patientId) {
+        this.patientId = patientId;
+        loadPatientInfo();
+    }
+
+    private void loadPatientInfo() {
+        if (patientInfoBox == null) return;
+        User patient = userService.getById(patientId);
+        if (patient == null) return;
+        if (patientNameLabel != null)
+            patientNameLabel.setText(patient.getPrenom() + " " + patient.getNom());
+        if (patientAvatarView != null)
+            setAvatar(patientAvatarView, patient.getPhoto());
+        patientInfoBox.setVisible(true);
+        patientInfoBox.setManaged(true);
+    }
+
+    private void showMedecinCard(Medecin m) {
+        if (medecinInfoBox == null) return;
+        if (m == null) { medecinInfoBox.setVisible(false); medecinInfoBox.setManaged(false); return; }
+        if (medecinNameLabel != null)
+            medecinNameLabel.setText("Dr. " + m.getPrenom() + " " + m.getNom());
+        if (medecinCabinetLabel != null)
+            medecinCabinetLabel.setText(m.getCabinet() != null ? m.getCabinet() : "—");
+        if (medecinRatingLabel != null)
+            medecinRatingLabel.setText(String.format("%.1f / 5", m.getRatingAverage()));
+        if (medecinExperienceLabel != null)
+            medecinExperienceLabel.setText(m.getExperienceYears() != null && m.getExperienceYears() > 0
+                    ? m.getExperienceYears() + " ans d'expérience" : "—");
+        if (medecinDurationLabel != null)
+            medecinDurationLabel.setText(m.getConsultationDuration() + " min / consultation");
+        if (medecinOnlineLabel != null)
+            medecinOnlineLabel.setText(m.isAvailableOnline() ? "✓ Disponible en ligne" : "");
+        if (medecinAvatarView != null)
+            setAvatar(medecinAvatarView, m.getPhoto());
+        medecinInfoBox.setVisible(true);
+        medecinInfoBox.setManaged(true);
+    }
+
+    private void setAvatar(javafx.scene.image.ImageView view, String photoPath) {
+        try {
+            if (photoPath != null && !photoPath.isBlank()) {
+                String src = photoPath.startsWith("file:/") ? photoPath
+                        : java.nio.file.Path.of(photoPath).toUri().toString();
+                view.setImage(new javafx.scene.image.Image(src, true));
+            } else {
+                view.setImage(new javafx.scene.image.Image(
+                        com.medicare.HelloApplication.class.getResource("images/logo.png").toExternalForm(), true));
+            }
+        } catch (Exception ignored) {}
+    }
 
     /**
      * Pre-selectionne une specialite par son nom (appele par le chatbot).
@@ -91,6 +153,7 @@ public class RendezVousFormController {
             for (Medecin m : medecins) {
                 if (m.getId() == rv.getMedecinId()) {
                     medecinCombo.setValue(m);
+                    showMedecinCard(m);
                     break;
                 }
             }
@@ -130,9 +193,11 @@ public class RendezVousFormController {
             }
         });
 
-        // Quand on choisit un médecin → activer le date picker
+        // Quand on choisit un médecin → activer le date picker + afficher la carte médecin
         medecinCombo.setOnAction(e -> {
-            if (medecinCombo.getValue() != null) {
+            Medecin selected = medecinCombo.getValue();
+            showMedecinCard(selected);
+            if (selected != null) {
                 datePicker.setDisable(false);
                 datePicker.setValue(null);
                 creneauxPane.getChildren().clear();
@@ -155,6 +220,7 @@ public class RendezVousFormController {
 
         medecinCombo.setDisable(true);
         datePicker.setDisable(true);
+        if (medecinInfoBox != null) { medecinInfoBox.setVisible(false); medecinInfoBox.setManaged(false); }
     }
 
     private void loadCreneaux() {
@@ -288,6 +354,18 @@ public class RendezVousFormController {
                     datePicker.getValue(), selectedHeure, "en_attente");
             if (motifArea != null) rv.setMotif(motifArea.getText().trim());
             service.create(rv);
+            // Notify doctor of new appointment
+            User medecinUser = userService.getUserByMedecinId(medecin.getId());
+            User patient = userService.getUserByPatientId(patientId);
+            if (medecinUser != null && medecinUser.getEmail() != null && patient != null) {
+                emailService.envoyerNouveauRdvMedecin(
+                        medecinUser.getEmail(),
+                        medecinUser.getPrenom() + " " + medecinUser.getNom(),
+                        patient.getPrenom() + " " + patient.getNom(),
+                        datePicker.getValue().toString(),
+                        selectedHeure.toString()
+                );
+            }
             showSuccessPopup("Rendez-vous pris !",
                     "Votre rendez-vous a ete enregistre avec succes.",
                     FontAwesomeSolid.CHECK_CIRCLE, "#16a34a");

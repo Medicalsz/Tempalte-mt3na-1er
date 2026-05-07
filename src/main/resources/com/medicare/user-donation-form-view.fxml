@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox spacing="25.0" style="-fx-background-color: #f8fafc;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.UserDonationFormController">
+   <padding>
+      <Insets bottom="40.0" left="100.0" right="100.0" top="40.0" />
+   </padding>
+   <children>
+      <VBox alignment="CENTER" spacing="5.0">
+         <children>
+            <Label text="Faire un don pour :" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+            <Label fx:id="causeNameLabel" text="Nom de la cause" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #10b981;" />
+         </children>
+      </VBox>
+
+      <VBox spacing="15.0">
+         <children>
+            <Label text="Type de donation" style="-fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+            <HBox spacing="20.0">
+               <children>
+                  <VBox fx:id="btnTypeMaterial" onMouseClicked="#onSelectMaterial" alignment="CENTER" prefHeight="100.0" prefWidth="300.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-cursor: hand;">
+                     <children>
+                        <FontIcon iconLiteral="fas-box" iconSize="24" iconColor="#64748b" fx:id="iconMaterial" />
+                        <Label text="Donation matériel" fx:id="labelMaterial" style="-fx-text-fill: #64748b; -fx-font-weight: bold;" />
+                     </children>
+                  </VBox>
+                  <VBox fx:id="btnTypeMoney" onMouseClicked="#onSelectMoney" alignment="CENTER" prefHeight="100.0" prefWidth="300.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #10b981; -fx-border-radius: 12; -fx-cursor: hand;">
+                     <children>
+                        <FontIcon iconLiteral="fas-money-bill-wave" iconSize="24" iconColor="#10b981" fx:id="iconMoney" />
+                        <Label text="Donner de l'argent" fx:id="labelMoney" style="-fx-text-fill: #10b981; -fx-font-weight: bold;" />
+                     </children>
+                  </VBox>
+               </children>
+            </HBox>
+         </children>
+      </VBox>
+
+      <!-- Formulaire Argent -->
+      <VBox fx:id="formMoney" spacing="20.0">
+         <children>
+            <VBox spacing="10.0">
+               <children>
+                  <Label text="Choisir la carte" style="-fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <HBox spacing="20.0">
+                     <children>
+                        <HBox fx:id="cardMastercard" onMouseClicked="#onSelectMastercard" alignment="CENTER" spacing="10.0" prefWidth="250.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #10b981; -fx-border-radius: 8; -fx-padding: 10; -fx-cursor: hand;">
+                           <children>
+                              <FontIcon iconLiteral="fab-cc-mastercard" iconSize="20" iconColor="#eb001b" />
+                              <Label text="Mastercard" />
+                           </children>
+                        </HBox>
+                        <HBox fx:id="cardVisa" onMouseClicked="#onSelectVisa" alignment="CENTER" spacing="10.0" prefWidth="250.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #e2e8f0; -fx-border-radius: 8; -fx-padding: 10; -fx-cursor: hand;">
+                           <children>
+                              <FontIcon iconLiteral="fab-cc-visa" iconSize="20" iconColor="#1a1f71" />
+                              <Label text="Visa" />
+                           </children>
+                        </HBox>
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+            <HBox spacing="20.0">
+               <children>
+                  <VBox spacing="10.0" HBox.hgrow="ALWAYS">
+                     <children>
+                        <Label text="Numéro de carte bancaire" style="-fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                        <TextField fx:id="cardNumberField" promptText="XXXX XXXX XXXX XXXX" style="-fx-padding: 12; -fx-background-radius: 8;" />
+                     </children>
+                  </VBox>
+                  <VBox spacing="10.0" prefWidth="200.0">
+                     <children>
+                        <Label text="Montant (DT)" style="-fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                        <TextField fx:id="amountField" promptText="0.00" style="-fx-padding: 12; -fx-background-radius: 8;" />
+                     </children>
+                  </VBox>
+               </children>
+            </HBox>
+         </children>
+      </VBox>
+
+      <!-- Formulaire Matériel (Masqué par défaut) -->
+      <VBox fx:id="formMaterial" spacing="20.0" managed="false" visible="false">
+         <children>
+            <VBox spacing="10.0">
+               <children>
+                  <Label text="Nombre d'objets différents à donner" style="-fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <ComboBox fx:id="objectsCountCombo" prefWidth="Infinity" style="-fx-padding: 5; -fx-background-radius: 8;" />
+               </children>
+            </VBox>
+            <Label text="Vous pouvez donner jusqu'à 5 types d'objets différents." style="-fx-font-size: 12px; -fx-text-fill: #64748b;" />
+            
+            <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;">
+               <content>
+                  <VBox fx:id="objectsContainer" spacing="15.0">
+                     <!-- Les champs d'objets seront ajoutés ici -->
+                  </VBox>
+               </content>
+            </ScrollPane>
+         </children>
+      </VBox>
+
+      <VBox spacing="10.0">
+         <children>
+            <Label text="Description" style="-fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+            <TextArea fx:id="descArea" prefHeight="100.0" promptText="Ajoutez un message ou décrivez votre don..." style="-fx-padding: 10; -fx-background-radius: 8;" wrapText="true" />
+         </children>
+      </VBox>
+
+      <HBox alignment="CENTER" spacing="20.0">
+         <children>
+            <Button onAction="#onCancel" text="Annuler" style="-fx-background-color: white; -fx-text-fill: #64748b; -fx-font-weight: bold; -fx-padding: 12 40; -fx-background-radius: 30; -fx-border-color: #e2e8f0; -fx-border-radius: 30; -fx-cursor: hand;" />
+            <Button onAction="#onConfirm" text="Confirmer mon don" style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 60; -fx-background-radius: 30; -fx-cursor: hand;" />
+         </children>
+      </HBox>
+   </children>
+</VBox>

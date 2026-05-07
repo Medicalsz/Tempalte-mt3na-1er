@@ -8,8 +8,8 @@ public class EmailService {
 
     private static final String SMTP_HOST      = "smtp.gmail.com";
     private static final String SMTP_PORT      = "587";
-    private static final String EMAIL_FROM     = "ayoubadjida80@gmail.com";
-    private static final String EMAIL_PASSWORD = "uwdptcxvdcpibjvs";
+    private static final String EMAIL_FROM     = System.getenv().getOrDefault("MEDICARE_EMAIL_FROM", "");
+    private static final String EMAIL_PASSWORD = System.getenv().getOrDefault("MEDICARE_EMAIL_PASSWORD", "");
 
     private Session createSession() {
         Properties props = new Properties();
@@ -30,6 +30,10 @@ public class EmailService {
     public void envoyerEmail(String destinataire, String sujet, String contenu) {
         new Thread(() -> {
             try {
+                if (EMAIL_FROM.isBlank() || EMAIL_PASSWORD.isBlank()) {
+                    System.err.println("EmailService: configure MEDICARE_EMAIL_FROM and MEDICARE_EMAIL_PASSWORD.");
+                    return;
+                }
                 Session session = createSession();
                 Message message = new MimeMessage(session);
                 message.setFrom(new InternetAddress(EMAIL_FROM, "MediCare"));
@@ -42,6 +46,18 @@ public class EmailService {
                 System.err.println("❌ Erreur envoi email : " + e.getMessage());
             }
         }).start();
+    }
+
+    public void sendVerificationCode(String destinataire, String code) {
+        String contenu = """
+            <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;">
+              <h2 style="color:#0d9488;">Code de verification MediCare</h2>
+              <p>Votre code de confirmation est :</p>
+              <div style="font-size:28px;font-weight:bold;letter-spacing:6px;background:#f0fdfa;padding:16px;border-radius:10px;text-align:center;">%s</div>
+              <p style="color:#64748b;font-size:13px;">Si vous n'avez pas demande cette verification, ignorez cet email.</p>
+            </div>
+            """.formatted(code);
+        envoyerEmail(destinataire, "Code de verification donation - MediCare", contenu);
     }
 
     // ── Confirmation RDV ──────────────────────────────────────────────────
@@ -218,6 +234,37 @@ public class EmailService {
             </div>
             """.formatted(nomPatient, nomMedecin, date, nomMedecin, date);
         envoyerEmail(emailPatient, sujet, contenu);
+    }
+
+    // ── Notification au médecin : nouveau rendez-vous reçu ───────────────
+    public void envoyerNouveauRdvMedecin(String emailMedecin, String nomMedecin,
+                                          String nomPatient, String date, String heure) {
+        String sujet = "🆕 Nouveau rendez-vous - MediCare";
+        String contenu = """
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;">
+              <div style="background:linear-gradient(135deg,#0d9488,#14b8a6);padding:25px;text-align:center;">
+                <h1 style="color:white;margin:0;font-size:28px;">🏥 MediCare</h1>
+                <p style="color:#ccfbf1;margin:5px 0 0;">Notification médecin</p>
+              </div>
+              <div style="padding:30px;">
+                <h2 style="color:#0d9488;">Bonjour Dr. %s,</h2>
+                <p style="color:#555;font-size:16px;">
+                  Le patient <strong>%s</strong> vient de prendre un rendez-vous.
+                </p>
+                <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:20px;margin:20px 0;border-radius:8px;">
+                  <p style="margin:8px 0;font-size:15px;">👤 <strong>Patient :</strong> %s</p>
+                  <p style="margin:8px 0;font-size:15px;">📅 <strong>Date :</strong> %s</p>
+                  <p style="margin:8px 0;font-size:15px;">🕐 <strong>Heure :</strong> %s</p>
+                  <p style="margin:8px 0;font-size:13px;color:#6b7280;">Statut : En attente de votre confirmation</p>
+                </div>
+                <p style="color:#555;font-size:14px;">Connectez-vous sur MediCare pour <strong>accepter ou refuser</strong> ce rendez-vous.</p>
+              </div>
+              <div style="background:#f5f5f5;padding:15px;text-align:center;">
+                <p style="color:#999;font-size:12px;margin:0;">MediCare © 2026 — Ne pas répondre à cet email</p>
+              </div>
+            </div>
+            """.formatted(nomMedecin, nomPatient, nomPatient, date, heure);
+        envoyerEmail(emailMedecin, sujet, contenu);
     }
 
     // ── Notification au médecin : patient a reporté (modifié) ────────────

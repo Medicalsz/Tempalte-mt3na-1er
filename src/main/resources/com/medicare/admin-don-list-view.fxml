@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox spacing="20.0" stylesheets="@style.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.DonListController">
+   <padding>
+      <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+   </padding>
+   <children>
+      <HBox alignment="CENTER_LEFT" spacing="20.0">
+         <children>
+            <VBox>
+               <children>
+                  <Label text="Gestion des Donations" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <Label text="Visualisez et gérez l'ensemble des dons reçus" style="-fx-font-size: 13px; -fx-text-fill: #64748b;" />
+               </children>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS" />
+            <Button fx:id="btnBack" onAction="#onBackClick" text="Retour aux causes" style="-fx-background-color: white; -fx-text-fill: #7c3aed; -fx-font-weight: bold; -fx-padding: 8 15; -fx-background-radius: 8; -fx-border-color: #7c3aed; -fx-border-radius: 8; -fx-cursor: hand;" />
+            <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #e2e8f0; -fx-border-radius: 8; -fx-padding: 5 15;">
+               <children>
+                  <FontIcon iconLiteral="fas-search" iconSize="16" iconColor="#94a3b8" />
+                  <TextField fx:id="searchField" promptText="Rechercher par cause..." style="-fx-background-color: transparent; -fx-font-size: 13px; -fx-pref-width: 250;" />
+               </children>
+            </HBox>
+         </children>
+      </HBox>
+
+      <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;">
+         <content>
+            <VBox spacing="30.0" style="-fx-padding: 10;">
+               <children>
+                  <!-- Dons d'Argent -->
+                  <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 4); -fx-padding: 20;">
+                     <children>
+                        <HBox alignment="CENTER_LEFT" spacing="10.0">
+                           <children>
+                              <FontIcon iconLiteral="fas-money-bill-wave" iconSize="20" iconColor="#0d9488" />
+                              <Label text="Dons d'Argent" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                              <Region HBox.hgrow="ALWAYS" />
+                              <Label fx:id="moneyCountLabel" text="0 dons" style="-fx-background-color: #f0fdfa; -fx-text-fill: #0d9488; -fx-padding: 4 12; -fx-background-radius: 20; -fx-font-size: 12px; -fx-font-weight: bold;" />
+                           </children>
+                        </HBox>
+                        <TableView fx:id="moneyTable" prefHeight="300.0" style="-fx-background-color: transparent; -fx-border-color: transparent;">
+                          <columns>
+                            <TableColumn fx:id="moneyDonateurCol" prefWidth="180.0" text="DONATEUR" />
+                            <TableColumn fx:id="moneyCauseCol" prefWidth="180.0" text="CAUSE" />
+                            <TableColumn fx:id="moneyMontantCol" prefWidth="120.0" text="MONTANT" />
+                            <TableColumn fx:id="moneyAdresseCol" prefWidth="150.0" text="ADRESSE" />
+                            <TableColumn fx:id="moneyDateCol" prefWidth="150.0" text="DATE" />
+                            <TableColumn fx:id="moneyModeCol" prefWidth="100.0" text="MODE" />
+                            <TableColumn fx:id="moneyStatutCol" prefWidth="100.0" text="STATUT" />
+                          </columns>
+                        </TableView>
+                     </children>
+                  </VBox>
+
+                  <!-- Dons Matériels -->
+                  <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 4); -fx-padding: 20;">
+                     <children>
+                        <HBox alignment="CENTER_LEFT" spacing="10.0">
+                           <children>
+                              <FontIcon iconLiteral="fas-box" iconSize="20" iconColor="#1a73e8" />
+                              <Label text="Dons Matériels" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                              <Region HBox.hgrow="ALWAYS" />
+                              <Label fx:id="materialCountLabel" text="0 dons" style="-fx-background-color: #f0f7ff; -fx-text-fill: #1a73e8; -fx-padding: 4 12; -fx-background-radius: 20; -fx-font-size: 12px; -fx-font-weight: bold;" />
+                           </children>
+                        </HBox>
+                        <TableView fx:id="materialTable" prefHeight="300.0" style="-fx-background-color: transparent; -fx-border-color: transparent;">
+                          <columns>
+                            <TableColumn fx:id="materialDonateurCol" prefWidth="180.0" text="DONATEUR" />
+                            <TableColumn fx:id="materialCauseCol" prefWidth="180.0" text="CAUSE" />
+                            <TableColumn fx:id="materialMaterielsCol" prefWidth="200.0" text="MATÉRIELS" />
+                            <TableColumn fx:id="materialQuantiteCol" prefWidth="100.0" text="QUANTITÉ" />
+                            <TableColumn fx:id="materialAdresseCol" prefWidth="150.0" text="ADRESSE" />
+                            <TableColumn fx:id="materialDateCol" prefWidth="150.0" text="DATE" />
+                            <TableColumn fx:id="materialStatutCol" prefWidth="100.0" text="STATUT" />
+                            <TableColumn fx:id="materialPhotoCol" prefWidth="100.0" text="PHOTOS" />
+                          </columns>
+                        </TableView>
+                     </children>
+                  </VBox>
+               </children>
+            </VBox>
+         </content>
+      </ScrollPane>
+   </children>
+</VBox>

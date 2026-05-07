@@ -162,9 +162,16 @@ public class DashboardAdminController {
     @FXML private void onDonationClick() {
         setSubMenuOpen(false);
         highlightButton(btnDonation);
-        setContent(new Label("Gestion des Donations") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("admin-donation-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement donations") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML private void onProduitClick() {

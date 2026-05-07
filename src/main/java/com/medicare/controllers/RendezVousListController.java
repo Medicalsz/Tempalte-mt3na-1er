@@ -826,13 +826,18 @@ public class RendezVousListController {
         DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter heureFmt = DateTimeFormatter.ofPattern("HH:mm");
 
+        Stage popup = new Stage();
+        popup.initStyle(StageStyle.TRANSPARENT);
+        popup.initModality(Modality.APPLICATION_MODAL);
+        popup.initOwner(container.getScene().getWindow());
+
         VBox modal = new VBox(12);
         modal.setAlignment(Pos.CENTER);
         modal.setPadding(new Insets(30));
-        modal.setMaxWidth(420);
-        modal.setMaxHeight(450);
+        modal.setMaxWidth(460);
         modal.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
-                       "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 20, 0, 0, 5);");
+                       "-fx-border-color: #e2e8f0; -fx-border-radius: 16; -fx-border-width: 1; " +
+                       "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.35), 35, 0, 0, 10);");
 
         FontIcon icon = new FontIcon(FontAwesomeSolid.NOTES_MEDICAL);
         icon.setIconSize(40);
@@ -841,9 +846,10 @@ public class RendezVousListController {
         Label titleLabel = new Label("Details du rendez-vous");
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1a73e8;");
 
+        String spec = full.getSpecialite() != null ? full.getSpecialite() : "-";
         Label details = new Label(
             "Medecin :  Dr. " + full.getMedecinFullName() + "\n" +
-            "Specialite :  " + full.getSpecialite() + "\n" +
+            "Specialite :  " + spec + "\n" +
             "Date :  " + full.getDate().format(dateFmt) + "\n" +
             "Heure :  " + full.getHeure().format(heureFmt) + "\n" +
             "Statut :  " + full.getStatut()
@@ -853,50 +859,46 @@ public class RendezVousListController {
         Button closeBtn = new Button("Fermer");
         closeBtn.setStyle("-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 13px; " +
                           "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 30;");
-        closeBtn.setOnAction(e -> reloadFullList());
+        closeBtn.setOnAction(e -> popup.close());
 
         modal.getChildren().addAll(icon, titleLabel, details);
 
-        // Afficher le motif de consultation si présent
         if (full.getMotif() != null && !full.getMotif().trim().isEmpty()) {
             VBox motifBox = new VBox(5);
             motifBox.setStyle("-fx-background-color: #eff6ff; -fx-background-radius: 8; -fx-padding: 10;");
-
             Label motifTitle = new Label("Motif de consultation :");
             motifTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1d4ed8;");
-
             Label motifText = new Label(full.getMotif());
             motifText.setStyle("-fx-font-size: 13px; -fx-text-fill: #1e3a8a;");
             motifText.setWrapText(true);
-
             motifBox.getChildren().addAll(motifTitle, motifText);
             modal.getChildren().add(motifBox);
         }
 
-        // Afficher le motif d'annulation si le RDV est annulé
         if ("annule".equals(full.getStatut()) && full.getMotifAnnulation() != null && !full.getMotifAnnulation().isEmpty()) {
-            VBox motifBox = new VBox(5);
-            motifBox.setStyle("-fx-background-color: #fee2e2; -fx-background-radius: 8; -fx-padding: 10;");
-
-            Label motifTitle = new Label("Motif d'annulation :");
-            motifTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #dc2626;");
-
-            Label motifText = new Label(full.getMotifAnnulation());
-            motifText.setStyle("-fx-font-size: 13px; -fx-text-fill: #7f1d1d;");
-            motifText.setWrapText(true);
-
-            motifBox.getChildren().addAll(motifTitle, motifText);
-            modal.getChildren().add(motifBox);
+            VBox annulBox = new VBox(5);
+            annulBox.setStyle("-fx-background-color: #fee2e2; -fx-background-radius: 8; -fx-padding: 10;");
+            Label annulTitle = new Label("Motif d'annulation :");
+            annulTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #dc2626;");
+            Label annulText = new Label(full.getMotifAnnulation());
+            annulText.setStyle("-fx-font-size: 13px; -fx-text-fill: #7f1d1d;");
+            annulText.setWrapText(true);
+            annulBox.getChildren().addAll(annulTitle, annulText);
+            modal.getChildren().add(annulBox);
         }
 
         modal.getChildren().add(closeBtn);
 
         StackPane overlay = new StackPane(modal);
-        overlay.setStyle("-fx-background-color: rgba(0,0,0,0.4);");
-        overlay.setOnMouseClicked(e -> { if (e.getTarget() == overlay) reloadFullList(); });
+        overlay.setStyle("-fx-background-color: transparent;");
+        overlay.setPadding(new Insets(20));
+        overlay.setOnMouseClicked(e -> { if (e.getTarget() == overlay) popup.close(); });
 
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(overlay);
+        Scene scene = new Scene(overlay, 540, 500);
+        scene.setFill(Color.TRANSPARENT);
+        popup.setScene(scene);
+        attachBlur(popup, container.getScene().getWindow());
+        popup.show();
     }
 
     // ========== REPORT PATIENT ==========

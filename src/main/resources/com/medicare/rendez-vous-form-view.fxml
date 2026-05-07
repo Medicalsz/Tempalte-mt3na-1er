@@ -3,6 +3,8 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.effect.DropShadow?>
 <?import javafx.scene.paint.Color?>
 
@@ -18,9 +20,7 @@
 
         <!-- Header avec retour + titre -->
         <HBox alignment="CENTER_LEFT" spacing="15">
-            <padding>
-                <Insets bottom="25"/>
-            </padding>
+            <padding><Insets bottom="25"/></padding>
             <Button fx:id="btnRetour" text="" onAction="#onRetourClick"
                     style="-fx-background-color: white; -fx-cursor: hand; -fx-padding: 10 14;
                            -fx-background-radius: 12;
@@ -28,6 +28,23 @@
             <Label fx:id="formTitle" text="Prendre un rendez-vous"
                    style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
         </HBox>
+
+        <!-- Patient info strip -->
+        <VBox fx:id="patientInfoBox" visible="false" managed="false" maxWidth="700"
+              style="-fx-background-color: #eff6ff; -fx-background-radius: 14; -fx-padding: 12 20;">
+            <padding><Insets bottom="14"/></padding>
+            <HBox spacing="14" alignment="CENTER_LEFT">
+                <ImageView fx:id="patientAvatarView" fitWidth="46" fitHeight="46" preserveRatio="true">
+                    <clip><Circle radius="23" centerX="23" centerY="23"/></clip>
+                </ImageView>
+                <VBox spacing="2">
+                    <Label text="Réservation pour"
+                           style="-fx-font-size: 11px; -fx-text-fill: #64748b;"/>
+                    <Label fx:id="patientNameLabel" text=""
+                           style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1e40af;"/>
+                </VBox>
+            </HBox>
+        </VBox>
 
         <!-- Card formulaire principale -->
         <VBox spacing="0" maxWidth="700" alignment="CENTER"
@@ -51,7 +68,6 @@
                               style="-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0;
                                      -fx-border-radius: 10; -fx-background-radius: 10; -fx-font-size: 13px;"/>
                 </VBox>
-
                 <VBox spacing="8" HBox.hgrow="ALWAYS">
                     <Label text="Medecin"
                            style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;"/>
@@ -61,6 +77,42 @@
                                      -fx-border-radius: 10; -fx-background-radius: 10; -fx-font-size: 13px;"/>
                 </VBox>
             </HBox>
+
+            <!-- Doctor info card (shown after selecting a medecin) -->
+            <VBox fx:id="medecinInfoBox" visible="false" managed="false" spacing="10"
+                  style="-fx-background-color: #f0fdf4; -fx-background-radius: 14; -fx-padding: 16 20;">
+                <padding><Insets top="16"/></padding>
+                <HBox spacing="16" alignment="CENTER_LEFT">
+                    <ImageView fx:id="medecinAvatarView" fitWidth="56" fitHeight="56" preserveRatio="true">
+                        <clip><Circle radius="28" centerX="28" centerY="28"/></clip>
+                    </ImageView>
+                    <VBox spacing="3">
+                        <Label fx:id="medecinNameLabel" text=""
+                               style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #065f46;"/>
+                        <Label fx:id="medecinCabinetLabel" text=""
+                               style="-fx-font-size: 12px; -fx-text-fill: #6b7280;"/>
+                        <Label fx:id="medecinOnlineLabel" text=""
+                               style="-fx-font-size: 11px; -fx-text-fill: #16a34a; -fx-font-weight: bold;"/>
+                    </VBox>
+                </HBox>
+                <HBox spacing="20">
+                    <VBox spacing="2">
+                        <Label text="Note" style="-fx-font-size: 10px; -fx-text-fill: #94a3b8;"/>
+                        <Label fx:id="medecinRatingLabel" text=""
+                               style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;"/>
+                    </VBox>
+                    <VBox spacing="2">
+                        <Label text="Expérience" style="-fx-font-size: 10px; -fx-text-fill: #94a3b8;"/>
+                        <Label fx:id="medecinExperienceLabel" text=""
+                               style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #374151;"/>
+                    </VBox>
+                    <VBox spacing="2">
+                        <Label text="Durée consultation" style="-fx-font-size: 10px; -fx-text-fill: #94a3b8;"/>
+                        <Label fx:id="medecinDurationLabel" text=""
+                               style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #374151;"/>
+                    </VBox>
+                </HBox>
+            </VBox>
 
             <!-- Séparateur -->
             <Separator style="-fx-padding: 18 0 10 0;"/>
