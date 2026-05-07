@@ -954,4 +954,25 @@ public class UserService implements Crud<User> {
         if (message.contains("cannot be null")) return "Erreur base de donnees: un champ obligatoire manque dans la table user.";
         return "Impossible de creer le compte. Verifiez la structure de la table user.";
     }
+
+    /**
+     * Returns the User for the given patient_id.
+     * Since patient_id = user_id (no separate patient table), this just delegates to getById.
+     */
+    public User getUserByPatientId(int patientId) {
+        return getById(patientId);
+    }
+
+    /**
+     * Returns the User linked to a medecin row (via medecin.user_id FK).
+     */
+    public User getUserByMedecinId(int medecinId) {
+        String q = "SELECT u.* FROM user u JOIN medecin m ON u.id = m.user_id WHERE m.id = ?";
+        try (PreparedStatement ps = cnx.prepareStatement(q)) {
+            ps.setInt(1, medecinId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapUser(rs);
+        } catch (SQLException e) { System.out.println("Erreur getUserByMedecinId: " + e.getMessage()); }
+        return null;
+    }
 }

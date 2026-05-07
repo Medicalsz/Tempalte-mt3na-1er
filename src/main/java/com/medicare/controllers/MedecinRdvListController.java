@@ -1,7 +1,12 @@
 package com.medicare.controllers;
 
+import com.medicare.models.ListeAttente;
 import com.medicare.models.RendezVous;
+import com.medicare.models.User;
+import com.medicare.services.EmailService;
+import com.medicare.services.ListeAttenteService;
 import com.medicare.services.RendezVousService;
+import com.medicare.services.UserService;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -28,9 +33,16 @@ public class MedecinRdvListController {
 
     @FXML private VBox container;
 
-    private final RendezVousService service = new RendezVousService();
+    private final RendezVousService   service             = new RendezVousService();
+    private final EmailService        emailService        = new EmailService();
+    private final UserService         userService         = new UserService();
+    private final ListeAttenteService listeAttenteService = new ListeAttenteService();
     private int medecinId;
     private StackPane contentArea;
+    private List<RendezVous> allRdvs;
+    private String currentFilter = "all";
+    private String searchQuery = "";
+    private Button btnAll, btnAttente, btnAccepte, btnAnnule, btnListeAttente;
 
     public void setContentArea(StackPane contentArea) { this.contentArea = contentArea; }
 
@@ -56,14 +68,92 @@ public class MedecinRdvListController {
     private void loadRendezVous() {
         container.getChildren().clear();
 
-        Label title = new Label("Rendez-vous de mes patients");
-        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #0d9488;");
-        container.getChildren().add(title);
+        // Header
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setSpacing(15);
 
-        List<RendezVous> rdvs = service.getByMedecin(medecinId);
+        // Filtres
+        btnAll = createFilterBtn("Tout", "all");
+        btnAttente = createFilterBtn("En attente", "en_attente");
+        btnAccepte = createFilterBtn("Confirme", "confirme");
+        btnAnnule = createFilterBtn("Annule", "annule");
 
-        if (rdvs.isEmpty()) {
-            Label empty = new Label("Aucun rendez-vous pour le moment.");
+        HBox filters = new HBox(8, btnAll, btnAttente, btnAccepte, btnAnnule);
+        filters.setAlignment(Pos.CENTER_LEFT);
+
+        // Bouton Liste d'attente avec badge
+        int nbAttente = listeAttenteService.countByMedecin(medecinId);
+        String badgeText = nbAttente > 0 ? "Liste d'attente  +" + nbAttente : "Liste d'attente";
+        btnListeAttente = new Button(badgeText);
+        FontIcon waitIcon = new FontIcon(FontAwesomeSolid.HOURGLASS_HALF);
+        waitIcon.setIconSize(14);
+        waitIcon.setIconColor(Color.WHITE);
+        btnListeAttente.setGraphic(waitIcon);
+        btnListeAttente.setStyle(
+                "-fx-background-color: " + (nbAttente > 0 ? "linear-gradient(to right,#f59e0b,#d97706)" : "#94a3b8") + "; " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 16; " +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);");
+        btnListeAttente.setOnAction(e -> showListeAttenteView());
+
+        // Barre de recherche
+        TextField searchField = new TextField();
+        searchField.setPromptText("Rechercher un patient...");
+        searchField.setPrefWidth(220);
+        searchField.setStyle("-fx-background-radius: 20; -fx-border-radius: 20; -fx-border-color: #d1d5db; " +
+                             "-fx-padding: 5 12; -fx-font-size: 12px;");
+        searchField.textProperty().addListener((obs, old, val) -> {
+            searchQuery = val.trim().toLowerCase();
+            applyFilters();
+        });
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        header.getChildren().addAll(filters, searchField, spacer, btnListeAttente);
+        container.getChildren().add(header);
+
+        allRdvs = service.getByMedecin(medecinId);
+        highlightFilter(btnAll);
+        applyFilters();
+    }
+
+    private Button createFilterBtn(String text, String filter) {
+        Button btn = new Button(text);
+        btn.setStyle("-fx-background-color: #e5e7eb; -fx-text-fill: #555; -fx-font-size: 12px; " +
+                     "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;");
+        btn.setOnAction(e -> {
+            currentFilter = filter;
+            highlightFilter(btn);
+            applyFilters();
+        });
+        return btn;
+    }
+
+    private void highlightFilter(Button active) {
+        String normal   = "-fx-background-color: #e5e7eb; -fx-text-fill: #555; -fx-font-size: 12px; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;";
+        String selected = "-fx-background-color: #0d9488; -fx-text-fill: white; -fx-font-size: 12px; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 14;";
+        btnAll.setStyle(normal);
+        btnAttente.setStyle(normal);
+        btnAccepte.setStyle(normal);
+        btnAnnule.setStyle(normal);
+        active.setStyle(selected);
+    }
+
+    private void applyFilters() {
+        if (container.getChildren().size() > 1) {
+            container.getChildren().remove(1, container.getChildren().size());
+        }
+
+        List<RendezVous> filtered = allRdvs.stream()
+                .filter(rv -> currentFilter.equals("all") || rv.getStatut().equals(currentFilter))
+                .filter(rv -> searchQuery.isEmpty() ||
+                        (rv.getMedecinPrenom() + " " + rv.getMedecinNom()).toLowerCase().contains(searchQuery))
+                .toList();
+
+        if (filtered.isEmpty()) {
+            Label empty = new Label("Aucun rendez-vous trouve.");
             empty.setStyle("-fx-font-size: 15px; -fx-text-fill: #888; -fx-padding: 40 0 0 0;");
             container.getChildren().add(empty);
             return;
@@ -72,71 +162,113 @@ public class MedecinRdvListController {
         DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter heureFmt = DateTimeFormatter.ofPattern("HH:mm");
 
-        for (RendezVous rv : rdvs) {
-            HBox card = new HBox(15);
-            card.setAlignment(Pos.CENTER_LEFT);
-            card.setPadding(new Insets(15));
-            card.setStyle("-fx-background-color: white; -fx-background-radius: 10; " +
-                          "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-
-            FontIcon userIcon = new FontIcon(FontAwesomeSolid.USER);
-            userIcon.setIconSize(26);
-            userIcon.setIconColor(Color.web("#0d9488"));
-
-            VBox infos = new VBox(3);
-            HBox.setHgrow(infos, Priority.ALWAYS);
-
-            // medecinNom/Prenom contiennent le nom du patient (réutilisé dans getByMedecin)
-            Label patientLabel = new Label(rv.getMedecinPrenom() + " " + rv.getMedecinNom());
-            patientLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333;");
-
-            Label dateLabel = new Label(rv.getDate().format(dateFmt) + " a " + rv.getHeure().format(heureFmt));
-            dateLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #555;");
-
-            Label statutLabel = new Label(rv.getStatut());
-            String statutColor = switch (rv.getStatut()) {
-                case "confirme" -> "#16a34a";
-                case "annule" -> "#dc2626";
-                case "termine" -> "#6b7280";
-                default -> "#f59e0b";
-            };
-            statutLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: white; -fx-padding: 2 10; " +
-                                 "-fx-background-color: " + statutColor + "; -fx-background-radius: 12;");
-
-            infos.getChildren().addAll(patientLabel, dateLabel, statutLabel);
-
-            HBox actions = new HBox(6);
-            actions.setAlignment(Pos.CENTER);
-
-            // Boutons uniquement si en_attente
-            if (rv.getStatut().equals("en_attente")) {
-                Button btnAccept = actionBtn(FontAwesomeSolid.CHECK, "#16a34a", "#dcfce7", "Accepter");
-                btnAccept.setOnAction(e -> {
-                    service.accept(rv.getId());
-                    showPopup("Rendez-vous accepte", "Le rendez-vous a ete confirme.",
-                              FontAwesomeSolid.CHECK_CIRCLE, "#16a34a");
-                });
-
-                Button btnRefuse = actionBtn(FontAwesomeSolid.TIMES, "#dc2626", "#fee2e2", "Refuser");
-                btnRefuse.setOnAction(e -> {
-                    service.refuse(rv.getId());
-                    showPopup("Rendez-vous refuse", "Le rendez-vous a ete refuse.",
-                              FontAwesomeSolid.TIMES_CIRCLE, "#dc2626");
-                });
-
-                Button btnReport = actionBtn(FontAwesomeSolid.CALENDAR_ALT, "#f59e0b", "#fef3c7", "Reporter");
-                btnReport.setOnAction(e -> showReportDialog(rv));
-
-                actions.getChildren().addAll(btnAccept, btnRefuse, btnReport);
-            }
-
-            Button btnVoir = actionBtn(FontAwesomeSolid.EYE, "#0d9488", "#ccfbf1", "Voir");
-            btnVoir.setOnAction(e -> showDetails(rv));
-            actions.getChildren().add(btnVoir);
-
-            card.getChildren().addAll(userIcon, infos, actions);
-            container.getChildren().add(card);
+        for (RendezVous rv : filtered) {
+            container.getChildren().add(buildCard(rv, dateFmt, heureFmt));
         }
+    }
+
+    private HBox buildCard(RendezVous rv, DateTimeFormatter dateFmt, DateTimeFormatter heureFmt) {
+        HBox card = new HBox(15);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(15));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; " +
+                      "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+
+        FontIcon userIcon = new FontIcon(FontAwesomeSolid.USER);
+        userIcon.setIconSize(26);
+        userIcon.setIconColor(Color.web("#0d9488"));
+
+        VBox infos = new VBox(3);
+        HBox.setHgrow(infos, Priority.ALWAYS);
+
+        Label patientLabel = new Label(rv.getMedecinPrenom() + " " + rv.getMedecinNom());
+        patientLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333;");
+
+        Label dateLabel = new Label(rv.getDate().format(dateFmt) + " a " + rv.getHeure().format(heureFmt));
+        dateLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #555;");
+
+        Label statutLabel = new Label(rv.getStatut());
+        String statutColor = switch (rv.getStatut()) {
+            case "confirme" -> "#16a34a";
+            case "annule" -> "#dc2626";
+            case "termine" -> "#6b7280";
+            default -> "#f59e0b";
+        };
+        statutLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: white; -fx-padding: 2 10; " +
+                             "-fx-background-color: " + statutColor + "; -fx-background-radius: 12;");
+
+        infos.getChildren().addAll(patientLabel, dateLabel, statutLabel);
+
+        // Étiquette si report en attente de réponse patient
+        if (rv.isReportPending() && rv.getProposedDate() != null) {
+            Label reportLabel = new Label("Report en attente → " + rv.getProposedDate().format(dateFmt) + " a " + rv.getProposedHeure().format(heureFmt));
+            reportLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: white; -fx-padding: 2 10; " +
+                                 "-fx-background-color: #8b5cf6; -fx-background-radius: 12;");
+            infos.getChildren().add(reportLabel);
+        }
+
+        HBox actions = new HBox(6);
+        actions.setAlignment(Pos.CENTER);
+
+        if (rv.isReportPending() && rv.getProposedDate() != null) {
+            // Report en attente → seulement bouton annuler le report
+            Button btnCancelReport = actionBtn(FontAwesomeSolid.UNDO, "#8b5cf6", "#ede9fe", "Annuler le report");
+            btnCancelReport.setOnAction(e -> {
+                service.cancelReport(rv.getId());
+                showPopup("Report annule", "La proposition de report a ete annulee.",
+                          FontAwesomeSolid.UNDO, "#8b5cf6");
+            });
+            actions.getChildren().add(btnCancelReport);
+        } else if (rv.getStatut().equals("en_attente")) {
+            Button btnAccept = actionBtn(FontAwesomeSolid.CHECK, "#16a34a", "#dcfce7", "Accepter");
+            btnAccept.setOnAction(e -> {
+                service.accept(rv.getId());
+                // Email de confirmation au patient
+                User patient = userService.getUserByPatientId(rv.getPatientId());
+                if (patient != null && patient.getEmail() != null) {
+                    String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                            + " " + DashboardMedecinController.getCurrentUser().getNom();
+                    emailService.envoyerConfirmationRdv(
+                            patient.getEmail(),
+                            patient.getPrenom() + " " + patient.getNom(),
+                            nomMedecin,
+                            rv.getDate().toString(),
+                            rv.getHeure().toString()
+                    );
+                }
+                showPopup("Rendez-vous accepte", "Le rendez-vous a ete confirme.",
+                          FontAwesomeSolid.CHECK_CIRCLE, "#16a34a");
+            });
+
+            Button btnRefuse = actionBtn(FontAwesomeSolid.TIMES, "#dc2626", "#fee2e2", "Refuser");
+            btnRefuse.setOnAction(e -> showRefuseDialog(rv));
+
+            Button btnReport = actionBtn(FontAwesomeSolid.CALENDAR_ALT, "#f59e0b", "#fef3c7", "Reporter");
+            btnReport.setOnAction(e -> showReportDialog(rv));
+
+            actions.getChildren().addAll(btnAccept, btnRefuse, btnReport);
+        }
+
+        // Bouton ordonnance sur les RDV confirmés
+        if (rv.getStatut().equals("confirme")) {
+            boolean hasOrdo = service.hasOrdonnance(rv.getId());
+            if (!hasOrdo) {
+                Button btnOrdo = actionBtn(FontAwesomeSolid.FILE_MEDICAL, "#3b82f6", "#dbeafe", "Ajouter ordonnance");
+                btnOrdo.setOnAction(e -> showOrdonnanceForm(rv));
+                actions.getChildren().add(btnOrdo);
+            } else {
+                Button btnOrdo = actionBtn(FontAwesomeSolid.FILE_PDF, "#16a34a", "#dcfce7", "Voir ordonnance");
+                btnOrdo.setOnAction(e -> downloadOrdonnancePDF(rv));
+                actions.getChildren().add(btnOrdo);
+            }
+        }
+
+        Button btnVoir = actionBtn(FontAwesomeSolid.EYE, "#0d9488", "#ccfbf1", "Voir");
+        btnVoir.setOnAction(e -> showDetails(rv));
+        actions.getChildren().add(btnVoir);
+
+        card.getChildren().addAll(userIcon, infos, actions);
+        return card;
     }
 
     private Button actionBtn(FontAwesomeSolid iconType, String iconColor, String bgColor, String tip) {
@@ -150,24 +282,112 @@ public class MedecinRdvListController {
         return btn;
     }
 
+    // ========== REFUS AVEC MOTIF ==========
+
+    private void showRefuseDialog(RendezVous rv) {
+        Stage popup = new Stage();
+        popup.initStyle(StageStyle.TRANSPARENT);
+        popup.initModality(Modality.APPLICATION_MODAL);
+        popup.initOwner(container.getScene().getWindow());
+
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: #fee2e2; -fx-background-radius: 50; -fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
+        FontIcon warnIcon = new FontIcon(FontAwesomeSolid.TIMES_CIRCLE);
+        warnIcon.setIconSize(32);
+        warnIcon.setIconColor(Color.web("#dc2626"));
+        iconCircle.getChildren().add(warnIcon);
+
+        Label titleLbl = new Label("Refuser ce rendez-vous");
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        Label motifLabel = new Label("Motif d'annulation :");
+        motifLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #64748b; -fx-font-weight: bold;");
+
+        TextArea motifArea = new TextArea();
+        motifArea.setPromptText("Ex: Indisponible ce jour, urgence medicale...");
+        motifArea.setPrefRowCount(3);
+        motifArea.setPrefWidth(300);
+        motifArea.setWrapText(true);
+        motifArea.setStyle("-fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #e2e8f0; -fx-font-size: 13px;");
+
+        Label errorLbl = new Label();
+        errorLbl.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12px;");
+
+        Button btnConfirm = new Button("Confirmer le refus");
+        btnConfirm.setStyle("-fx-background-color: linear-gradient(to right, #ef4444, #dc2626); -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                            "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 30;");
+
+        Button btnAnnuler = new Button("Annuler");
+        btnAnnuler.setStyle("-fx-background-color: #f1f5f9; -fx-text-fill: #475569; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                            "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 30;");
+
+        HBox btns = new HBox(15, btnAnnuler, btnConfirm);
+        btns.setAlignment(Pos.CENTER);
+
+        VBox box = new VBox(14, iconCircle, titleLbl, motifLabel, motifArea, errorLbl, btns);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(30));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
+
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 420, 400);
+        scene.setFill(Color.TRANSPARENT);
+        popup.setScene(scene);
+        popup.show();
+
+        btnAnnuler.setOnAction(e -> popup.close());
+        btnConfirm.setOnAction(e -> {
+            String motif = motifArea.getText().trim();
+            if (motif.isEmpty()) {
+                errorLbl.setText("Veuillez saisir un motif d'annulation.");
+                return;
+            }
+            popup.close();
+            service.refuse(rv.getId(), motif);
+            // Email d'annulation au patient
+            User patient = userService.getUserByPatientId(rv.getPatientId());
+            if (patient != null && patient.getEmail() != null) {
+                String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                        + " " + DashboardMedecinController.getCurrentUser().getNom();
+                emailService.envoyerAnnulationRdv(
+                        patient.getEmail(),
+                        patient.getPrenom() + " " + patient.getNom(),
+                        nomMedecin,
+                        rv.getDate().toString(),
+                        rv.getHeure().toString(),
+                        motif
+                );
+            }
+            showPopup("Rendez-vous refuse", "Le rendez-vous a ete refuse.",
+                      FontAwesomeSolid.TIMES_CIRCLE, "#dc2626");
+        });
+    }
+
     // ========== REPORT DIALOG ==========
 
     private void showReportDialog(RendezVous rv) {
         Stage popup = new Stage();
-        popup.initStyle(StageStyle.UNDECORATED);
+        popup.initStyle(StageStyle.TRANSPARENT);
         popup.initModality(Modality.APPLICATION_MODAL);
         popup.initOwner(container.getScene().getWindow());
 
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: #fef3c7; -fx-background-radius: 50; -fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
         FontIcon calIcon = new FontIcon(FontAwesomeSolid.CALENDAR_ALT);
-        calIcon.setIconSize(40);
+        calIcon.setIconSize(32);
         calIcon.setIconColor(Color.web("#f59e0b"));
+        iconCircle.getChildren().add(calIcon);
 
         Label titleLbl = new Label("Proposer un nouveau creneau");
-        titleLbl.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #333;");
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
 
         DatePicker dp = new DatePicker();
         dp.setPromptText("Nouvelle date");
-        dp.setPrefWidth(250);
+        dp.setPrefWidth(270);
+        dp.setStyle("-fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #e2e8f0;");
         dp.setDayCellFactory(d -> new DateCell() {
             @Override public void updateItem(LocalDate item, boolean empty) {
                 super.updateItem(item, empty);
@@ -177,34 +397,39 @@ public class MedecinRdvListController {
 
         ComboBox<String> heureCombo = new ComboBox<>();
         heureCombo.setPromptText("Nouvelle heure");
-        heureCombo.setPrefWidth(250);
+        heureCombo.setPrefWidth(270);
+        heureCombo.setStyle("-fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #e2e8f0;");
         for (int h = 8; h < 18; h++) {
             heureCombo.getItems().add(String.format("%02d:00", h));
             heureCombo.getItems().add(String.format("%02d:30", h));
         }
 
         Label errorLbl = new Label();
-        errorLbl.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 12px;");
+        errorLbl.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12px;");
 
         Button btnConfirm = new Button("Proposer");
-        btnConfirm.setStyle("-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-font-size: 13px; " +
-                            "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 25;");
+        btnConfirm.setStyle("-fx-background-color: linear-gradient(to right, #f59e0b, #d97706); -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                            "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 30;");
 
         Button btnAnnuler = new Button("Annuler");
-        btnAnnuler.setStyle("-fx-background-color: #e5e7eb; -fx-text-fill: #333; -fx-font-size: 13px; " +
-                            "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 25;");
+        btnAnnuler.setStyle("-fx-background-color: #f1f5f9; -fx-text-fill: #475569; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                            "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 30;");
 
         HBox btns = new HBox(15, btnAnnuler, btnConfirm);
         btns.setAlignment(Pos.CENTER);
 
-        VBox box = new VBox(12, calIcon, titleLbl, dp, heureCombo, errorLbl, btns);
+        VBox box = new VBox(14, iconCircle, titleLbl, dp, heureCombo, errorLbl, btns);
         box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(25));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
-                     "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
+        box.setPadding(new Insets(30));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
 
-        popup.setScene(new Scene(box, 340, 340));
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 400, 400);
+        scene.setFill(Color.TRANSPARENT);
+        popup.setScene(scene);
         popup.show();
 
         btnAnnuler.setOnAction(e -> popup.close());
@@ -215,22 +440,226 @@ public class MedecinRdvListController {
             }
             popup.close();
             service.proposeReport(rv.getId(), dp.getValue(), LocalTime.parse(heureCombo.getValue()));
+            // Email de report au patient
+            User patient = userService.getUserByPatientId(rv.getPatientId());
+            if (patient != null && patient.getEmail() != null) {
+                String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                        + " " + DashboardMedecinController.getCurrentUser().getNom();
+                emailService.envoyerReportRdv(
+                        patient.getEmail(),
+                        patient.getPrenom() + " " + patient.getNom(),
+                        nomMedecin,
+                        rv.getDate().toString(),
+                        dp.getValue().toString(),
+                        heureCombo.getValue()
+                );
+            }
             showPopup("Report propose", "Le nouveau creneau a ete propose au patient.",
                       FontAwesomeSolid.CALENDAR_CHECK, "#f59e0b");
         });
     }
 
+    // ========== LISTE D'ATTENTE ==========
+
+    private void showListeAttenteView() {
+        if (container.getChildren().size() > 1)
+            container.getChildren().remove(1, container.getChildren().size());
+
+        List<ListeAttente> liste = listeAttenteService.getByMedecin(medecinId);
+
+        // Titre section
+        HBox titleRow = new HBox(10);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        titleRow.setPadding(new Insets(15, 0, 5, 0));
+        FontIcon titleIcon = new FontIcon(FontAwesomeSolid.HOURGLASS_HALF);
+        titleIcon.setIconSize(18);
+        titleIcon.setIconColor(Color.web("#f59e0b"));
+        Label titleLbl = new Label("Patients en liste d'attente");
+        titleLbl.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button btnClose = new Button();
+        FontIcon closeIcon = new FontIcon(FontAwesomeSolid.ARROW_LEFT);
+        closeIcon.setIconSize(12);
+        closeIcon.setIconColor(Color.web("#1e293b"));
+        btnClose.setGraphic(closeIcon);
+        btnClose.setStyle("-fx-background-color: #e2e8f0; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 10;");
+        btnClose.setTooltip(new Tooltip("Retour aux rendez-vous"));
+        btnClose.setOnAction(e -> loadRendezVous());
+
+        titleRow.getChildren().addAll(titleIcon, titleLbl, spacer, btnClose);
+        container.getChildren().add(titleRow);
+
+        if (liste.isEmpty()) {
+            VBox emptyBox = new VBox(8);
+            emptyBox.setAlignment(Pos.CENTER);
+            emptyBox.setPadding(new Insets(40));
+            FontIcon emptyIcon = new FontIcon(FontAwesomeSolid.CHECK_CIRCLE);
+            emptyIcon.setIconSize(48);
+            emptyIcon.setIconColor(Color.web("#94a3b8"));
+            Label emptyLbl = new Label("Aucun patient en liste d'attente");
+            emptyLbl.setStyle("-fx-font-size: 15px; -fx-text-fill: #94a3b8;");
+            emptyBox.getChildren().addAll(emptyIcon, emptyLbl);
+            container.getChildren().add(emptyBox);
+            return;
+        }
+
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        for (ListeAttente la : liste) {
+            HBox card = new HBox(15);
+            card.setAlignment(Pos.CENTER_LEFT);
+            card.setPadding(new Insets(16));
+            card.setStyle(
+                "-fx-background-color: white; -fx-background-radius: 12; " +
+                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 3); " +
+                "-fx-border-color: #fde68a; -fx-border-radius: 12; -fx-border-width: 1.5;");
+
+            // Icône patient
+            StackPane iconCircle = new StackPane();
+            iconCircle.setStyle("-fx-background-color: #fef3c7; -fx-background-radius: 50; -fx-min-width: 48; -fx-min-height: 48;");
+            FontIcon userIcon = new FontIcon(FontAwesomeSolid.USER);
+            userIcon.setIconSize(20);
+            userIcon.setIconColor(Color.web("#f59e0b"));
+            iconCircle.getChildren().add(userIcon);
+
+            VBox infos = new VBox(4);
+            HBox.setHgrow(infos, Priority.ALWAYS);
+
+            User patient = userService.getUserByPatientId(la.getPatientId());
+            String nomPatient = patient != null ? patient.getPrenom() + " " + patient.getNom() : "Patient #" + la.getPatientId();
+
+            Label nomLabel = new Label(nomPatient);
+            nomLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+            HBox metaRow = new HBox(10);
+            metaRow.setAlignment(Pos.CENTER_LEFT);
+
+            // Date badge
+            HBox dateBadge = new HBox(5);
+            dateBadge.setAlignment(Pos.CENTER_LEFT);
+            dateBadge.setStyle("-fx-background-color: #f0f9ff; -fx-padding: 3 10; -fx-background-radius: 20;");
+            FontIcon calIcon = new FontIcon(FontAwesomeSolid.CALENDAR_ALT);
+            calIcon.setIconSize(11); calIcon.setIconColor(Color.web("#0ea5e9"));
+            Label dateLabel = new Label(la.getDate().format(dateFmt));
+            dateLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #0ea5e9;");
+            dateBadge.getChildren().addAll(calIcon, dateLabel);
+
+            // Position badge
+            HBox posBadge = new HBox(5);
+            posBadge.setAlignment(Pos.CENTER_LEFT);
+            posBadge.setStyle("-fx-background-color: #fef3c7; -fx-padding: 3 10; -fx-background-radius: 20;");
+            FontIcon posIcon = new FontIcon(FontAwesomeSolid.SORT_NUMERIC_UP);
+            posIcon.setIconSize(11); posIcon.setIconColor(Color.web("#f59e0b"));
+            Label posLabel = new Label("Position #" + la.getPosition());
+            posLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #b45309; -fx-font-weight: bold;");
+            posBadge.getChildren().addAll(posIcon, posLabel);
+
+            metaRow.getChildren().addAll(dateBadge, posBadge);
+            infos.getChildren().addAll(nomLabel, metaRow);
+
+            // Boutons
+            Button btnAccepter = new Button("Accepter");
+            FontIcon checkIc = new FontIcon(FontAwesomeSolid.CHECK);
+            checkIc.setIconSize(12); checkIc.setIconColor(Color.WHITE);
+            btnAccepter.setGraphic(checkIc);
+            btnAccepter.setStyle(
+                "-fx-background-color: linear-gradient(to right,#16a34a,#15803d); " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 16;");
+            btnAccepter.setOnAction(e -> accepterListeAttente(la, patient));
+
+            Button btnRefuser = new Button("Refuser");
+            FontIcon timesIc = new FontIcon(FontAwesomeSolid.TIMES);
+            timesIc.setIconSize(12); timesIc.setIconColor(Color.WHITE);
+            btnRefuser.setGraphic(timesIc);
+            btnRefuser.setStyle(
+                "-fx-background-color: linear-gradient(to right,#ef4444,#dc2626); " +
+                "-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; " +
+                "-fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 6 16;");
+            btnRefuser.setOnAction(e -> refuserListeAttente(la, patient));
+
+            VBox actions = new VBox(8, btnAccepter, btnRefuser);
+            actions.setAlignment(Pos.CENTER);
+
+            card.getChildren().addAll(iconCircle, infos, actions);
+            container.getChildren().add(card);
+        }
+    }
+
+    private void accepterListeAttente(ListeAttente la, User patient) {
+        // Trouver le premier créneau libre ce jour
+        List<LocalTime> tousCreneaux  = service.getCreneauxDisponibles(la.getMedecinId(), la.getDate());
+        List<LocalTime> heuresPrises  = service.getHeuresPrises(la.getMedecinId(), la.getDate());
+        LocalTime heureLibre = tousCreneaux.stream()
+                .filter(h -> !heuresPrises.contains(h))
+                .findFirst().orElse(null);
+
+        if (heureLibre == null) {
+            showPopup("Aucun créneau libre", "Il n'y a plus de créneau disponible ce jour.",
+                      FontAwesomeSolid.EXCLAMATION_TRIANGLE, "#f59e0b");
+            return;
+        }
+
+        // Créer le RDV
+        com.medicare.models.RendezVous rv = new com.medicare.models.RendezVous(
+                la.getMedecinId(), la.getPatientId(), la.getDate(), heureLibre, "confirme");
+        service.create(rv);
+        listeAttenteService.supprimer(la.getId());
+
+        // Email au patient
+        if (patient != null && patient.getEmail() != null) {
+            String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                    + " " + DashboardMedecinController.getCurrentUser().getNom();
+            emailService.envoyerConfirmationRdv(
+                    patient.getEmail(),
+                    patient.getPrenom() + " " + patient.getNom(),
+                    nomMedecin,
+                    la.getDate().toString(),
+                    heureLibre.toString()
+            );
+        }
+        showPopup("RDV créé", "Le rendez-vous a été créé et le patient notifié.",
+                  FontAwesomeSolid.CHECK_CIRCLE, "#16a34a");
+    }
+
+    private void refuserListeAttente(ListeAttente la, User patient) {
+        listeAttenteService.supprimer(la.getId());
+        // Email au patient
+        if (patient != null && patient.getEmail() != null) {
+            String nomMedecin = DashboardMedecinController.getCurrentUser().getPrenom()
+                    + " " + DashboardMedecinController.getCurrentUser().getNom();
+            emailService.envoyerAttenteExpiree(
+                    patient.getEmail(),
+                    patient.getPrenom() + " " + patient.getNom(),
+                    nomMedecin,
+                    la.getDate().toString()
+            );
+        }
+        showPopup("Patient retiré", "Le patient a été retiré de la liste d'attente.",
+                  FontAwesomeSolid.TIMES_CIRCLE, "#dc2626");
+    }
+
     // ========== DETAILS MODAL ==========
 
     private void showDetails(RendezVous rv) {
+        // Recharger pour récupérer le motif (les listes ne le chargent pas systématiquement)
+        RendezVous full = service.getById(rv.getId());
+        if (full == null) full = rv;
+        // Préserver les noms patient (getById utilise medecinNom/Prenom pour le côté patient)
+        full.setMedecinPrenom(rv.getMedecinPrenom());
+        full.setMedecinNom(rv.getMedecinNom());
+
         DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter heureFmt = DateTimeFormatter.ofPattern("HH:mm");
 
         VBox modal = new VBox(12);
         modal.setAlignment(Pos.CENTER);
         modal.setPadding(new Insets(30));
-        modal.setMaxWidth(420);
-        modal.setMaxHeight(350);
+        modal.setMaxWidth(460);
+        modal.setMaxHeight(500);
         modal.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 20, 0, 0, 5);");
 
@@ -242,19 +671,43 @@ public class MedecinRdvListController {
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #0d9488;");
 
         Label details = new Label(
-            "Patient :  " + rv.getMedecinPrenom() + " " + rv.getMedecinNom() + "\n" +
-            "Date :  " + rv.getDate().format(dateFmt) + "\n" +
-            "Heure :  " + rv.getHeure().format(heureFmt) + "\n" +
-            "Statut :  " + rv.getStatut()
+            "Patient :  " + full.getMedecinPrenom() + " " + full.getMedecinNom() + "\n" +
+            "Date :  " + full.getDate().format(dateFmt) + "\n" +
+            "Heure :  " + full.getHeure().format(heureFmt) + "\n" +
+            "Statut :  " + full.getStatut()
         );
         details.setStyle("-fx-font-size: 14px; -fx-text-fill: #444; -fx-line-spacing: 4;");
+
+        modal.getChildren().addAll(icon, titleLabel, details);
+
+        // Motif de consultation (saisi par le patient) — utile au médecin avant consultation
+        if (full.getMotif() != null && !full.getMotif().trim().isEmpty()) {
+            VBox motifBox = new VBox(5);
+            motifBox.setStyle("-fx-background-color: #f0fdfa; -fx-background-radius: 8; -fx-padding: 12; " +
+                              "-fx-border-color: #99f6e4; -fx-border-radius: 8; -fx-border-width: 1;");
+
+            HBox titleRow = new HBox(6);
+            titleRow.setAlignment(Pos.CENTER_LEFT);
+            FontIcon mIcon = new FontIcon(FontAwesomeSolid.NOTES_MEDICAL);
+            mIcon.setIconSize(13);
+            mIcon.setIconColor(Color.web("#0d9488"));
+            Label motifTitle = new Label("Motif / symptômes du patient :");
+            motifTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #0d9488;");
+            titleRow.getChildren().addAll(mIcon, motifTitle);
+
+            Label motifText = new Label(full.getMotif());
+            motifText.setStyle("-fx-font-size: 13px; -fx-text-fill: #134e4a;");
+            motifText.setWrapText(true);
+
+            motifBox.getChildren().addAll(titleRow, motifText);
+            modal.getChildren().add(motifBox);
+        }
 
         Button closeBtn = new Button("Fermer");
         closeBtn.setStyle("-fx-background-color: #0d9488; -fx-text-fill: white; -fx-font-size: 13px; " +
                           "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 30;");
         closeBtn.setOnAction(e -> reloadFullList());
-
-        modal.getChildren().addAll(icon, titleLabel, details, closeBtn);
+        modal.getChildren().add(closeBtn);
 
         StackPane overlay = new StackPane(modal);
         overlay.setStyle("-fx-background-color: rgba(0,0,0,0.4);");
@@ -264,34 +717,152 @@ public class MedecinRdvListController {
         contentArea.getChildren().add(overlay);
     }
 
+    // ========== ORDONNANCE ==========
+
+    private void showOrdonnanceForm(RendezVous rv) {
+        Stage popup = new Stage();
+        popup.initStyle(StageStyle.TRANSPARENT);
+        popup.initModality(Modality.APPLICATION_MODAL);
+        popup.initOwner(container.getScene().getWindow());
+
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: #dbeafe; -fx-background-radius: 50; -fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
+        FontIcon ordoIcon = new FontIcon(FontAwesomeSolid.FILE_MEDICAL);
+        ordoIcon.setIconSize(32);
+        ordoIcon.setIconColor(Color.web("#3b82f6"));
+        iconCircle.getChildren().add(ordoIcon);
+
+        Label titleLbl = new Label("Rediger une ordonnance");
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        // Infos pré-remplies
+        Label patientInfo = new Label("Patient: " + rv.getMedecinPrenom() + " " + rv.getMedecinNom());
+        patientInfo.setStyle("-fx-font-size: 13px; -fx-text-fill: #64748b;");
+
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        Label dateInfo = new Label("Date du RDV: " + rv.getDate().format(dateFmt));
+        dateInfo.setStyle("-fx-font-size: 13px; -fx-text-fill: #64748b;");
+
+        Label contenuLabel = new Label("Prescription :");
+        contenuLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+
+        TextArea contenuArea = new TextArea();
+        contenuArea.setPromptText("Saisir la prescription medicale...\nEx:\n- Doliprane 1000mg : 3 fois par jour pendant 5 jours\n- Amoxicilline 500mg : 2 fois par jour pendant 7 jours");
+        contenuArea.setPrefRowCount(6);
+        contenuArea.setPrefWidth(400);
+        contenuArea.setWrapText(true);
+        contenuArea.setStyle("-fx-border-radius: 10; -fx-border-color: #e2e8f0; -fx-font-size: 13px;");
+
+        Label errorLbl = new Label();
+        errorLbl.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 12px;");
+
+        Button btnValider = new Button("Generer l'ordonnance");
+        btnValider.setStyle("-fx-background-color: linear-gradient(to right, #3b82f6, #6366f1); -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                            "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 30;");
+
+        Button btnAnnuler = new Button("Annuler");
+        btnAnnuler.setStyle("-fx-background-color: #f1f5f9; -fx-text-fill: #475569; -fx-font-size: 14px; -fx-font-weight: bold; " +
+                            "-fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 10 30;");
+
+        HBox btns = new HBox(15, btnAnnuler, btnValider);
+        btns.setAlignment(Pos.CENTER);
+
+        VBox box = new VBox(12, iconCircle, titleLbl, patientInfo, dateInfo, contenuLabel, contenuArea, errorLbl, btns);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(30));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
+
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 500, 520);
+        scene.setFill(Color.TRANSPARENT);
+        popup.setScene(scene);
+        popup.show();
+
+        btnAnnuler.setOnAction(e -> popup.close());
+        btnValider.setOnAction(e -> {
+            String contenu = contenuArea.getText().trim();
+            if (contenu.isEmpty()) {
+                errorLbl.setText("Veuillez saisir la prescription.");
+                return;
+            }
+            popup.close();
+            service.createOrdonnance(rv.getId(), contenu);
+            showPopup("Ordonnance creee", "L'ordonnance a ete enregistree avec succes.",
+                      FontAwesomeSolid.FILE_MEDICAL, "#3b82f6");
+        });
+    }
+
+    private void downloadOrdonnancePDF(RendezVous rv) {
+        com.medicare.models.Ordonnance ord = service.getOrdonnanceByRdv(rv.getId());
+        if (ord == null) return;
+
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Enregistrer l'ordonnance");
+        fileChooser.setInitialFileName("ordonnance_" + rv.getId() + ".pdf");
+        fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("PDF", "*.pdf"));
+
+        java.io.File file = fileChooser.showSaveDialog(container.getScene().getWindow());
+        if (file != null) {
+            String result = com.medicare.utils.OrdonnancePDF.generate(ord, file.getAbsolutePath());
+            if (result != null) {
+                showPopup("PDF genere", "L'ordonnance a ete enregistree en PDF.",
+                          FontAwesomeSolid.FILE_PDF, "#16a34a");
+                // Ouvrir le PDF
+                try { java.awt.Desktop.getDesktop().open(file); } catch (Exception ex) { ex.printStackTrace(); }
+            }
+        }
+    }
+
     // ========== POPUP ==========
 
     private void showPopup(String title, String message, FontAwesomeSolid iconType, String color) {
         Stage popup = new Stage();
-        popup.initStyle(StageStyle.UNDECORATED);
+        popup.initStyle(StageStyle.TRANSPARENT);
         popup.initModality(Modality.APPLICATION_MODAL);
         popup.initOwner(container.getScene().getWindow());
 
+        StackPane iconCircle = new StackPane();
+        iconCircle.setStyle("-fx-background-color: " + color + "20; -fx-background-radius: 50; " +
+                            "-fx-pref-width: 70; -fx-pref-height: 70; -fx-min-width: 70; -fx-min-height: 70;");
         FontIcon icon = new FontIcon(iconType);
-        icon.setIconSize(48);
+        icon.setIconSize(32);
         icon.setIconColor(Color.web(color));
+        iconCircle.getChildren().add(icon);
 
         Label titleLbl = new Label(title);
-        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #0d9488;");
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
 
         Label msgLbl = new Label(message);
-        msgLbl.setStyle("-fx-font-size: 13px; -fx-text-fill: #555; -fx-text-alignment: center;");
+        msgLbl.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b; -fx-text-alignment: center;");
         msgLbl.setWrapText(true);
 
-        VBox box = new VBox(15, icon, titleLbl, msgLbl);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(30));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 16; " +
-                     "-fx-border-color: #e0e0e0; -fx-border-radius: 16; " +
-                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);");
+        javafx.scene.shape.Rectangle progressBar = new javafx.scene.shape.Rectangle(200, 4);
+        progressBar.setFill(Color.web(color));
+        progressBar.setArcWidth(4);
+        progressBar.setArcHeight(4);
 
-        popup.setScene(new Scene(box, 340, 220));
+        VBox box = new VBox(18, iconCircle, titleLbl, msgLbl, progressBar);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(35));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 0; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 25, 0, 0, 8);");
+
+        StackPane overlay = new StackPane(box);
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.4);");
+
+        Scene scene = new Scene(overlay, 380, 270);
+        scene.setFill(Color.TRANSPARENT);
+        popup.setScene(scene);
         popup.show();
+
+        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(Duration.ZERO, new javafx.animation.KeyValue(progressBar.widthProperty(), 200)),
+            new javafx.animation.KeyFrame(Duration.seconds(2), new javafx.animation.KeyValue(progressBar.widthProperty(), 0))
+        );
+        timeline.play();
 
         PauseTransition pause = new PauseTransition(Duration.seconds(2));
         pause.setOnFinished(e -> {

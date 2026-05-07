@@ -5,13 +5,14 @@
 <?import javafx.scene.layout.*?>
 
 <ScrollPane fitToWidth="true" fitToHeight="true"
-            style="-fx-background-color: #f0f4ff; -fx-background: #f0f4ff; -fx-border-color: transparent;
+            style="-fx-background-color: #f0f4f8; -fx-background: #f0f4f8; -fx-border-color: transparent;
                    -fx-focus-color: transparent; -fx-faint-focus-color: transparent;"
             xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.medicare.controllers.RendezVousListController">
-    <VBox fx:id="container" spacing="12" style="-fx-background-color: #f0f4ff;">
+            fx:controller="com.medicare.controllers.PlanningController">
+    <VBox fx:id="container" spacing="14" style="-fx-background-color: #f0f4f8;">
         <padding>
-            <Insets top="15" bottom="20" left="15" right="15"/>
+            <Insets top="15" bottom="25" left="15" right="15"/>
         </padding>
     </VBox>
 </ScrollPane>
+

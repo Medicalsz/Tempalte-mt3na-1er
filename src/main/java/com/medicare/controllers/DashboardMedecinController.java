@@ -13,7 +13,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
@@ -34,8 +38,12 @@ public class DashboardMedecinController {
 
     @FXML private Button btnRendezVous;
     @FXML private Button btnPlanning;
+    @FXML private Button btnEvaluations;
     @FXML private Button btnSettings;
     @FXML private Button btnLogout;
+    @FXML private VBox   rdvSubMenu;
+
+    private FontIcon chevronIcon;
 
     private static User currentUser;
     private static int medecinId;
@@ -51,12 +59,19 @@ public class DashboardMedecinController {
             currentUser = Session.getCurrentUser();
         }
         if (currentUser == null) return;
-        
+
         initAvatar();
         refreshUserHeader();
 
-        btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
+        // Bouton Rendez-vous : icône calendrier à gauche + chevron à droite
+        chevronIcon = new FontIcon(FontAwesomeSolid.CHEVRON_DOWN);
+        chevronIcon.setIconSize(11);
+        chevronIcon.setIconColor(Color.WHITE);
+        btnRendezVous.setGraphic(buildButtonGraphic(FontAwesomeSolid.CALENDAR_ALT, "Rendez-vous", chevronIcon));
+        btnRendezVous.setText("");
+
         btnPlanning.setGraphic(icon(FontAwesomeSolid.CLOCK));
+        btnEvaluations.setGraphic(icon(FontAwesomeSolid.AWARD, Color.web("#fde68a")));
         btnSettings.setGraphic(icon(FontAwesomeSolid.COG, Color.web("#ccfbf1")));
         btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#fecaca")));
 
@@ -67,7 +82,24 @@ public class DashboardMedecinController {
             profileBadge.setOnMouseClicked(e -> navigateToCompleteProfile());
         }
 
-        onRendezVousClick();
+        highlightButton(btnRendezVous);
+        loadRdvView();
+        setSubMenuOpen(true);
+    }
+
+    /** Construit le contenu graphique d'un bouton parent : [icône] [label]  ←espace→  [chevron]. */
+    private HBox buildButtonGraphic(FontAwesomeSolid mainIcon, String label, FontIcon trailing) {
+        FontIcon main = new FontIcon(mainIcon);
+        main.setIconSize(16);
+        main.setIconColor(Color.WHITE);
+        Label l = new Label(label);
+        l.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+        HBox h = new HBox(8, main, l, sp, trailing);
+        h.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        h.setPrefWidth(180);
+        return h;
     }
 
     private void initAvatar() {
@@ -83,6 +115,14 @@ public class DashboardMedecinController {
         return fi;
     }
 
+    private void setSubMenuOpen(boolean open) {
+        rdvSubMenu.setVisible(open);
+        rdvSubMenu.setManaged(open);
+        if (chevronIcon != null) {
+            chevronIcon.setRotate(open ? 180 : 0);
+        }
+    }
+
     @FXML
     private void onProfileClick() {
         openProfilePage();
@@ -90,7 +130,12 @@ public class DashboardMedecinController {
 
     @FXML
     private void onRendezVousClick() {
+        setSubMenuOpen(!rdvSubMenu.isVisible());
         highlightButton(btnRendezVous);
+        loadRdvView();
+    }
+
+    private void loadRdvView() {
         try {
             FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("medecin-rdv-list-view.fxml"));
             Node view = loader.load();
@@ -106,15 +151,38 @@ public class DashboardMedecinController {
 
     @FXML
     private void onPlanningClick() {
+        setSubMenuOpen(false);
         highlightButton(btnPlanning);
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(new Label("Planning (a venir)") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("planning-view.fxml"));
+            Node view = loader.load();
+            PlanningController ctrl = loader.getController();
+            ctrl.setContentArea(contentArea);
+            ctrl.setMedecinId(medecinId);
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void onEvaluationsClick() {
+        if (!rdvSubMenu.isVisible()) setSubMenuOpen(true);
+        highlightSubButton(btnEvaluations);
+        try {
+            MedecinEvaluationsController ctrl = new MedecinEvaluationsController(medecinId);
+            Node view = ctrl.buildView();
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
     private void onSettingsClick() {
+        setSubMenuOpen(false);
         highlightButton(btnSettings);
         openSettingsPage();
     }
@@ -160,6 +228,7 @@ public class DashboardMedecinController {
 
     private void openProfilePage() {
         resetSidebarButtons();
+        setSubMenuOpen(false);
         contentArea.getChildren().clear();
         contentArea.getChildren().add(UserSectionFactory.createProfileSection(
             currentUser,
@@ -211,10 +280,19 @@ public class DashboardMedecinController {
     }
 
     private void highlightButton(Button active) {
-        String normal = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
+        String normal  = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
         String activeS = "-fx-background-color: #14b8a6; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
         resetSidebarButtons();
+        // reset sous-bouton
+        btnEvaluations.setStyle("-fx-background-color: transparent; -fx-text-fill: #ccfbf1; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;");
         active.setStyle(activeS);
+    }
+
+    private void highlightSubButton(Button active) {
+        String normal = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
+        resetSidebarButtons();
+        active.setStyle("-fx-background-color: rgba(255,255,255,0.18); -fx-text-fill: white; -fx-font-size: 13px; " +
+                "-fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;");
     }
 
     private void resetSidebarButtons() {

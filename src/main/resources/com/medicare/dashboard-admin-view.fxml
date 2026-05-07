@@ -36,6 +36,16 @@
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>
 
+            <!-- Sous-menu Rendez-vous : Évaluations -->
+            <VBox fx:id="rdvSubMenu" spacing="3" managed="false" visible="false">
+                <padding>
+                    <Insets left="22"/>
+                </padding>
+                <Button fx:id="btnEvaluations" text="  Évaluations" onAction="#onEvaluationsClick"
+                        prefWidth="178" prefHeight="34" alignment="CENTER_LEFT"
+                        style="-fx-background-color: transparent; -fx-text-fill: #ddd6fe; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand;"/>
+            </VBox>
+
             <Button fx:id="btnDonation" text="  Donations" onAction="#onDonationClick"
                     prefWidth="200" prefHeight="38" alignment="CENTER_LEFT"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;"/>

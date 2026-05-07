@@ -10,6 +10,11 @@ public class RendezVous {
     private LocalDate date;
     private LocalTime heure;
     private String statut; // en_attente, confirme, annule, termine
+    private String motifAnnulation;
+    private String motif; // Motif / symptômes saisis par le patient lors de la prise du RDV
+    private LocalDate proposedDate;
+    private LocalTime proposedHeure;
+    private boolean reportPending;
 
     // Champs pour affichage (jointure)
     private String medecinNom;
@@ -45,6 +50,21 @@ public class RendezVous {
 
     public String getStatut() { return statut; }
     public void setStatut(String statut) { this.statut = statut; }
+
+    public String getMotifAnnulation() { return motifAnnulation; }
+    public void setMotifAnnulation(String motifAnnulation) { this.motifAnnulation = motifAnnulation; }
+
+    public String getMotif() { return motif; }
+    public void setMotif(String motif) { this.motif = motif; }
+
+    public LocalDate getProposedDate() { return proposedDate; }
+    public void setProposedDate(LocalDate proposedDate) { this.proposedDate = proposedDate; }
+
+    public LocalTime getProposedHeure() { return proposedHeure; }
+    public void setProposedHeure(LocalTime proposedHeure) { this.proposedHeure = proposedHeure; }
+
+    public boolean isReportPending() { return reportPending; }
+    public void setReportPending(boolean reportPending) { this.reportPending = reportPending; }
 
     public String getMedecinNom() { return medecinNom; }
     public void setMedecinNom(String medecinNom) { this.medecinNom = medecinNom; }

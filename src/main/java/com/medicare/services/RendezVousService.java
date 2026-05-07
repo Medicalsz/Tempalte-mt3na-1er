@@ -331,6 +331,18 @@ public class RendezVousService {
         return false;
     }
 
+    public boolean refuse(int id, String motifAnnulation) {
+        String q = "UPDATE rendez_vous SET statut = 'annule', motif_annulation = ? WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setString(1, motifAnnulation);
+            ps.setInt(2, id);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { System.out.println("Erreur refuse: " + e.getMessage()); }
+        return false;
+    }
+
     public boolean proposeReport(int id, LocalDate newDate, LocalTime newHeure) {
         String q = "UPDATE rendez_vous SET proposed_date = ?, proposed_heure = ?, " +
                    "report_pending_patient_response = 1 WHERE id = ?";
@@ -374,9 +386,258 @@ public class RendezVousService {
                 rv.setPatientNom(rs.getString("pat_nom"));
                 rv.setPatientPrenom(rs.getString("pat_prenom"));
                 rv.setSpecialite(rs.getString("spec_nom"));
+                try { rv.setMotif(rs.getString("motif")); } catch (SQLException ignore) {}
                 list.add(rv);
             }
         } catch (SQLException e) { System.out.println("Erreur getAllRdv: " + e.getMessage()); }
         return list;
+    }
+
+    // ==================== REPORT / RESCHEDULE ====================
+
+    public boolean acceptReport(int id) {
+        String q = "UPDATE rendez_vous SET date = proposed_date, heure = proposed_heure, " +
+                   "proposed_date = NULL, proposed_heure = NULL, report_pending_patient_response = 0 WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, id);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { System.out.println("Erreur acceptReport: " + e.getMessage()); }
+        return false;
+    }
+
+    public boolean refuseReport(int id) {
+        String q = "UPDATE rendez_vous SET statut = 'annule', proposed_date = NULL, proposed_heure = NULL, " +
+                   "report_pending_patient_response = 0 WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, id);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { System.out.println("Erreur refuseReport: " + e.getMessage()); }
+        return false;
+    }
+
+    public boolean cancelReport(int id) {
+        String q = "UPDATE rendez_vous SET proposed_date = NULL, proposed_heure = NULL, " +
+                   "report_pending_patient_response = 0 WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, id);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { System.out.println("Erreur cancelReport: " + e.getMessage()); }
+        return false;
+    }
+
+    // ==================== DUPLICATE CHECK ====================
+
+    public boolean patientADejaRdvCeJour(int patientId, int medecinId, LocalDate date, int excludeRdvId) {
+        String q = "SELECT COUNT(*) FROM rendez_vous WHERE patient_id = ? AND medecin_id = ? AND date = ? " +
+                   "AND statut != 'annule' AND id != ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, patientId);
+            ps.setInt(2, medecinId);
+            ps.setDate(3, Date.valueOf(date));
+            ps.setInt(4, excludeRdvId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1) > 0;
+        } catch (SQLException e) { System.out.println("Erreur check rdv jour: " + e.getMessage()); }
+        return false;
+    }
+
+    // ==================== RAPPEL EMAIL ====================
+
+    public List<RendezVous> getRendezVousConfirmesParDate(LocalDate date) {
+        List<RendezVous> list = new ArrayList<>();
+        String q = "SELECT rv.*, " +
+                   "um.nom AS med_nom, um.prenom AS med_prenom, " +
+                   "up.nom AS pat_nom, up.prenom AS pat_prenom " +
+                   "FROM rendez_vous rv " +
+                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN user um ON m.user_id = um.id " +
+                   "JOIN user up ON rv.patient_id = up.id " +
+                   "WHERE rv.date = ? AND rv.statut = 'confirme' AND rv.rappel_envoye = 0";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setDate(1, Date.valueOf(date));
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                RendezVous rv = new RendezVous();
+                rv.setId(rs.getInt("id"));
+                rv.setMedecinId(rs.getInt("medecin_id"));
+                rv.setPatientId(rs.getInt("patient_id"));
+                rv.setDate(rs.getDate("date").toLocalDate());
+                rv.setHeure(rs.getTime("heure").toLocalTime());
+                rv.setStatut(rs.getString("statut"));
+                rv.setMedecinNom(rs.getString("med_nom"));
+                rv.setMedecinPrenom(rs.getString("med_prenom"));
+                rv.setPatientNom(rs.getString("pat_nom"));
+                rv.setPatientPrenom(rs.getString("pat_prenom"));
+                list.add(rv);
+            }
+        } catch (SQLException e) { System.out.println("Erreur getRendezVousConfirmesParDate: " + e.getMessage()); }
+        return list;
+    }
+
+    public void markRappelEnvoye(int rdvId) {
+        String q = "UPDATE rendez_vous SET rappel_envoye = 1 WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, rdvId);
+            ps.executeUpdate();
+        } catch (SQLException e) { System.out.println("Erreur markRappelEnvoye: " + e.getMessage()); }
+    }
+
+    // ==================== ORDONNANCE ====================
+
+    public boolean createOrdonnance(int rendezVousId, String contenu) {
+        String q = "INSERT INTO ordonnance (rendez_vous_id, contenu) VALUES (?, ?)";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, rendezVousId);
+            ps.setString(2, contenu);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { System.out.println("Erreur createOrdonnance: " + e.getMessage()); }
+        return false;
+    }
+
+    public Ordonnance getOrdonnanceByRdv(int rendezVousId) {
+        String q = "SELECT o.*, rv.date AS rdv_date, " +
+                   "um.nom AS med_nom, um.prenom AS med_prenom, m.specialite, m.cabinet, " +
+                   "up.nom AS pat_nom, up.prenom AS pat_prenom " +
+                   "FROM ordonnance o " +
+                   "JOIN rendez_vous rv ON o.rendez_vous_id = rv.id " +
+                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN user um ON m.user_id = um.id " +
+                   "JOIN user up ON rv.patient_id = up.id " +
+                   "WHERE o.rendez_vous_id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, rendezVousId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                Ordonnance ord = new Ordonnance();
+                ord.setId(rs.getInt("id"));
+                ord.setRendezVousId(rs.getInt("rendez_vous_id"));
+                ord.setContenu(rs.getString("contenu"));
+                ord.setDateCreation(rs.getTimestamp("date_creation").toLocalDateTime());
+                ord.setMedecinNom(rs.getString("med_nom"));
+                ord.setMedecinPrenom(rs.getString("med_prenom"));
+                ord.setSpecialite(rs.getString("specialite"));
+                ord.setCabinet(rs.getString("cabinet"));
+                ord.setPatientNom(rs.getString("pat_nom"));
+                ord.setPatientPrenom(rs.getString("pat_prenom"));
+                ord.setDateRdv(rs.getDate("rdv_date").toString());
+                return ord;
+            }
+        } catch (SQLException e) { System.out.println("Erreur getOrdonnance: " + e.getMessage()); }
+        return null;
+    }
+
+    public boolean hasOrdonnance(int rendezVousId) {
+        String q = "SELECT COUNT(*) FROM ordonnance WHERE rendez_vous_id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, rendezVousId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1) > 0;
+        } catch (SQLException e) { System.out.println("Erreur hasOrdonnance: " + e.getMessage()); }
+        return false;
+    }
+
+    // ==================== DISPONIBILITE MANAGEMENT ====================
+
+    public void saveOrUpdateDisponibilite(Disponibilite d) {
+        Disponibilite existing = getDisponibilite(d.getMedecinId(), d.getJourSemaine());
+        if (existing != null) {
+            String q = "UPDATE disponibilite SET ferme=?, matin_debut=?, matin_fin=?, pause_debut=?, pause_fin=?, apres_midi_debut=?, apres_midi_fin=? WHERE id=?";
+            try {
+                PreparedStatement ps = cnx.prepareStatement(q);
+                ps.setBoolean(1, d.isFerme());
+                setTimeOrNull(ps, 2, d.getMatinDebut());
+                setTimeOrNull(ps, 3, d.getMatinFin());
+                setTimeOrNull(ps, 4, d.getPauseDebut());
+                setTimeOrNull(ps, 5, d.getPauseFin());
+                setTimeOrNull(ps, 6, d.getApresMidiDebut());
+                setTimeOrNull(ps, 7, d.getApresMidiFin());
+                ps.setInt(8, existing.getId());
+                ps.executeUpdate();
+            } catch (SQLException e) { System.out.println("Erreur update dispo: " + e.getMessage()); }
+        } else {
+            String q = "INSERT INTO disponibilite (medecin_id, jour_semaine, ferme, matin_debut, matin_fin, pause_debut, pause_fin, apres_midi_debut, apres_midi_fin) VALUES (?,?,?,?,?,?,?,?,?)";
+            try {
+                PreparedStatement ps = cnx.prepareStatement(q);
+                ps.setInt(1, d.getMedecinId());
+                ps.setString(2, d.getJourSemaine());
+                ps.setBoolean(3, d.isFerme());
+                setTimeOrNull(ps, 4, d.getMatinDebut());
+                setTimeOrNull(ps, 5, d.getMatinFin());
+                setTimeOrNull(ps, 6, d.getPauseDebut());
+                setTimeOrNull(ps, 7, d.getPauseFin());
+                setTimeOrNull(ps, 8, d.getApresMidiDebut());
+                setTimeOrNull(ps, 9, d.getApresMidiFin());
+                ps.executeUpdate();
+            } catch (SQLException e) { System.out.println("Erreur insert dispo: " + e.getMessage()); }
+        }
+    }
+
+    public List<Disponibilite> getAllDisponibilites(int medecinId) {
+        List<Disponibilite> list = new ArrayList<>();
+        String[] jours = {"Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"};
+        for (String jour : jours) {
+            Disponibilite d = getDisponibilite(medecinId, jour);
+            if (d == null) {
+                d = new Disponibilite();
+                d.setMedecinId(medecinId);
+                d.setJourSemaine(jour);
+                d.setFerme(jour.equals("Samedi") || jour.equals("Dimanche"));
+            }
+            list.add(d);
+        }
+        return list;
+    }
+
+    private void setTimeOrNull(PreparedStatement ps, int index, LocalTime time) throws SQLException {
+        if (time != null) ps.setTime(index, Time.valueOf(time));
+        else ps.setNull(index, Types.TIME);
+    }
+
+    // ==================== TERMINE ====================
+
+    public boolean terminer(int id) {
+        String q = "UPDATE rendez_vous SET statut = 'termine' WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, id);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { System.out.println("Erreur terminer: " + e.getMessage()); }
+        return false;
+    }
+
+    public boolean hideByPatient(int id) {
+        String q = "UPDATE rendez_vous SET hidden_by_patient = 1 WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, id);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { System.out.println("Erreur hideByPatient: " + e.getMessage()); }
+        return false;
+    }
+
+    public boolean hideByMedecin(int id) {
+        String q = "UPDATE rendez_vous SET hidden_by_medecin = 1 WHERE id = ?";
+        try {
+            PreparedStatement ps = cnx.prepareStatement(q);
+            ps.setInt(1, id);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) { System.out.println("Erreur hideByMedecin: " + e.getMessage()); }
+        return false;
     }
 }

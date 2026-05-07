@@ -19,6 +19,10 @@ module com.medicare.medicarejavafx {
     requires java.desktop;
     requires javafx.web;
     requires jdk.jsobject;
+    requires itextpdf;
+    requires jakarta.mail;
+    requires com.google.zxing;
+    requires com.google.zxing.javase;
     opens com.medicare to javafx.fxml;
     opens com.medicare.controllers to javafx.fxml;
     opens com.medicare.models to javafx.fxml;
