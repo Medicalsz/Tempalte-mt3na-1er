@@ -2,7 +2,7 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.layout.VBox?>
-<VBox styleClass="collaborations-container" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.CollaborationController">
+<VBox styleClass="collaborations-container" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.UserPartnershipsController">
     <Label text="Mes Collaborations" styleClass="title"/>
     <ScrollPane fx:id="scrollPane" fitToWidth="true" styleClass="scroll-pane">
         <TilePane fx:id="collaborationsPane" hgap="20" vgap="20" styleClass="tile-pane"/>

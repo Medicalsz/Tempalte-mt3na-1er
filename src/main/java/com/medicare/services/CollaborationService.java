@@ -1,6 +1,6 @@
 package com.medicare.services;
 
-<<<<<<< HEAD
+
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -174,45 +174,39 @@ public class CollaborationService implements Crud<Collaboration> {
         return collaborations;
     }
 
-    public List<Collaboration> getCollaborationsForUser(int userId) {
+    public List<Collaboration> getApprovedCollaborations() {
         List<Collaboration> collaborations = new ArrayList<>();
-        String sql = "SELECT c.*, p.name as partner_name, u.nom as user_name FROM collaboration c " +
-                     "LEFT JOIN partner p ON c.partner_id = p.id " +
-                     "LEFT JOIN user u ON c.user_id = u.id " +
-                     "WHERE c.user_id = ?";
-
-        try (Connection conn = MyConnection.getInstance().getCnx();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, userId);
-            ResultSet rs = pstmt.executeQuery();
-
+        String query = "SELECT c.*, p.name as partner_name, u.nom as user_name FROM collaboration c " +
+                       "LEFT JOIN partner p ON c.partner_id = p.id " +
+                       "LEFT JOIN user u ON c.user_id = u.id WHERE c.statut = 'approuvée'";
+        try (Connection cnx = MyConnection.getInstance().getCnx();
+             Statement st = cnx.createStatement();
+             ResultSet rs = st.executeQuery(query)) {
             while (rs.next()) {
-                Collaboration collab = new Collaboration();
-                collab.setId(rs.getInt("id"));
-                collab.setPartnerId(rs.getInt("partner_id"));
-                collab.setPartnerName(rs.getString("partner_name"));
-                collab.setUserId(rs.getInt("user_id"));
-                collab.setUserName(rs.getString("user_name"));
-                collab.setDateDebut(rs.getDate("date_debut").toLocalDate());
-                if (rs.getDate("date_fin") != null) {
-                    collab.setDateFin(rs.getDate("date_fin").toLocalDate());
+                Collaboration collaboration = new Collaboration();
+                collaboration.setId(rs.getInt("id"));
+                collaboration.setPartnerId(rs.getInt("partner_id"));
+                collaboration.setUserId(rs.getInt("user_id"));
+                collaboration.setTitre(rs.getString("titre"));
+                collaboration.setDescription(rs.getString("description"));
+                collaboration.setStatut(rs.getString("statut"));
+                collaboration.setImageName(rs.getString("image_name"));
+                if (rs.getDate("date_debut") != null) {
+                    collaboration.setDateDebut(rs.getDate("date_debut").toLocalDate());
                 }
-                collab.setTitre(rs.getString("titre"));
-                collab.setDescription(rs.getString("description"));
-                collab.setStatut(rs.getString("statut"));
-                collab.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
-
-                collaborations.add(collab);
+                if (rs.getDate("date_fin") != null) {
+                    collaboration.setDateFin(rs.getDate("date_fin").toLocalDate());
+                }
+                if (rs.getTimestamp("updated_at") != null) {
+                    collaboration.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
+                }
+                collaboration.setPartnerName(rs.getString("partner_name"));
+                collaboration.setUserName(rs.getString("user_name"));
+                collaborations.add(collaboration);
             }
         } catch (SQLException e) {
-            System.err.println("Erreur lors de la récupération des collaborations: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Error getting approved collaborations: " + e.getMessage());
         }
         return collaborations;
     }
 }
-=======
-public class CollaborationService {
-}
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

@@ -95,6 +95,34 @@ public class PartnerService implements Crud<Partner> {
         return partners;
     }
 
+    public Partner getById(int id) {
+        String query = "SELECT * FROM partner WHERE id = ?";
+        try (Connection conn = MyConnection.getInstance().getCnx();
+             PreparedStatement pst = conn.prepareStatement(query)) {
+            pst.setInt(1, id);
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next()) {
+                    Partner p = new Partner();
+                    p.setId(rs.getInt("id"));
+                    p.setName(rs.getString("name"));
+                    p.setTypePartenaire(rs.getString("type_partenaire"));
+                    p.setEmail(rs.getString("email"));
+                    p.setTelephone(rs.getString("telephone"));
+                    p.setAdresse(rs.getString("adresse"));
+                    p.setStatut(rs.getString("statut"));
+                    if (rs.getDate("date_partenariat") != null) {
+                        p.setDatePartenariat(rs.getDate("date_partenariat").toLocalDate());
+                    }
+                    p.setImageName(rs.getString("image_name"));
+                    return p;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public List<Partner> searchByName(String name) {
         List<Partner> partners = new ArrayList<>();
         String query = "SELECT * FROM partner WHERE name LIKE ?";

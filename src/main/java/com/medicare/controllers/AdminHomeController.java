@@ -6,10 +6,12 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +24,11 @@ public class AdminHomeController {
     private VBox insightsContainer;
 
     private OpportunityRadarService radarService;
+    private DashboardAdminController dashboardController; // Direct reference to the main controller
+
+    public void setDashboardController(DashboardAdminController dashboardController) {
+        this.dashboardController = dashboardController;
+    }
 
     @FXML
     public void initialize() {

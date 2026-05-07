@@ -43,7 +43,9 @@ public class RendezVousFormController {
     private LocalTime selectedHeure;
     private RendezVous rvToEdit;
 
-    public void setContentArea(StackPane contentArea) { this.contentArea = contentArea; }
+    public void setContentArea(StackPane contentArea) {
+        this.contentArea = contentArea;
+    }
     public void setPatientId(int patientId) { this.patientId = patientId; }
 
     public void setRendezVousToEdit(RendezVous rv) {
@@ -240,4 +242,3 @@ public class RendezVousFormController {
         errorLabel.setText(msg);
     }
 }
-

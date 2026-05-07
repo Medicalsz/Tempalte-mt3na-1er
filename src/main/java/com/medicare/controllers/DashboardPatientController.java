@@ -1,266 +1,191 @@
 package com.medicare.controllers;
 
-<<<<<<< HEAD
+import com.medicare.services.RendezVousService;
+import com.medicare.models.User;
+import com.medicare.utils.Session;
 import java.io.IOException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.ResourceBundle;
 
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import com.medicare.HelloApplication;
-import com.medicare.models.User;
-import com.medicare.services.RendezVousService;
-
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.fxml.Initializable;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.Parent;
-=======
-import com.medicare.HelloApplication;
-import com.medicare.models.User;
-import com.medicare.services.RendezVousService;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-<<<<<<< HEAD
-=======
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
-import org.kordamp.ikonli.javafx.FontIcon;
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 
-public class DashboardPatientController {
-
-    @FXML private Label userNameLabel;
-    @FXML private Label userEmailLabel;
-    @FXML private StackPane contentArea;
+public class DashboardPatientController implements Initializable {
 
     @FXML private Button btnAccueil;
-    @FXML private Button btnRendezVous;
-    @FXML private Button btnDonation;
-    @FXML private Button btnProduit;
-<<<<<<< HEAD
-    @FXML private Button btnPartnerships;
-    @FXML private Button btnMesCollaborations;
+    @FXML private Button btnRendezvous;
+    @FXML private Button btnDon;
+    @FXML private Button btnProduits;
+    @FXML private Button btnPartenariats;
+    @FXML private Button btnCollaborations;
     @FXML private Button btnForum;
-    @FXML private Button btnDevenirMedecin;
+    @FXML private Button btnGame;
+    @FXML private Button btnBecomeDoctor;
     @FXML private Button btnLogout;
-    @FXML private Button chatbotButton;
-=======
-    @FXML private Button btnCollaboration;
-    @FXML private Button btnForum;
-    @FXML private Button btnDevenirMedecin;
-    @FXML private Button btnLogout;
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
 
-    private static User currentUser;
+    @FXML private Label nameLabel;
+    @FXML private Label emailLabel;
+    @FXML private StackPane contentArea;
 
-    public static void setCurrentUser(User user) { currentUser = user; }
-    public static User getCurrentUser() { return currentUser; }
+    private Map<Button, String> buttonMap;
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        buttonMap = new HashMap<>();
+        buttonMap.put(btnAccueil, "Accueil");
+        buttonMap.put(btnRendezvous, "Mes Rendez-vous");
+        buttonMap.put(btnDon, "Faire un don");
+        buttonMap.put(btnProduits, "Nos Produits");
+        buttonMap.put(btnPartenariats, "Partenariats");
+        buttonMap.put(btnCollaborations, "Collaborations");
+        buttonMap.put(btnForum, "Forum");
+        buttonMap.put(btnGame, "Mini Game");
+        buttonMap.put(btnBecomeDoctor, "Devenir Medecin");
+
+
+        // Set initial content & highlight
+        onAccueilClick();
+
+        // Set user info from session
+        User currentUser = Session.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            nameLabel.setText(currentUser.getPrenom() + " " + currentUser.getNom());
+            emailLabel.setText(currentUser.getEmail());
+        }
+    }
+
+    private void highlightButton(Button selectedButton) {
+        for (Button button : buttonMap.keySet()) {
+            if (button != null) { // Safety check
+                if (button.equals(selectedButton)) {
+                    button.getStyleClass().add("nav-button-selected");
+                } else {
+                    button.getStyleClass().remove("nav-button-selected");
+                }
+            }
+        }
+    }
+
+    private void setContent(Node node) {
+        contentArea.getChildren().setAll(node);
+    }
 
     @FXML
-    private void initialize() {
-        if (currentUser != null) {
-<<<<<<< HEAD
-            userNameLabel.setText(currentUser.getNom());
-=======
-            userNameLabel.setText(currentUser.getPrenom() + " " + currentUser.getNom());
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
-            userEmailLabel.setText(currentUser.getEmail());
-        }
-
-        // Icônes FontAwesome sur chaque bouton
-        btnAccueil.setGraphic(icon(FontAwesomeSolid.HOME));
-        btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
-        btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
-        btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
-<<<<<<< HEAD
-        btnPartnerships.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
-        btnMesCollaborations.setGraphic(icon(FontAwesomeSolid.LIST_ALT));
-        btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
-        btnDevenirMedecin.setGraphic(icon(FontAwesomeSolid.USER_MD, Color.web("#ffd700")));
-        btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#ffcccb")));
-        chatbotButton.setGraphic(icon(FontAwesomeSolid.COMMENTS, Color.web("#1a73e8")));
-=======
-        btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
-        btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
-        btnDevenirMedecin.setGraphic(icon(FontAwesomeSolid.USER_MD, Color.web("#ffd700")));
-        btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#ffcccb")));
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
-
+    private void onAccueilClick() {
         highlightButton(btnAccueil);
+        setContent(new Label("Accueil page is under construction."));
     }
 
-    private FontIcon icon(FontAwesomeSolid type) {
-        return icon(type, Color.WHITE);
-    }
-
-    private FontIcon icon(FontAwesomeSolid type, Color color) {
-        FontIcon fi = new FontIcon(type);
-        fi.setIconSize(16);
-        fi.setIconColor(color);
-        return fi;
-    }
-
-    // ========== NAVIGATION SIDEBAR ==========
-
-    @FXML private void onAccueilClick() {
-        highlightButton(btnAccueil);
-        setContent(new Label("Bienvenue sur votre espace patient !") {{
-            setStyle("-fx-font-size: 22px; -fx-text-fill: #333; -fx-font-weight: bold;");
-        }});
-    }
-
-    @FXML private void onRendezVousClick() {
-        highlightButton(btnRendezVous);
+    @FXML
+    private void onRendezvousClick() {
+        highlightButton(btnRendezvous);
         try {
-            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("rendez-vous-list-view.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/rendez-vous-list-view.fxml"));
             Node view = loader.load();
             RendezVousListController ctrl = loader.getController();
             ctrl.setContentArea(contentArea);
-            // Trouver le patient_id à partir du user_id
+
+            // Find the patient_id from the user_id
             RendezVousService rvService = new RendezVousService();
-            int patientId = rvService.getPatientIdByUserId(currentUser.getId());
+            int patientId = rvService.getPatientIdByUserId(Session.getInstance().getCurrentUser().getId());
             ctrl.setPatientId(patientId);
+
             setContent(view);
         } catch (Exception e) {
             e.printStackTrace();
-            setContent(new Label("Erreur chargement rendez-vous") {{
-                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
-            }});
+            setContent(new Label("Error loading Rendez-vous page."));
         }
     }
 
-    @FXML private void onDonationClick() {
-        highlightButton(btnDonation);
-        setContent(new Label("Faire un don") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
-    }
-
-    @FXML private void onProduitClick() {
-        highlightButton(btnProduit);
-        setContent(new Label("Nos Produits") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
-    }
-
-<<<<<<< HEAD
-    @FXML private void onPartnershipsClick() {
-        highlightButton(btnPartnerships);
-        try {
-            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-collaboration-view.fxml"));
-            Node view = loader.load();
-            UserCollaborationController controller = loader.getController();
-            controller.setDashboardStackPane(contentArea);
-            setContent(view);
-        } catch (IOException e) {
-            e.printStackTrace();
-            setContent(new Label("Erreur de chargement de la page des partenariats."));
-        }
-    }
-
-    @FXML private void onMesCollaborationsClick() {
-        highlightButton(btnMesCollaborations);
-        try {
-            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-collaborations-view.fxml"));
-            Node view = loader.load();
-            setContent(view);
-        } catch (IOException e) {
-            e.printStackTrace();
-            setContent(new Label("Erreur de chargement de la page des collaborations."));
-        }
-=======
-    @FXML private void onCollaborationClick() {
-        highlightButton(btnCollaboration);
-        setContent(new Label("Collaborer") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
-    }
-
-    @FXML private void onForumClick() {
-        highlightButton(btnForum);
-        setContent(new Label("Forum") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
-    }
-
-    @FXML private void onDevenirMedecinClick() {
-        highlightButton(btnDevenirMedecin);
-        setContent(new Label("Devenir Medecin") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
-        // TODO : formulaire de demande pour devenir médecin
-    }
-
-<<<<<<< HEAD
     @FXML
-    private void onChatbotClick() {
+    private void onDonClick() {
+        highlightButton(btnDon);
+        setContent(new Label("Faire un don page is under construction."));
+    }
+
+    @FXML
+    private void onProduitsClick() {
+        highlightButton(btnProduits);
+        setContent(new Label("Nos Produits page is under construction."));
+    }
+
+    @FXML
+    private void onPartenariatsClick() {
+        highlightButton(btnPartenariats);
         try {
-            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("chatbot-view.fxml"));
-            Parent root = loader.load();
-            Stage chatbotStage = new Stage();
-                chatbotStage.setTitle("Medicare AI Assistant");
-                Scene scene = new Scene(root);
-                scene.getStylesheets().add(HelloApplication.class.getResource("chatbot-style.css").toExternalForm());
-                chatbotStage.setScene(scene);
-                chatbotStage.setResizable(false);
-                chatbotStage.show();
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/user-partners-view.fxml"));
+            Node view = loader.load();
+
+            // Get the controller and pass the content area to it
+            UserPartnersController controller = loader.getController();
+            controller.loadPartners(contentArea);
+
+            setContent(view);
         } catch (IOException e) {
             e.printStackTrace();
-            // Optionally, show an error alert to the user
+            setContent(new Label("Error loading Partenariats page."));
         }
     }
 
-=======
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
-    @FXML private void onLogoutClick() {
-        currentUser = null;
+    @FXML
+    private void onCollaborationsClick() {
+        highlightButton(btnCollaborations);
         try {
-            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("accueil-view.fxml"));
-            Stage stage = (Stage) contentArea.getScene().getWindow();
-            stage.setScene(new Scene(loader.load()));
-            stage.setTitle("Medicare");
-        } catch (Exception e) {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/user-collaborations-view.fxml"));
+            Node view = loader.load();
+
+            // Get the controller and pass the content area to it for navigation
+            UserPartnershipsController controller = loader.getController();
+            controller.setDashboardStackPane(contentArea);
+
+            setContent(view);
+        } catch (IOException e) {
+            e.printStackTrace();
+            setContent(new Label("Error loading Collaborations page."));
+        }
+    }
+
+    @FXML
+    private void onForumClick() {
+        highlightButton(btnForum);
+        setContent(new Label("Forum page is under construction."));
+    }
+
+    @FXML
+    private void onBecomeDoctorClick() {
+        highlightButton(btnBecomeDoctor);
+        setContent(new Label("Become Doctor page is under construction."));
+    }
+
+    @FXML
+    private void onLogoutClick() {
+        // 1. Clear the user session
+        Session.getInstance().clearSession();
+
+        try {
+            // 2. Load the login view
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/login-view.fxml"));
+            Parent loginView = loader.load(); // Cast to Parent
+
+            // 3. Get the current stage and set the new scene
+            Stage stage = (Stage) btnLogout.getScene().getWindow();
+            stage.getScene().setRoot(loginView);
+
+        } catch (IOException e) {
+            System.err.println("Failed to load login view after logout.");
             e.printStackTrace();
         }
     }
-
-    // ========== UTILITAIRES ==========
-
-    private void setContent(Node node) {
-        contentArea.getChildren().clear();
-        contentArea.getChildren().add(node);
-    }
-
-    private void highlightButton(Button active) {
-        String normalStyle = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
-        String normalGoldStyle = "-fx-background-color: transparent; -fx-text-fill: #ffd700; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
-        String activeStyle = "-fx-background-color: #4a9af5; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
-
-        btnAccueil.setStyle(normalStyle);
-        btnRendezVous.setStyle(normalStyle);
-        btnDonation.setStyle(normalStyle);
-        btnProduit.setStyle(normalStyle);
-<<<<<<< HEAD
-        btnPartnerships.setStyle(normalStyle);
-        btnMesCollaborations.setStyle(normalStyle);
-=======
-        btnCollaboration.setStyle(normalStyle);
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
-        btnForum.setStyle(normalStyle);
-        btnDevenirMedecin.setStyle(normalGoldStyle);
-
-        active.setStyle(activeStyle);
-    }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

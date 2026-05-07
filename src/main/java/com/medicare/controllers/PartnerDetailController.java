@@ -18,7 +18,9 @@ import com.medicare.services.CommentService;
 import com.medicare.utils.Session;
 
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
@@ -28,8 +30,11 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
+
+import java.io.IOException;
 
 public class PartnerDetailController {
 
@@ -55,12 +60,19 @@ public class PartnerDetailController {
     private HBox addRatingBox;
     @FXML
     private Button submitCommentButton;
+    @FXML
+    private Button backButton;
 
     private Partner currentPartner;
     private int selectedRating = 0;
+    private StackPane contentArea;
 
     private final CommentService commentService = new CommentService();
     private final BadgeService badgeService = new BadgeService();
+
+    public void setContentArea(StackPane contentArea) {
+        this.contentArea = contentArea;
+    }
 
     public void setPartner(Partner partner) {
         this.currentPartner = partner; // Stocker le partenaire actuel
@@ -371,5 +383,20 @@ public class PartnerDetailController {
 
         badgeView.getChildren().addAll(iconView, nameLabel);
         return badgeView;
+    }
+
+    @FXML
+    private void onBackClick() {
+        if (contentArea != null) {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/user-partners-view.fxml"));
+                Node partnersView = loader.load();
+                UserPartnersController controller = loader.getController();
+                controller.loadPartners(contentArea);
+                contentArea.getChildren().setAll(partnersView);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

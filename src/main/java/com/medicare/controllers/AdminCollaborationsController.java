@@ -13,11 +13,14 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import com.google.zxing.WriterException;
 import com.medicare.models.Collaboration;
 import com.medicare.services.CollaborationService;
+import com.medicare.services.QRCodeService;
 
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -46,21 +49,37 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import javax.imageio.ImageIO;
+
 public class AdminCollaborationsController {
 
     @FXML
     private VBox container;
 
     private final CollaborationService collaborationService = new CollaborationService();
+    private final QRCodeService qrCodeService = new QRCodeService(); // QR Code Service
     private TextField searchField;
     private String currentSortColumn = "date_debut"; // Default sort
     private boolean sortAscending = false;
     private VBox collaborationRowsContainer; // VBox for scrollable collaboration rows
+    private String initialStatusFilter = null; // Used for filtering from other views
+
+    public void setInitialStatusFilter(String status) {
+        this.initialStatusFilter = status;
+    }
 
     @FXML
     private void initialize() {
         setupUI();
-        loadCollaborations(null, currentSortColumn, sortAscending);
+        // If a filter was passed from another controller, apply it
+        if (initialStatusFilter != null) {
+            searchField.setText(initialStatusFilter);
+            loadCollaborations(initialStatusFilter, currentSortColumn, sortAscending);
+        } else {
+            loadCollaborations(null, currentSortColumn, sortAscending);
+        }
     }
 
     private void setupUI() {
@@ -358,7 +377,7 @@ public class AdminCollaborationsController {
                 document.addPage(page);
 
                 try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
-                    drawPdfTable(contentStream, collaborations);
+                    drawPdfTable(contentStream, collaborations, document);
                 }
 
                 document.save(file);
@@ -370,32 +389,33 @@ public class AdminCollaborationsController {
         }
     }
 
-    private void drawPdfTable(PDPageContentStream contentStream, List<Collaboration> collaborations) throws IOException {
+    private void drawPdfTable(PDPageContentStream contentStream, List<Collaboration> collaborations, PDDocument document) throws IOException {
         final int rows = collaborations.size() + 1;
-        final int cols = 4;
-        final float rowHeight = 20f;
-        final float tableWidth = 500f;
+        final int cols = 5; // Increased for QR Code
+        final float rowHeight = 40f; // Increased row height for QR
+        final float tableWidth = 520f; // Adjusted table width
         final float tableHeight = rowHeight * rows;
         final float startX = 50f;
         final float startY = 750f;
 
         // Headers
-        String[] headers = {"Titre", "Partenaire", "Statut", "Date Fin"};
-        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
+        String[] headers = {"Titre", "Partenaire", "Statut", "Date Fin", "QR Code"};
+        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 10);
 
         float nextX = startX;
         float nextY = startY;
+        float[] colWidths = {140f, 110f, 80f, 90f, 100f};
 
-        for (String header : headers) {
+        for (int i = 0; i < headers.length; i++) {
             contentStream.beginText();
             contentStream.newLineAtOffset(nextX, nextY);
-            contentStream.showText(header);
+            contentStream.showText(headers[i]);
             contentStream.endText();
-            nextX += tableWidth / cols;
+            nextX += colWidths[i];
         }
 
         // Data
-        contentStream.setFont(PDType1Font.HELVETICA, 10);
+        contentStream.setFont(PDType1Font.HELVETICA, 9);
         nextY -= rowHeight;
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -409,13 +429,44 @@ public class AdminCollaborationsController {
                 c.getDateFin() != null ? c.getDateFin().format(formatter) : "N/A"
             };
 
-            for (String data : rowData) {
+            // Draw text data
+            for (int i = 0; i < rowData.length; i++) {
                 contentStream.beginText();
-                contentStream.newLineAtOffset(nextX, nextY);
-                contentStream.showText(data != null ? data : "");
+                contentStream.newLineAtOffset(nextX, nextY + rowHeight / 2);
+                String text = rowData[i] != null ? rowData[i] : "";
+                // Basic text wrapping
+                if (text.length() > 25) {
+                    contentStream.showText(text.substring(0, 25) + "...");
+                } else {
+                    contentStream.showText(text);
+                }
                 contentStream.endText();
-                nextX += tableWidth / cols;
+                nextX += colWidths[i];
             }
+
+            // Generate and draw QR code
+            try {
+                String qrText = String.format("ID: %d\nTitre: %s\nPartenaire: %s", c.getId(), c.getTitre(), c.getPartnerName());
+                BufferedImage qrImage = qrCodeService.generateQRCodeImage(qrText, 100, 100);
+
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(qrImage, "png", baos);
+                baos.flush();
+                byte[] imageInByte = baos.toByteArray();
+                baos.close();
+
+                PDImageXObject pdImage = PDImageXObject.createFromByteArray(document, imageInByte, "qr-code");
+                contentStream.drawImage(pdImage, nextX, nextY, 35, 35);
+
+            } catch (WriterException e) {
+                e.printStackTrace();
+                // Draw a placeholder if QR generation fails
+                contentStream.beginText();
+                contentStream.newLineAtOffset(nextX, nextY + rowHeight / 2);
+                contentStream.showText("QR Error");
+                contentStream.endText();
+            }
+
             nextY -= rowHeight;
         }
     }

@@ -93,11 +93,11 @@ public class DashboardUserController implements Initializable {
     private void onCollaborerClick() {
         highlightButton(btnCollaborer);
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/user-collaboration-view.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/user-collaborations-view.fxml"));
             Node view = loader.load();
 
             // Pass the main content area to the controller to enable navigation
-            UserCollaborationController controller = loader.getController();
+            UserPartnershipsController controller = loader.getController();
             controller.setDashboardStackPane(contentArea);
 
             setContent(view);

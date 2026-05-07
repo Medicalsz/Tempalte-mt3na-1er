@@ -71,11 +71,11 @@ public class CollaborationCardController {
     }
 
     private void loadDefaultImage() {
-        try (InputStream stream = getClass().getResourceAsStream("/images/default-partner.png")) {
+        try (InputStream stream = getClass().getResourceAsStream("/com/medicare/images/logo.png")) {
             if (stream != null) {
                 partnerImageView.setImage(new Image(stream));
             } else {
-                System.err.println("Default partner image not found.");
+                System.err.println("Default partner image (logo.png) not found.");
                 partnerImageView.setImage(null);
             }
         } catch (Exception e) {

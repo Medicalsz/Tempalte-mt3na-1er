@@ -1,64 +1,48 @@
 package com.medicare.controllers;
 
-<<<<<<< HEAD
-import com.medicare.HelloApplication;
 import com.medicare.models.Collaboration;
-import com.medicare.models.User;
 import com.medicare.services.CollaborationService;
-import com.medicare.utils.Session;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.fxml.Initializable;
-import javafx.scene.Node;
-import javafx.scene.control.Label;
-import javafx.scene.layout.TilePane;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.cell.PropertyValueFactory;
 
-import java.io.IOException;
-import java.net.URL;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.ResourceBundle;
 
-public class CollaborationController implements Initializable {
+public class CollaborationController {
 
     @FXML
-    private TilePane collaborationsPane;
+    private TableView<Collaboration> collaborationsTable;
+    @FXML
+    private TableColumn<Collaboration, Integer> idColumn;
+    @FXML
+    private TableColumn<Collaboration, String> partnerNameColumn;
+    @FXML
+    private TableColumn<Collaboration, String> titleColumn;
+    @FXML
+    private TableColumn<Collaboration, String> descriptionColumn;
+    @FXML
+    private TableColumn<Collaboration, LocalDate> startDateColumn;
+    @FXML
+    private TableColumn<Collaboration, LocalDate> endDateColumn;
 
     private final CollaborationService collaborationService = new CollaborationService();
 
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
-        loadUserCollaborations();
+    @FXML
+    private void initialize() {
+        idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
+        partnerNameColumn.setCellValueFactory(new PropertyValueFactory<>("partnerName"));
+        titleColumn.setCellValueFactory(new PropertyValueFactory<>("titre"));
+        descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
+        startDateColumn.setCellValueFactory(new PropertyValueFactory<>("dateDebut"));
+        endDateColumn.setCellValueFactory(new PropertyValueFactory<>("dateFin"));
+
+        loadCollaborations();
     }
 
-    private void loadUserCollaborations() {
-        User currentUser = Session.getInstance().getCurrentUser();
-
-        if (currentUser == null) {
-            collaborationsPane.getChildren().add(new Label("Veuillez vous connecter pour voir vos collaborations."));
-            return;
-        }
-
-        List<Collaboration> collaborationList = collaborationService.getCollaborationsForUser(currentUser.getId());
-
-        if (collaborationList == null || collaborationList.isEmpty()) {
-            collaborationsPane.getChildren().add(new Label("Vous n'avez aucune collaboration pour le moment."));
-        } else {
-            collaborationsPane.getChildren().clear();
-            for (Collaboration collaboration : collaborationList) {
-                try {
-                    FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("collaboration-card-view.fxml"));
-                    Node card = loader.load();
-                    CollaborationCardController controller = loader.getController();
-                    controller.setData(collaboration);
-                    collaborationsPane.getChildren().add(card);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+    private void loadCollaborations() {
+        List<Collaboration> collaborations = collaborationService.getAll();
+        collaborationsTable.getItems().setAll(collaborations);
     }
 }
-=======
-public class CollaborationController {
-}
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f

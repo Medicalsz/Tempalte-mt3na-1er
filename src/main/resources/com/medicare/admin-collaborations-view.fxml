@@ -1,16 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.StackPane?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
 <StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.medicare.controllers.AdminCollaborationsController"
            style="-fx-padding: 20;">
     <children>
-        <VBox fx:id="container" spacing="10" alignment="TOP_CENTER"
+        <VBox fx:id="container" spacing="20" alignment="TOP_CENTER"
               style="-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);">
-            <!-- Le contenu sera ajouté dynamiquement par le contrôleur -->
+            <padding>
+                <Insets bottom="20" left="20" right="20" top="20"/>
+            </padding>
+            <children>
+                <!-- Statistics Section -->
+                <HBox alignment="CENTER" spacing="20">
+                    <VBox alignment="CENTER" spacing="10" HBox.hgrow="ALWAYS">
+                        <Label style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #4b5563;"
+                               text="Statut des Collaborations"/>
+                        <PieChart fx:id="statusPieChart" legendVisible="true" prefHeight="250" title=""/>
+                    </VBox>
+                    <VBox alignment="CENTER_LEFT" spacing="15"
+                          style="-fx-background-color: #f9fafb; -fx-padding: 20; -fx-background-radius: 8;">
+                        <Label style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #4b5563;"
+                               text="Faits Amusants du Mini-Jeu"/>
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label style="-fx-font-size: 14px;" text="Parties Jouées:"/>
+                            <Label fx:id="gamesPlayedLabel" style="-fx-font-size: 14px; -fx-font-weight: bold;" text="0"/>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label style="-fx-font-size: 14px;" text="Meilleur Temps:"/>
+                            <Label fx:id="bestTimeLabel" style="-fx-font-size: 14px; -fx-font-weight: bold;" text="N/A"/>
+                        </HBox>
+                    </VBox>
+                </HBox>
+                <!-- Existing content will be added below by the controller -->
+            </children>
         </VBox>
     </children>
 </StackPane>

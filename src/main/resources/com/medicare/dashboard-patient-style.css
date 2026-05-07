@@ -1,0 +1,132 @@
+.calendar-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #3b82f6; /* Blue text */
+    -fx-font-weight: bold;
+    -fx-border-color: #3b82f6; /* Blue border */
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 6px 16px; /* Adjusted padding for border */
+    -fx-cursor: hand;
+}
+
+.calendar-button:hover {
+    -fx-background-color: #3b82f6; /* Blue background on hover */
+    -fx-text-fill: white;
+}
+
+.calendar-button:hover .calendar-icon {
+    -fx-fill: white;
+}
+
+.calendar-icon {
+    -fx-fill: #3b82f6; /* Blue icon */
+}
+/*
+ * Medicare Patient Dashboard Styles
+ * Recreated based on the desired design.
+ */
+
+/* --- Navigation Buttons --- */
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-text-fill: #dbeafe; /* Lighter blue text */
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10 15;
+    -fx-graphic-text-gap: 10;
+    -fx-cursor: hand;
+}
+
+.nav-button:hover {
+    -fx-background-color: #2563eb; /* A brighter blue for hover */
+    -fx-text-fill: white;
+}
+
+/* Style for the selected button */
+.nav-button-selected {
+    -fx-background-color: #3b82f6; /* A slightly lighter blue for selected */
+    -fx-text-fill: white;
+}
+
+/* --- Navigation Icon Style --- */
+.nav-icon {
+    -fx-fill: white;
+    -fx-font-size: 1.2em; /* 1.2 times the button's font size */
+}
+
+/* --- Special Button (Devenir Medecin) --- */
+.nav-button-special .nav-icon {
+    -fx-fill: #facc15; /* Yellow color for the special icon */
+}
+
+/* --- Logout Button --- */
+.nav-button-logout {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-text-fill: #dbeafe;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10 15;
+    -fx-graphic-text-gap: 10;
+    -fx-cursor: hand;
+}
+
+.nav-button-logout:hover {
+    -fx-background-color: #dc2626; /* Red on hover for logout */
+    -fx-text-fill: white;
+}
+
+.nav-button-logout .nav-icon {
+    -fx-fill: #fca5a5; /* Light red icon */
+}
+
+.nav-button-logout:hover .nav-icon {
+    -fx-fill: white;
+}
+
+.clickable-qr {
+    -fx-cursor: hand;
+}
+
+/* Calendar Button */
+.calendar-button {
+    -fx-background-color: #3b82f6; /* Blue-500 */
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 16;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);
+}
+
+.calendar-button:hover {
+    -fx-background-color: #2563eb; /* Blue-600 */
+}
+
+.calendar-icon {
+    -fx-fill: white;
+    -fx-font-size: 14px;
+}
+
+.card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);
+    -fx-padding: 15;
+    -fx-alignment: center;
+    -fx-transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    -fx-scale-x: 1.03;
+    -fx-scale-y: 1.03;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 4);
+}

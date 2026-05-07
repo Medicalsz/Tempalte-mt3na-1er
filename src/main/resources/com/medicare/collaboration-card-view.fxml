@@ -1,25 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.shape.Rectangle?>
-<VBox fx:id="card" styleClass="collaboration-card" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.CollaborationCardController">
+
+<VBox fx:id="card" alignment="CENTER" styleClass="partner-card" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.medicare.controllers.CollaborationCardController">
     <children>
-        <ImageView fx:id="partnerImageView" fitHeight="150.0" fitWidth="250.0" pickOnBounds="true" preserveRatio="false">
-            <clip>
-                <Rectangle arcHeight="20" arcWidth="20" width="250" height="150"/>
-            </clip>
-        </ImageView>
-        <VBox styleClass="card-content">
+        <ImageView fx:id="partnerImageView" fitHeight="100.0" fitWidth="150.0" pickOnBounds="true" preserveRatio="true" />
+        <VBox alignment="CENTER_LEFT" spacing="4.0">
+            <padding>
+                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+            </padding>
             <children>
-                <Label fx:id="titleLabel" styleClass="card-title"/>
-                <Label fx:id="partnerNameLabel" styleClass="card-partner-name"/>
-                <HBox styleClass="card-details">
-                    <children>
-                        <Label fx:id="statusLabel" styleClass="card-status"/>
-                        <Label fx:id="dateLabel" styleClass="card-date"/>
-                    </children>
-                </HBox>
+                <Label fx:id="titleLabel" styleClass="card-title" text="Titre de la collaboration" />
+                <Label fx:id="partnerNameLabel" styleClass="card-subtitle" text="Nom du partenaire" />
+                <Label fx:id="dateLabel" styleClass="card-meta" text="Date" />
+                <Label fx:id="statusLabel" styleClass="card-status" text="Statut" />
             </children>
         </VBox>
     </children>

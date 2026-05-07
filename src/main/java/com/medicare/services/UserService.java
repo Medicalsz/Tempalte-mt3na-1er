@@ -1,6 +1,6 @@
 package com.medicare.services;
 
-<<<<<<< HEAD
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,13 +11,14 @@ import org.mindrot.jbcrypt.BCrypt;
 
 import com.medicare.models.User;
 import com.medicare.utils.MyConnection;
-=======
-import com.medicare.models.User;
-import com.medicare.utils.MyConnection;
 import org.mindrot.jbcrypt.BCrypt;
 
-import java.sql.*;
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
 
 public class UserService {
 
@@ -48,11 +49,7 @@ public class UserService {
                 }
             }
         } catch (SQLException e) {
-<<<<<<< HEAD
-            e.printStackTrace();
-=======
             System.out.println("Erreur login: " + e.getMessage());
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         }
         return null;
     }
@@ -61,13 +58,8 @@ public class UserService {
      * Inscription : crée un nouveau compte avec hash bcrypt compatible Symfony.
      */
     public boolean register(User user) {
-<<<<<<< HEAD
-        String query = "INSERT INTO user (nom, email, password, numero, roles, is_verified) " +
-                       "VALUES (?, ?, ?, ?, ?, ?)";
-=======
         String query = "INSERT INTO user (nom, prenom, email, password, numero, adresse, photo, roles, is_verified) " +
                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         try {
             // Vérifier si l'email existe déjà
             if (emailExists(user.getEmail())) {
@@ -80,13 +72,6 @@ public class UserService {
 
             PreparedStatement ps = cnx.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, user.getNom());
-<<<<<<< HEAD
-            ps.setString(2, user.getEmail());
-            ps.setString(3, hash);
-            ps.setString(4, user.getNumero());
-            ps.setString(5, "[\"ROLE_USER\"]");
-            ps.setBoolean(6, false);
-=======
             ps.setString(2, user.getPrenom());
             ps.setString(3, user.getEmail());
             ps.setString(4, hash);
@@ -95,7 +80,6 @@ public class UserService {
             ps.setString(7, user.getPhoto());
             ps.setString(8, "[\"ROLE_USER\"]");
             ps.setBoolean(9, false);
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
             ps.executeUpdate();
 
             // Récupère l'id du user créé et crée l'entrée patient
@@ -132,18 +116,12 @@ public class UserService {
         User u = new User();
         u.setId(rs.getInt("id"));
         u.setNom(rs.getString("nom"));
-<<<<<<< HEAD
-        u.setEmail(rs.getString("email"));
-        u.setPassword(rs.getString("password"));
-        u.setNumero(rs.getString("numero"));
-=======
         u.setPrenom(rs.getString("prenom"));
         u.setEmail(rs.getString("email"));
         u.setPassword(rs.getString("password"));
         u.setNumero(rs.getString("numero"));
         u.setAdresse(rs.getString("adresse"));
         u.setPhoto(rs.getString("photo"));
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
         u.setRoles(rs.getString("roles"));
         u.setIsVerified(rs.getBoolean("is_verified"));
         return u;
@@ -192,8 +170,4 @@ public class UserService {
         } catch (SQLException e) { System.out.println("Erreur deleteUser: " + e.getMessage()); }
         return false;
     }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 75109ed9a765b50d8f229f0e8f802d201bdaab2f
