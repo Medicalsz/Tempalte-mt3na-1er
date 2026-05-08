@@ -40,3 +40,4 @@ build/
 ### User Uploads (binary files - do not track) ###
 uploads/
 __push_tmp__/
+*.properties

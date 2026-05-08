@@ -49,6 +49,8 @@ public class DashboardPatientController {
     @FXML private Button btnRendezVous;
     @FXML private Button btnDonation;
     @FXML private Button btnProduit;
+    @FXML private Button btnCommande;
+    @FXML private Button btnChatbot;
     @FXML private Button btnCollaboration;
     @FXML private Button btnForum;
     @FXML private Button btnMatchDoctors;
@@ -84,8 +86,8 @@ public class DashboardPatientController {
         btnRendezVous.setGraphic(icon(FontAwesomeSolid.CALENDAR_ALT));
         btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
         btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
-        btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
-        btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
+        btnCommande.setGraphic(icon(FontAwesomeSolid.SHOPPING_BAG));
+        btnChatbot.setGraphic(icon(FontAwesomeSolid.ROBOT, Color.web("#ffd700")));
         btnMatchDoctors.setGraphic(icon(FontAwesomeSolid.MAP_MARKER_ALT));
         btnNotifications.setGraphic(icon(FontAwesomeSolid.BELL, Color.web("#fef3c7")));
         btnDevenirMedecin.setGraphic(icon(FontAwesomeSolid.USER_MD, Color.web("#ffd700")));
@@ -277,9 +279,46 @@ public class DashboardPatientController {
     @FXML
     private void onProduitClick() {
         highlightButton(btnProduit);
-        setContent(new Label("Nos Produits") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("patient-produits-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement produits") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
+    }
+
+    @FXML
+    private void onCommandeClick() {
+        highlightButton(btnCommande);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("patient-commandes-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement commandes") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
+    }
+
+    @FXML
+    private void onChatbotClick() {
+        highlightButton(btnChatbot);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("chatbot-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement assistant") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML
@@ -484,10 +523,13 @@ public class DashboardPatientController {
 
     private void resetSidebarButtons() {
         String normalStyle = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
+        String normalGoldStyle = "-fx-background-color: transparent; -fx-text-fill: #ffd700; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand;";
         btnAccueil.setStyle(normalStyle);
         btnRendezVous.setStyle(normalStyle);
         btnDonation.setStyle(normalStyle);
         btnProduit.setStyle(normalStyle);
+        btnCommande.setStyle(normalStyle);
+        btnChatbot.setStyle(normalGoldStyle);
         btnCollaboration.setStyle(normalStyle);
         btnForum.setStyle(normalStyle);
         btnMatchDoctors.setStyle(normalStyle);

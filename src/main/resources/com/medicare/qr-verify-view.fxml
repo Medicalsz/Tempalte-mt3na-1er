@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.medicare.controllers.QrVerifyController"
+      spacing="14" style="-fx-background-color: #f9fafb;">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <Label text="Verification QR — Facture Medicare"
+           style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #7c3aed;"/>
+    <Label text="Verifie l'authenticite d'une facture en scannant son QR code (signature HMAC)."
+           style="-fx-font-size: 12px; -fx-text-fill: #6b7280;"/>
+
+    <TabPane fx:id="tabs" tabClosingPolicy="UNAVAILABLE">
+        <Tab text="Scanner avec webcam">
+            <VBox spacing="12" alignment="CENTER" style="-fx-padding: 20; -fx-background-color: white;">
+                <StackPane fx:id="webcamPane"
+                           prefWidth="640" prefHeight="380"
+                           style="-fx-background-color: #111827; -fx-background-radius: 10;">
+                    <ImageView fx:id="webcamView" fitWidth="640" fitHeight="380" preserveRatio="true"/>
+                    <Label fx:id="webcamHint"
+                           text="Cliquez sur 'Demarrer' pour activer la webcam."
+                           style="-fx-text-fill: #d1d5db; -fx-font-size: 13px;"/>
+                </StackPane>
+                <HBox spacing="10" alignment="CENTER">
+                    <Button fx:id="btnStart" text="Demarrer"
+                            style="-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 22;"
+                            onAction="#onStartWebcam"/>
+                    <Button fx:id="btnStop" text="Arreter" disable="true"
+                            style="-fx-background-color: #e5e7eb; -fx-text-fill: #333; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 22;"
+                            onAction="#onStopWebcam"/>
+                </HBox>
+            </VBox>
+        </Tab>
+        <Tab text="Charger une image">
+            <VBox spacing="14" alignment="CENTER" style="-fx-padding: 30; -fx-background-color: white;">
+                <Label text="Selectionne une image PNG/JPG contenant le QR code de la facture."
+                       style="-fx-font-size: 13px; -fx-text-fill: #555;"/>
+                <Button text="Choisir une image..."
+                        style="-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-size: 13px; -fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 9 24;"
+                        onAction="#onPickImage"/>
+                <ImageView fx:id="uploadedView" fitWidth="280" fitHeight="280" preserveRatio="true"/>
+            </VBox>
+        </Tab>
+    </TabPane>
+
+    <Region prefHeight="6"/>
+    <VBox fx:id="resultBox" spacing="6"
+          style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 16; -fx-border-color: #e5e7eb; -fx-border-radius: 10;">
+        <Label fx:id="resultTitle" text="En attente d'un QR..."
+               style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #6b7280;"/>
+        <Label fx:id="resultDetails" text=""
+               wrapText="true"
+               style="-fx-font-size: 12px; -fx-text-fill: #444; -fx-line-spacing: 2;"/>
+    </VBox>
+</VBox>

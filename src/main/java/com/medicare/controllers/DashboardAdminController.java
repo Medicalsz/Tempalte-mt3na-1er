@@ -31,6 +31,8 @@ public class DashboardAdminController {
     @FXML private Button btnEvaluations;
     @FXML private Button btnDonation;
     @FXML private Button btnProduit;
+    @FXML private Button btnCommande;
+    @FXML private Button btnStatistics;
     @FXML private Button btnCollaboration;
     @FXML private Button btnForum;
     @FXML private Button btnLogout;
@@ -45,7 +47,7 @@ public class DashboardAdminController {
 
     private Button[] allButtons() {
         return new Button[]{btnAccueil, btnUtilisateurs, btnRendezVous,
-                            btnDonation, btnProduit, btnCollaboration, btnForum};
+                            btnDonation, btnProduit, btnCommande, btnStatistics, btnCollaboration, btnForum};
     }
 
     @FXML
@@ -71,6 +73,8 @@ public class DashboardAdminController {
         btnEvaluations.setGraphic(icon(FontAwesomeSolid.AWARD, Color.web("#fde68a")));
         btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
         btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
+        btnCommande.setGraphic(icon(FontAwesomeSolid.LIST_ALT));
+        btnStatistics.setGraphic(icon(FontAwesomeSolid.CHART_BAR));
         btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
         btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#fecaca")));
@@ -177,9 +181,46 @@ public class DashboardAdminController {
     @FXML private void onProduitClick() {
         setSubMenuOpen(false);
         highlightButton(btnProduit);
-        setContent(new Label("Gestion des Produits") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("produit-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement produits") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
+    }
+
+    @FXML private void onCommandeClick() {
+        setSubMenuOpen(false);
+        highlightButton(btnCommande);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("commande-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement commandes") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
+    }
+
+    @FXML private void onStatisticsClick() {
+        setSubMenuOpen(false);
+        highlightButton(btnStatistics);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("statistics-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement statistiques") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML private void onCollaborationClick() {
@@ -220,7 +261,7 @@ public class DashboardAdminController {
     @FXML private void onForumClick() {
         setSubMenuOpen(false);
         highlightButton(btnForum);
-        setContent(new Label("Gestion du Forum") {{
+        setContent(new Label("Gestion du Forum (Bientot disponible)") {{
             setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
         }});
     }
