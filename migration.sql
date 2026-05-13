@@ -203,6 +203,61 @@ INSERT IGNORE INTO badges (id, name, description, icon_path) VALUES
 ('veteran', 'Veteran', 'Partenaire experimente', '/icons/badges/veteran.png');
 
 -- ============================================================
+-- Forum Module (from mohamed/forum branch)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS forum_topic (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    author_id INT NOT NULL,
+    reported_by_id INT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+    video_url VARCHAR(500) NULL,
+    summary TEXT NULL,
+    tags VARCHAR(500) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL,
+    is_reported TINYINT(1) NOT NULL DEFAULT 0,
+    is_hidden TINYINT(1) NOT NULL DEFAULT 0,
+    reported_reason VARCHAR(500) NULL,
+    reported_at DATETIME NULL,
+    FOREIGN KEY (author_id) REFERENCES user(id) ON DELETE CASCADE,
+    INDEX idx_forum_topic_author (author_id),
+    INDEX idx_forum_topic_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS forum_comment (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    author_id INT NOT NULL,
+    topic_id INT NOT NULL,
+    parent_id INT NULL,
+    reported_by_id INT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_reported TINYINT(1) NOT NULL DEFAULT 0,
+    is_hidden TINYINT(1) NOT NULL DEFAULT 0,
+    reported_reason VARCHAR(500) NULL,
+    reported_at DATETIME NULL,
+    FOREIGN KEY (author_id) REFERENCES user(id) ON DELETE CASCADE,
+    FOREIGN KEY (topic_id) REFERENCES forum_topic(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES forum_comment(id) ON DELETE SET NULL,
+    INDEX idx_forum_comment_topic (topic_id),
+    INDEX idx_forum_comment_author (author_id)
+);
+
+CREATE TABLE IF NOT EXISTS forum_comment_reaction (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    comment_id INT NOT NULL,
+    user_id INT NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_reaction (comment_id, user_id, type),
+    FOREIGN KEY (comment_id) REFERENCES forum_comment(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+);
+
+-- ============================================================
 -- DONE! Verify with:
 --   DESCRIBE user;
 --   DESCRIBE medecin;
