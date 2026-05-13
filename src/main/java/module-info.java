@@ -18,6 +18,7 @@ module com.medicare.medicarejavafx {
     requires google.api.client;               // google-api-client (googleapis auth)
     requires google.api.services.oauth2.v2.rev157;
     requires jdk.httpserver;
+    requires java.net.http;
     requires java.desktop;
     requires javafx.web;
     requires jdk.jsobject;

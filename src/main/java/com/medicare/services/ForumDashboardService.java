@@ -1,4 +1,4 @@
-package com.medicare.services;
+﻿package com.medicare.services;
 
 import com.medicare.models.ForumTopic;
 import com.medicare.utils.MyConnection;
@@ -157,10 +157,11 @@ public class ForumDashboardService {
     }
 
     private Connection getConnection() throws SQLException {
-        Connection connection = MyConnection.getInstance().getConnection();
+        Connection connection = MyConnection.getInstance().getCnx();
         if (connection == null || connection.isClosed()) {
             throw new SQLException("Connexion MySQL indisponible.");
         }
         return connection;
     }
 }
+

@@ -1,8 +1,8 @@
-package com.medicare.controllers;
+﻿package com.medicare.controllers;
 
 import com.medicare.models.ForumComment;
 import com.medicare.models.ForumTopic;
-import com.medicare.services.CommentService;
+import com.medicare.services.ForumCommentService;
 import com.medicare.services.ForumService;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -45,7 +45,7 @@ public class ForumModerationController extends ForumController {
     @FXML private VBox moderatedCommentsContainer;
 
     private final ForumService forumService = new ForumService();
-    private final CommentService commentService = new CommentService();
+    private final ForumCommentService ForumCommentService = new ForumCommentService();
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     @FXML
@@ -101,7 +101,7 @@ public class ForumModerationController extends ForumController {
 
     private void loadModeratedComments() {
         try {
-            List<ForumComment> comments = commentService.findModeratedComments(
+            List<ForumComment> comments = ForumCommentService.findModeratedComments(
                     COMMENT_FILTER_REPORTED.equals(commentFilterCombo.getValue()),
                     COMMENT_FILTER_HIDDEN.equals(commentFilterCombo.getValue())
             );
@@ -302,7 +302,7 @@ public class ForumModerationController extends ForumController {
         }
 
         try {
-            commentService.setCommentReported(comment.getId(), newState, newState ? resolveCurrentUser().getId() : null);
+            ForumCommentService.setCommentReported(comment.getId(), newState, newState ? resolveCurrentUser().getId() : null);
             loadModeratedComments();
         } catch (Exception e) {
             showError("Impossible de mettre a jour le signalement du commentaire.", e);
@@ -317,7 +317,7 @@ public class ForumModerationController extends ForumController {
         }
 
         try {
-            commentService.setCommentHidden(comment.getId(), newState);
+            ForumCommentService.setCommentHidden(comment.getId(), newState);
             loadModeratedComments();
         } catch (Exception e) {
             showError("Impossible de mettre a jour la visibilite du commentaire.", e);
@@ -343,3 +343,4 @@ public class ForumModerationController extends ForumController {
         return button;
     }
 }
+
