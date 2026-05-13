@@ -20,7 +20,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
@@ -37,6 +39,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
@@ -66,6 +69,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.prefs.Preferences;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 public final class UserSectionFactory {
@@ -98,7 +102,8 @@ public final class UserSectionFactory {
         Consumer<User> onUpdated,
         Runnable onDeleteAccount
     ) {
-        return createProfileSection(currentUser, owner, onUpdated, onDeleteAccount, null);
+        return createProfileSection(currentUser, owner, onUpdated, onDeleteAccount,
+                (Map<String, Runnable>) null);
     }
 
     public static Node createProfileSection(
@@ -108,10 +113,42 @@ public final class UserSectionFactory {
         Runnable onDeleteAccount,
         Map<String, Runnable> quickNavActions
     ) {
+        // Backwards-compat: convert Runnable map to Supplier map that just runs the action
+        // (so the dashboard still navigates away).
+        Map<String, Supplier<Node>> suppliers = null;
+        if (quickNavActions != null && !quickNavActions.isEmpty()) {
+            suppliers = new java.util.LinkedHashMap<>();
+            for (Map.Entry<String, Runnable> entry : quickNavActions.entrySet()) {
+                Runnable r = entry.getValue();
+                suppliers.put(entry.getKey(), () -> { r.run(); return null; });
+            }
+        }
+        return createProfileSection(currentUser, owner, onUpdated, onDeleteAccount, suppliers, null);
+    }
+
+    public static Node createProfileSection(
+        User currentUser,
+        Window owner,
+        Consumer<User> onUpdated,
+        Runnable onDeleteAccount,
+        Map<String, Supplier<Node>> quickNavSuppliers,
+        Runnable onSettingsClick
+    ) {
+        VBox contentSwapArea = new VBox(24);
+        contentSwapArea.getChildren().addAll(buildPublicInfoCard(currentUser), buildEmptyPostsCard());
+
+        Consumer<Node> swapper = node -> {
+            contentSwapArea.getChildren().clear();
+            if (node != null) {
+                contentSwapArea.getChildren().add(node);
+            } else {
+                contentSwapArea.getChildren().addAll(buildPublicInfoCard(currentUser), buildEmptyPostsCard());
+            }
+        };
+
         VBox page = new VBox(24,
-            buildProfileHeader(currentUser, quickNavActions),
-            buildPublicInfoCard(currentUser),
-            buildEmptyPostsCard()
+            buildProfileHeader(currentUser, owner, onUpdated, quickNavSuppliers, onSettingsClick, swapper),
+            contentSwapArea
         );
         page.setPadding(new Insets(6));
         return wrap(page);
@@ -1223,51 +1260,234 @@ public final class UserSectionFactory {
     }
 
     private static VBox buildProfileHeader(User currentUser) {
-        return buildProfileHeader(currentUser, null);
+        return buildProfileHeader(currentUser, null, null, null, null, null);
     }
 
-    private static VBox buildProfileHeader(User currentUser, Map<String, Runnable> quickNavActions) {
-        ImageView profileImage = createCircularPreview(120);
-        updatePreview(profileImage, currentUser.getPhoto());
+    private static VBox buildProfileHeader(User currentUser,
+                                           Window owner,
+                                           Consumer<User> onUserUpdated,
+                                           Map<String, Supplier<Node>> quickNavSuppliers,
+                                           Runnable onSettingsClick,
+                                           Consumer<Node> contentSwapper) {
+        UserService userService = new UserService();
 
+        // ── Cover area: cover banner + gear button + overlapping profile picture ──
+        StackPane coverArea = new StackPane();
+        coverArea.setMinHeight(240);
+        coverArea.setPrefHeight(240);
+        coverArea.setMaxHeight(240);
+
+        StackPane coverBanner = buildCoverBanner(currentUser, owner, userService, onUserUpdated);
+        StackPane.setAlignment(coverBanner, Pos.TOP_CENTER);
+        coverArea.getChildren().add(coverBanner);
+
+        if (onSettingsClick != null) {
+            Button gearBtn = buildGearButton(onSettingsClick);
+            StackPane.setAlignment(gearBtn, Pos.TOP_RIGHT);
+            StackPane.setMargin(gearBtn, new Insets(16, 18, 0, 0));
+            coverArea.getChildren().add(gearBtn);
+        }
+
+        StackPane profilePic = buildProfilePicture(currentUser, owner, userService, onUserUpdated, 120);
+        StackPane.setAlignment(profilePic, Pos.BOTTOM_CENTER);
+        coverArea.getChildren().add(profilePic);
+
+        // ── Identity block ──
         Label fullName = new Label(currentUser.getPrenom() + " " + currentUser.getNom());
         fullName.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #111827;");
 
         Label role = new Label(resolveRole(currentUser));
         role.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4b5563;");
 
-        HBox verificationField = createVerificationField(currentUser.isVerified());
+        HBox verifiedPill = createVerifiedPill(currentUser.isVerified());
 
-        VBox box = new VBox(10, profileImage, fullName, role, verificationField);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(28));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 22; -fx-border-color: #e5e7eb; -fx-border-radius: 22;");
+        VBox bottomInfo = new VBox(10, fullName, role, verifiedPill);
+        bottomInfo.setAlignment(Pos.CENTER);
+        bottomInfo.setPadding(new Insets(76, 24, 26, 24));
 
-        if (quickNavActions != null && !quickNavActions.isEmpty()) {
-            HBox quickNav = buildQuickNavRow(quickNavActions);
-            box.getChildren().add(quickNav);
+        if (quickNavSuppliers != null && !quickNavSuppliers.isEmpty()) {
+            HBox quickNav = buildQuickNavRow(quickNavSuppliers, contentSwapper);
+            bottomInfo.getChildren().add(quickNav);
         }
-        return box;
+
+        VBox card = new VBox(coverArea, bottomInfo);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 22; "
+                + "-fx-border-color: #e5e7eb; -fx-border-radius: 22; -fx-border-width: 1;");
+        return card;
     }
 
-    private static HBox buildQuickNavRow(Map<String, Runnable> actions) {
+    private static StackPane buildCoverBanner(User currentUser, Window owner,
+                                              UserService userService, Consumer<User> onUserUpdated) {
+        StackPane banner = new StackPane();
+        banner.setMinHeight(180);
+        banner.setPrefHeight(180);
+        banner.setMaxHeight(180);
+        banner.setMaxWidth(Double.MAX_VALUE);
+        banner.setStyle(
+            "-fx-background-color: linear-gradient(to bottom right, #fce4ec, #ede9fe 55%, #dbeafe);"
+            + " -fx-background-radius: 22 22 0 0;"
+            + " -fx-cursor: hand;"
+        );
+
+        Image coverImg = tryLoadImage(currentUser.getCoverPhoto());
+        if (coverImg != null) {
+            ImageView coverView = new ImageView(coverImg);
+            coverView.setPreserveRatio(false);
+            coverView.setSmooth(true);
+            coverView.fitWidthProperty().bind(banner.widthProperty());
+            coverView.setFitHeight(180);
+            Rectangle clip = new Rectangle();
+            clip.setArcWidth(44);
+            clip.setArcHeight(44);
+            clip.widthProperty().bind(banner.widthProperty());
+            clip.setHeight(180);
+            coverView.setClip(clip);
+            banner.getChildren().add(coverView);
+        }
+
+        Label hint = new Label(currentUser.getCoverPhoto() == null || currentUser.getCoverPhoto().isBlank()
+            ? "Ajouter une photo de couverture" : "Photo de couverture");
+        FontIcon hintIcon = new FontIcon(FontAwesomeSolid.CAMERA);
+        hintIcon.setIconSize(11);
+        hintIcon.setIconColor(Color.web("#475569"));
+        hint.setGraphic(hintIcon);
+        hint.setContentDisplay(ContentDisplay.LEFT);
+        hint.setGraphicTextGap(6);
+        hint.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.92);"
+            + " -fx-text-fill: #475569;"
+            + " -fx-font-size: 11.5px; -fx-font-weight: bold;"
+            + " -fx-background-radius: 999; -fx-padding: 6 12;"
+            + " -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.18), 6, 0, 0, 2);"
+        );
+        StackPane.setAlignment(hint, Pos.TOP_LEFT);
+        StackPane.setMargin(hint, new Insets(16, 0, 0, 18));
+        banner.getChildren().add(hint);
+
+        ContextMenu menu = buildPhotoMenu(
+            owner,
+            () -> currentUser.getCoverPhoto(),
+            "covers",
+            newPath -> {
+                currentUser.setCoverPhoto(newPath);
+                userService.updateCoverPhoto(currentUser.getId(), newPath);
+                if (onUserUpdated != null) onUserUpdated.accept(currentUser);
+            }
+        );
+        banner.setOnMouseClicked(e -> menu.show(banner, e.getScreenX(), e.getScreenY()));
+
+        return banner;
+    }
+
+    private static StackPane buildProfilePicture(User currentUser, Window owner,
+                                                 UserService userService, Consumer<User> onUserUpdated,
+                                                 double size) {
+        Circle ring = new Circle(size / 2 + 4);
+        ring.setFill(Color.WHITE);
+        ring.setStroke(Color.web("#e5e7eb"));
+        ring.setStrokeWidth(1.0);
+
+        ImageView preview = createCircularPreview(size);
+        updatePreview(preview, currentUser.getPhoto());
+
+        FontIcon cameraIcon = new FontIcon(FontAwesomeSolid.CAMERA);
+        cameraIcon.setIconSize(12);
+        cameraIcon.setIconColor(Color.WHITE);
+        StackPane cameraBadge = new StackPane(cameraIcon);
+        cameraBadge.setMinSize(28, 28);
+        cameraBadge.setPrefSize(28, 28);
+        cameraBadge.setMaxSize(28, 28);
+        cameraBadge.setStyle(
+            "-fx-background-color: #2563eb;"
+            + " -fx-background-radius: 999;"
+            + " -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.20), 6, 0, 0, 2);"
+        );
+        StackPane.setAlignment(cameraBadge, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(cameraBadge, new Insets(0, 4, 4, 0));
+
+        StackPane wrap = new StackPane(ring, preview, cameraBadge);
+        wrap.setMinSize(size + 12, size + 12);
+        wrap.setPrefSize(size + 12, size + 12);
+        wrap.setMaxSize(size + 12, size + 12);
+        wrap.setStyle("-fx-cursor: hand;");
+
+        ContextMenu menu = buildPhotoMenu(
+            owner,
+            () -> currentUser.getPhoto(),
+            "profiles",
+            newPath -> {
+                currentUser.setPhoto(newPath);
+                userService.updateProfilePhoto(currentUser.getId(), newPath);
+                updatePreview(preview, newPath);
+                if (onUserUpdated != null) onUserUpdated.accept(currentUser);
+            }
+        );
+        wrap.setOnMouseClicked(e -> menu.show(wrap, e.getScreenX(), e.getScreenY()));
+
+        return wrap;
+    }
+
+    private static Button buildGearButton(Runnable onClick) {
+        FontIcon gear = new FontIcon(FontAwesomeSolid.COG);
+        gear.setIconSize(14);
+        gear.setIconColor(Color.web("#1f2937"));
+        Button btn = new Button();
+        btn.setGraphic(gear);
+        btn.setTooltip(new javafx.scene.control.Tooltip("Parametres du compte"));
+        btn.setStyle(
+            "-fx-background-color: rgba(255,255,255,0.92);"
+            + " -fx-background-radius: 999;"
+            + " -fx-min-width: 36; -fx-min-height: 36;"
+            + " -fx-pref-width: 36; -fx-pref-height: 36;"
+            + " -fx-padding: 0; -fx-cursor: hand;"
+            + " -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.18), 8, 0, 0, 2);"
+        );
+        btn.setOnAction(e -> onClick.run());
+        return btn;
+    }
+
+    private static HBox createVerifiedPill(boolean verified) {
+        FontIcon icon = new FontIcon(verified ? FontAwesomeSolid.CHECK_CIRCLE : FontAwesomeSolid.TIMES_CIRCLE);
+        icon.setIconSize(14);
+        icon.setIconColor(Color.web(verified ? "#16a34a" : "#dc2626"));
+
+        Label label = new Label(verified ? "Verified" : "Not verified");
+        label.setStyle(
+            "-fx-font-size: 13px; -fx-font-weight: bold;"
+            + " -fx-text-fill: " + (verified ? "#16a34a" : "#dc2626") + ";"
+        );
+
+        HBox pill = new HBox(8, icon, label);
+        pill.setAlignment(Pos.CENTER);
+        pill.setStyle(
+            "-fx-background-color: " + (verified ? "#dcfce7" : "#fee2e2") + ";"
+            + " -fx-border-color: " + (verified ? "#86efac" : "#fecaca") + ";"
+            + " -fx-border-width: 1; -fx-border-radius: 999;"
+            + " -fx-background-radius: 999;"
+            + " -fx-padding: 6 16;"
+        );
+        return pill;
+    }
+
+    private static HBox buildQuickNavRow(Map<String, Supplier<Node>> suppliers, Consumer<Node> contentSwapper) {
         HBox row = new HBox(10);
         row.setAlignment(Pos.CENTER);
         row.setPadding(new Insets(14, 0, 0, 0));
 
-        addQuickNavButton(row, actions, "posts",       "Posts",       FontAwesomeSolid.COMMENTS,      "#7c3aed", "#ede9fe");
-        addQuickNavButton(row, actions, "rendezvous",  "Rendez-vous", FontAwesomeSolid.CALENDAR_ALT,  "#0d9488", "#ccfbf1");
-        addQuickNavButton(row, actions, "collab",      "Collab",      FontAwesomeSolid.HANDSHAKE,     "#c2410c", "#ffedd5");
-        addQuickNavButton(row, actions, "donation",    "Donation",    FontAwesomeSolid.HEART,         "#dc2626", "#fee2e2");
+        addQuickNavButton(row, suppliers, contentSwapper, "posts",       "Posts",       FontAwesomeSolid.COMMENTS,      "#7c3aed", "#ede9fe");
+        addQuickNavButton(row, suppliers, contentSwapper, "rendezvous",  "Rendez-vous", FontAwesomeSolid.CALENDAR_ALT,  "#0d9488", "#ccfbf1");
+        addQuickNavButton(row, suppliers, contentSwapper, "collab",      "Collab",      FontAwesomeSolid.HANDSHAKE,     "#c2410c", "#ffedd5");
+        addQuickNavButton(row, suppliers, contentSwapper, "donation",    "Donation",    FontAwesomeSolid.HEART,         "#dc2626", "#fee2e2");
 
         return row;
     }
 
-    private static void addQuickNavButton(HBox row, Map<String, Runnable> actions, String key,
+    private static void addQuickNavButton(HBox row, Map<String, Supplier<Node>> suppliers,
+                                          Consumer<Node> contentSwapper, String key,
                                           String label, FontAwesomeSolid iconType,
                                           String fg, String bg) {
-        Runnable action = actions.get(key);
-        if (action == null) {
+        Supplier<Node> supplier = suppliers.get(key);
+        if (supplier == null) {
             return;
         }
         FontIcon icon = new FontIcon(iconType);
@@ -1285,8 +1505,75 @@ public final class UserSectionFactory {
             + " -fx-border-color: " + fg + "; -fx-border-radius: 999; -fx-border-width: 1;"
             + " -fx-padding: 8 16; -fx-cursor: hand;"
         );
-        btn.setOnAction(e -> action.run());
+        btn.setOnAction(e -> {
+            Node node = supplier.get();
+            if (node != null && contentSwapper != null) {
+                contentSwapper.accept(node);
+            }
+        });
         row.getChildren().add(btn);
+    }
+
+    private static ContextMenu buildPhotoMenu(Window owner,
+                                              Supplier<String> currentPath,
+                                              String uploadCategory,
+                                              Consumer<String> onChanged) {
+        ContextMenu menu = new ContextMenu();
+        MenuItem viewItem = new MenuItem("Voir la photo");
+        viewItem.setOnAction(e -> showPhotoPopup(currentPath.get(), owner));
+
+        MenuItem changeItem = new MenuItem("Changer la photo");
+        changeItem.setOnAction(e -> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Choisir une photo");
+            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"));
+            File file = chooser.showOpenDialog(owner);
+            if (file != null) {
+                try {
+                    String stored = FileStorageUtil.copyToUploads(file.toPath(), uploadCategory);
+                    onChanged.accept(stored);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        MenuItem deleteItem = new MenuItem("Supprimer la photo");
+        deleteItem.setOnAction(e -> onChanged.accept(null));
+
+        menu.getItems().addAll(viewItem, changeItem, deleteItem);
+        return menu;
+    }
+
+    private static void showPhotoPopup(String photoPath, Window owner) {
+        Image img = tryLoadImage(photoPath);
+        if (img == null) return;
+        ImageView view = new ImageView(img);
+        view.setPreserveRatio(true);
+        view.setFitWidth(640);
+        view.setFitHeight(640);
+        VBox box = new VBox(view);
+        box.setStyle("-fx-background-color: #0f172a; -fx-padding: 16;");
+        box.setAlignment(Pos.CENTER);
+
+        Stage stage = new Stage();
+        stage.initOwner(owner);
+        stage.initModality(Modality.WINDOW_MODAL);
+        stage.setTitle("Photo");
+        stage.setScene(new Scene(box));
+        stage.showAndWait();
+    }
+
+    private static Image tryLoadImage(String path) {
+        if (path == null || path.isBlank()) return null;
+        try {
+            String source = path.startsWith("file:/") || path.startsWith("http")
+                ? path : Path.of(path).toUri().toString();
+            Image image = new Image(source, false);
+            return image.isError() ? null : image;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static VBox buildPublicInfoCard(User currentUser) {
@@ -1597,6 +1884,73 @@ public final class UserSectionFactory {
         card.setPadding(new Insets(28));
         card.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-border-color: #dbeafe; -fx-border-radius: 20;");
         return card;
+    }
+
+    public static Node createUserPostsSection(User currentUser) {
+        Label title = sectionTitle("Mes posts", FontAwesomeSolid.COMMENTS, "#7c3aed");
+        Label helper = new Label("Vos publications sur le forum.");
+        helper.setStyle("-fx-font-size: 13px; -fx-text-fill: #6b7280;");
+
+        VBox list = new VBox(12);
+
+        try {
+            com.medicare.services.ForumService forumService = new com.medicare.services.ForumService();
+            java.util.List<com.medicare.models.ForumTopic> topics = forumService.findByAuthorId(currentUser.getId());
+            if (topics.isEmpty()) {
+                Label empty = new Label("Vous n'avez encore publie aucun sujet.");
+                empty.setStyle("-fx-font-size: 13px; -fx-text-fill: #94a3b8;");
+                list.getChildren().add(empty);
+            } else {
+                java.time.format.DateTimeFormatter fmt =
+                        java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                for (com.medicare.models.ForumTopic topic : topics) {
+                    list.getChildren().add(buildUserPostRow(topic, fmt));
+                }
+            }
+        } catch (Exception ex) {
+            Label err = new Label("Erreur de chargement des posts.");
+            err.setStyle("-fx-font-size: 13px; -fx-text-fill: #dc2626;");
+            list.getChildren().add(err);
+            ex.printStackTrace();
+        }
+
+        VBox card = new VBox(16, title, helper, new Separator(), list);
+        card.setPadding(new Insets(28));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-border-color: #ddd6fe; -fx-border-radius: 20;");
+        return card;
+    }
+
+    private static HBox buildUserPostRow(com.medicare.models.ForumTopic topic,
+                                          java.time.format.DateTimeFormatter fmt) {
+        FontIcon icon = new FontIcon(topic.isVideo() ? FontAwesomeSolid.VIDEO : FontAwesomeSolid.NEWSPAPER);
+        icon.setIconSize(14);
+        icon.setIconColor(Color.web(topic.isVideo() ? "#c2410c" : "#1d4ed8"));
+        StackPane iconBox = new StackPane(icon);
+        iconBox.setMinSize(36, 36);
+        iconBox.setPrefSize(36, 36);
+        iconBox.setMaxSize(36, 36);
+        iconBox.setStyle("-fx-background-color: " + (topic.isVideo() ? "#fed7aa" : "#dbeafe")
+                + "; -fx-background-radius: 999;");
+
+        Label titleLabel = new Label(topic.getTitle());
+        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+        titleLabel.setWrapText(true);
+
+        Label meta = new Label(
+                (topic.getCreatedAt() != null ? topic.getCreatedAt().format(fmt) : "")
+                + "  ·  " + topic.getCommentCount()
+                + (topic.getCommentCount() > 1 ? " commentaires" : " commentaire")
+        );
+        meta.setStyle("-fx-font-size: 11.5px; -fx-text-fill: #64748b;");
+
+        VBox text = new VBox(2, titleLabel, meta);
+        HBox.setHgrow(text, Priority.ALWAYS);
+
+        HBox row = new HBox(12, iconBox, text);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(10, 12, 10, 12));
+        row.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-border-width: 1;");
+        return row;
     }
 
     private static VBox buildEmptyPostsCard() {

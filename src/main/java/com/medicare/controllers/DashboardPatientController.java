@@ -409,11 +409,11 @@ public class DashboardPatientController {
 
     private void openProfilePage() {
         resetSidebarButtons();
-        java.util.Map<String, Runnable> quickNav = new java.util.LinkedHashMap<>();
-        quickNav.put("posts",      this::onForumClick);
-        quickNav.put("rendezvous", this::onRendezVousClick);
-        quickNav.put("collab",     this::onCollaborationClick);
-        quickNav.put("donation",   this::onDonationClick);
+        java.util.Map<String, java.util.function.Supplier<Node>> quickNav = new java.util.LinkedHashMap<>();
+        quickNav.put("posts",      () -> UserSectionFactory.createUserPostsSection(currentUser));
+        quickNav.put("rendezvous", this::buildInlineRendezVousView);
+        quickNav.put("collab",     this::buildInlineCollabView);
+        quickNav.put("donation",   this::buildInlineDonationView);
         setContent(UserSectionFactory.createProfileSection(
             currentUser,
             contentArea.getScene().getWindow(),
@@ -422,9 +422,55 @@ public class DashboardPatientController {
                 refreshUserHeader();
             },
             this::logoutToAccueil,
-            quickNav
+            quickNav,
+            this::openSettingsPage
         ));
         userProfileButton.setStyle("-fx-background-color: rgba(255,255,255,0.22); -fx-background-radius: 16; -fx-cursor: hand; -fx-padding: 12;");
+    }
+
+    private Node buildInlineRendezVousView() {
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("rendez-vous-list-view.fxml"));
+            Node view = loader.load();
+            RendezVousListController ctrl = loader.getController();
+            ctrl.setContentArea(contentArea);
+            RendezVousService rvService = new RendezVousService();
+            int patientId = rvService.getPatientIdByUserId(currentUser.getId());
+            ctrl.setPatientId(patientId);
+            return view;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return inlineErrorLabel("Erreur chargement rendez-vous");
+        }
+    }
+
+    private Node buildInlineCollabView() {
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-collaborations-view.fxml"));
+            Node view = loader.load();
+            UserPartnershipsController ctrl = loader.getController();
+            ctrl.setDashboardStackPane(contentArea);
+            return view;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return inlineErrorLabel("Erreur chargement collaborations");
+        }
+    }
+
+    private Node buildInlineDonationView() {
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-donation-view.fxml"));
+            return loader.load();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return inlineErrorLabel("Erreur chargement donations");
+        }
+    }
+
+    private Label inlineErrorLabel(String text) {
+        Label l = new Label(text);
+        l.setStyle("-fx-font-size: 14px; -fx-text-fill: #dc2626;");
+        return l;
     }
 
     private void openSettingsPage() {

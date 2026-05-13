@@ -816,7 +816,31 @@ public class UserService implements Crud<User> {
         if (hasColumn(meta, "wants_email_notifications")) user.setWantsEmailNotifications(rs.getBoolean("wants_email_notifications"));
         if (hasColumn(meta, "username")) user.setUsername(rs.getString("username"));
         if (hasColumn(meta, "biometric_id")) user.setBiometricId(rs.getString("biometric_id"));
+        if (hasColumn(meta, "cover_photo")) user.setCoverPhoto(rs.getString("cover_photo"));
         return user;
+    }
+
+    public boolean updateProfilePhoto(int userId, String photoPath) {
+        return updateSinglePhotoColumn(userId, "photo", photoPath);
+    }
+
+    public boolean updateCoverPhoto(int userId, String photoPath) {
+        return updateSinglePhotoColumn(userId, "cover_photo", photoPath);
+    }
+
+    private boolean updateSinglePhotoColumn(int userId, String column, String value) {
+        if (userId <= 0) return false;
+        if (!getTableColumnsSafely("user").contains(column)) return false;
+        String query = "UPDATE user SET " + column + " = ? WHERE id = ?";
+        try (PreparedStatement ps = cnx.prepareStatement(query)) {
+            if (value == null) ps.setNull(1, Types.VARCHAR);
+            else ps.setString(1, value);
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println("Erreur update " + column + ": " + e.getMessage());
+            return false;
+        }
     }
 
     // --- Admin account setup ---

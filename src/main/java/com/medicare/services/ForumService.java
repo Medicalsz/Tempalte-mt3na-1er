@@ -128,6 +128,38 @@ public class ForumService {
         return topics;
     }
 
+    public List<ForumTopic> findByAuthorId(int authorId) {
+        List<ForumTopic> topics = new ArrayList<>();
+        String query = """
+                SELECT t.*,
+                       CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
+                       u.roles AS author_roles,
+                       u.photo AS author_photo,
+                       (
+                           SELECT COUNT(*)
+                           FROM forum_comment c
+                           WHERE c.topic_id = t.id AND c.is_hidden = 0
+                       ) AS comment_count
+                FROM forum_topic t
+                LEFT JOIN user u ON u.id = t.author_id
+                WHERE t.author_id = ? AND t.is_hidden = 0
+                ORDER BY t.created_at DESC
+                """;
+
+        try (PreparedStatement ps = getConnection().prepareStatement(query)) {
+            ps.setInt(1, authorId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    topics.add(mapTopic(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Erreur chargement sujets de l'utilisateur: " + e.getMessage(), e);
+        }
+
+        return topics;
+    }
+
     public int countTopics() {
         return countByQuery("SELECT COUNT(*) FROM forum_topic");
     }

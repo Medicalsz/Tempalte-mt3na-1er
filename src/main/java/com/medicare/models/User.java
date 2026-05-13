@@ -13,6 +13,7 @@ public class User {
     private String numero;
     private String adresse;
     private String photo;
+    private String coverPhoto;
     private boolean isVerified;
     private String roles;
     private LocalDate dateNaissance;
@@ -95,6 +96,9 @@ public class User {
 
     public String getPhoto() { return photo; }
     public void setPhoto(String photo) { this.photo = photo; }
+
+    public String getCoverPhoto() { return coverPhoto; }
+    public void setCoverPhoto(String coverPhoto) { this.coverPhoto = coverPhoto; }
 
     public boolean isVerified() { return isVerified; }
     public void setIsVerified(boolean isVerified) { this.isVerified = isVerified; }
