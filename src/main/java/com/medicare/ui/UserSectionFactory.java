@@ -1339,27 +1339,25 @@ public final class UserSectionFactory {
         banner.setMinHeight(180);
         banner.setPrefHeight(180);
         banner.setMaxHeight(180);
+        banner.setMinWidth(0);
+        banner.setPrefWidth(0);
         banner.setMaxWidth(Double.MAX_VALUE);
-        banner.setStyle(
-            "-fx-background-color: linear-gradient(to bottom right, #fce4ec, #ede9fe 55%, #dbeafe);"
-            + " -fx-background-radius: 22 22 0 0;"
-            + " -fx-cursor: hand;"
-        );
 
-        Image coverImg = tryLoadImage(currentUser.getCoverPhoto());
-        if (coverImg != null) {
-            ImageView coverView = new ImageView(coverImg);
-            coverView.setPreserveRatio(false);
-            coverView.setSmooth(true);
-            coverView.fitWidthProperty().bind(banner.widthProperty());
-            coverView.setFitHeight(180);
-            Rectangle clip = new Rectangle();
-            clip.setArcWidth(44);
-            clip.setArcHeight(44);
-            clip.widthProperty().bind(banner.widthProperty());
-            clip.setHeight(180);
-            coverView.setClip(clip);
-            banner.getChildren().add(coverView);
+        String coverUrl = toCssUrl(currentUser.getCoverPhoto());
+        String baseStyle =
+            "-fx-background-radius: 22 22 0 0;"
+            + " -fx-cursor: hand;";
+        if (coverUrl != null) {
+            banner.setStyle(baseStyle
+                + " -fx-background-image: url('" + coverUrl + "');"
+                + " -fx-background-size: cover;"
+                + " -fx-background-position: center center;"
+                + " -fx-background-repeat: no-repeat;"
+            );
+        } else {
+            banner.setStyle(baseStyle
+                + " -fx-background-color: linear-gradient(to bottom right, #fce4ec, #ede9fe 55%, #dbeafe);"
+            );
         }
 
         Label hint = new Label(currentUser.getCoverPhoto() == null || currentUser.getCoverPhoto().isBlank()
@@ -1580,14 +1578,8 @@ public final class UserSectionFactory {
         File file = chooser.showOpenDialog(owner);
         if (file == null) return;
         try {
-            Path source = file.toPath();
-            Path toStore = source;
-            if (squareCrop) {
-                Path cropped = openProfileCropDialog(source, owner);
-                if (cropped == null) return; // user cancelled
-                toStore = cropped;
-            }
-            String stored = FileStorageUtil.copyToUploads(toStore, uploadCategory);
+            Path cropped = autoCrop(file.toPath(), squareCrop);
+            String stored = FileStorageUtil.copyToUploads(cropped, uploadCategory);
             onChanged.accept(stored);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -1599,22 +1591,24 @@ public final class UserSectionFactory {
                                             Consumer<String> onChanged) {
         if (currentStoredPath == null || currentStoredPath.isBlank()) return;
         try {
-            Path source;
-            if (currentStoredPath.startsWith("file:/")) {
-                source = Path.of(java.net.URI.create(currentStoredPath));
-            } else {
-                source = Path.of(currentStoredPath);
-            }
+            Path source = currentStoredPath.startsWith("file:/")
+                ? Path.of(java.net.URI.create(currentStoredPath))
+                : Path.of(currentStoredPath);
             if (!java.nio.file.Files.exists(source)) return;
-            Path cropped = squareCrop
-                ? openProfileCropDialog(source, owner)
-                : source;
-            if (cropped == null) return;
+            Path cropped = autoCrop(source, squareCrop);
             String stored = FileStorageUtil.copyToUploads(cropped, uploadCategory);
             onChanged.accept(stored);
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+    }
+
+    /** One-shot center-crop. Square (1:1) for profile pictures, 3:1 banner for covers. */
+    private static Path autoCrop(Path source, boolean squareCrop) throws IOException {
+        if (squareCrop) {
+            return createProfilePhotoCrop(source);
+        }
+        return centerCropToAspect(source, 3.0, 1200);
     }
 
     private static void showPhotoPopup(String photoPath, Window owner) {
@@ -1639,13 +1633,66 @@ public final class UserSectionFactory {
     private static Image tryLoadImage(String path) {
         if (path == null || path.isBlank()) return null;
         try {
-            String source = path.startsWith("file:/") || path.startsWith("http")
-                ? path : Path.of(path).toUri().toString();
+            String source = toCssUrl(path);
+            if (source == null) return null;
             Image image = new Image(source, false);
             return image.isError() ? null : image;
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private static String toCssUrl(String path) {
+        if (path == null || path.isBlank()) return null;
+        try {
+            if (path.startsWith("file:/") || path.startsWith("http")) return path;
+            return Path.of(path).toUri().toString();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /** Center-crop a source image to a target aspect ratio (width / height) at the given max width. */
+    private static Path centerCropToAspect(Path source, double aspectRatio, int targetWidth) throws IOException {
+        BufferedImage original = ImageIO.read(source.toFile());
+        if (original == null) return source;
+
+        int srcW = original.getWidth();
+        int srcH = original.getHeight();
+        double srcAspect = (double) srcW / srcH;
+
+        int cropW, cropH, cropX, cropY;
+        if (srcAspect > aspectRatio) {
+            cropH = srcH;
+            cropW = (int) Math.round(srcH * aspectRatio);
+            cropX = (srcW - cropW) / 2;
+            cropY = 0;
+        } else {
+            cropW = srcW;
+            cropH = (int) Math.round(srcW / aspectRatio);
+            cropX = 0;
+            cropY = (srcH - cropH) / 2;
+        }
+        cropW = Math.max(1, Math.min(cropW, srcW));
+        cropH = Math.max(1, Math.min(cropH, srcH));
+        BufferedImage cropped = original.getSubimage(cropX, cropY, cropW, cropH);
+
+        int outW = Math.min(targetWidth, cropW);
+        int outH = (int) Math.round(outW / aspectRatio);
+        BufferedImage output = new BufferedImage(outW, outH, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = output.createGraphics();
+        g.setColor(java.awt.Color.WHITE);
+        g.fillRect(0, 0, outW, outH);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g.drawImage(cropped, 0, 0, outW, outH, null);
+        g.dispose();
+
+        Path target = java.nio.file.Files.createTempFile("cover-crop-", ".jpg");
+        try (FileOutputStream fos = new FileOutputStream(target.toFile())) {
+            ImageIO.write(output, "jpg", fos);
+        }
+        return target;
     }
 
     private static VBox buildPublicInfoCard(User currentUser) {
