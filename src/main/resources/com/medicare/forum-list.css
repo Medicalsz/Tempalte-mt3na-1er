@@ -166,3 +166,170 @@
 .forum-admin-checkbox:selected .mark {
     -fx-background-color: white;
 }
+
+/* ── Topic Cards ─────────────────────────────────────────── */
+
+.forum-topic-card {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-border-color: transparent;
+    -fx-border-radius: 16;
+    -fx-border-width: 1.5;
+    -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.08), 14, 0, 0, 3);
+}
+
+.forum-topic-card.reported {
+    -fx-border-color: #f59e0b;
+}
+
+.forum-topic-card.hidden {
+    -fx-border-color: #cbd5e1;
+}
+
+.forum-topic-header {
+    -fx-padding: 14 18 12 18;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.forum-topic-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0f172a;
+    -fx-wrap-text: true;
+    -fx-padding: 2 18 6 18;
+}
+
+.forum-topic-summary {
+    -fx-font-size: 13px;
+    -fx-text-fill: #475569;
+    -fx-wrap-text: true;
+    -fx-line-spacing: 2;
+    -fx-padding: 0 18 12 18;
+}
+
+.forum-topic-tags {
+    -fx-padding: 0 18 12 18;
+}
+
+.forum-topic-divider {
+    -fx-background-color: #e2e8f0;
+    -fx-pref-height: 1;
+    -fx-max-height: 1;
+    -fx-min-height: 1;
+    -fx-min-width: 0;
+}
+
+.forum-topic-footer {
+    -fx-padding: 10 18 14 18;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.forum-meta-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #64748b;
+}
+
+/* ── Type & Status Badges ────────────────────────────────── */
+
+.badge-type-article {
+    -fx-background-color: #dbeafe;
+    -fx-text-fill: #1d4ed8;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 999;
+    -fx-padding: 3 10;
+}
+
+.badge-type-video {
+    -fx-background-color: #fed7aa;
+    -fx-text-fill: #c2410c;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 999;
+    -fx-padding: 3 10;
+}
+
+.badge-reported {
+    -fx-background-color: #fef3c7;
+    -fx-text-fill: #b45309;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 999;
+    -fx-padding: 3 10;
+}
+
+.badge-hidden {
+    -fx-background-color: #e2e8f0;
+    -fx-text-fill: #475569;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 999;
+    -fx-padding: 3 10;
+}
+
+.badge-tag {
+    -fx-background-color: #f1f5f9;
+    -fx-text-fill: #475569;
+    -fx-font-size: 11px;
+    -fx-background-radius: 999;
+    -fx-padding: 4 10;
+}
+
+.badge-role-user {
+    -fx-background-color: #dbeafe;
+    -fx-text-fill: #1d4ed8;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 999;
+    -fx-padding: 3 10;
+}
+
+.badge-role-admin {
+    -fx-background-color: #ede9fe;
+    -fx-text-fill: #6d28d9;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 999;
+    -fx-padding: 3 10;
+}
+
+.badge-role-medecin {
+    -fx-background-color: #d1fae5;
+    -fx-text-fill: #065f46;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 999;
+    -fx-padding: 3 10;
+}
+
+/* ── Card Action Buttons ─────────────────────────────────── */
+
+.topic-action-btn {
+    -fx-background-radius: 8;
+    -fx-border-width: 0;
+    -fx-padding: 7;
+    -fx-cursor: hand;
+    -fx-min-width: 32;
+    -fx-min-height: 32;
+}
+
+.topic-action-btn.btn-view            { -fx-background-color: #dbeafe; }
+.topic-action-btn.btn-view:hover      { -fx-background-color: #bfdbfe; }
+
+.topic-action-btn.btn-report          { -fx-background-color: #fef3c7; }
+.topic-action-btn.btn-report:hover    { -fx-background-color: #fde68a; }
+
+.topic-action-btn.btn-report-active       { -fx-background-color: #fee2e2; }
+.topic-action-btn.btn-report-active:hover { -fx-background-color: #fecaca; }
+
+.topic-action-btn.btn-hide            { -fx-background-color: #e2e8f0; }
+.topic-action-btn.btn-hide:hover      { -fx-background-color: #cbd5e1; }
+
+.topic-action-btn.btn-hide-active         { -fx-background-color: #ccfbf1; }
+.topic-action-btn.btn-hide-active:hover   { -fx-background-color: #99f6e4; }
+
+.topic-action-btn.btn-edit            { -fx-background-color: #ffedd5; }
+.topic-action-btn.btn-edit:hover      { -fx-background-color: #fed7aa; }
+
+.topic-action-btn.btn-delete          { -fx-background-color: #fee2e2; }
+.topic-action-btn.btn-delete:hover    { -fx-background-color: #fecaca; }

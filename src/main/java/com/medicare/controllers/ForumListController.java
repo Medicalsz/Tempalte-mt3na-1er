@@ -20,6 +20,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -210,131 +211,133 @@ public class ForumListController extends ForumController {
         }
 
         for (ForumTopic topic : topics) {
-            VBox card = new VBox(12);
-            card.setPadding(new Insets(18));
-            String borderColor = topic.isHidden() ? "#94a3b8" : (topic.isReported() ? "#f59e0b" : "transparent");
-            card.setStyle("-fx-background-color: white; -fx-background-radius: 14; " +
-                    "-fx-border-color: " + borderColor + "; -fx-border-radius: 14; -fx-border-width: " +
-                    (topic.hasModerationFlag() ? "1.2" : "0") + "; " +
-                    "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.08), 14, 0, 0, 3);");
-
-            HBox topRow = new HBox(12);
-            topRow.setAlignment(Pos.CENTER_LEFT);
-
-            VBox titleBox = new VBox(6);
-            HBox.setHgrow(titleBox, Priority.ALWAYS);
-
-            Label titleLabel = new Label(topic.getTitle());
-            titleLabel.setWrapText(true);
-            titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
-
-            HBox metaRow = new HBox(8);
-            metaRow.setAlignment(Pos.CENTER_LEFT);
-
-            Label authorBadge = new Label(roleLabel(topic.getAuthorRoles()));
-            authorBadge.setStyle("-fx-background-color: " + roleColor(topic.getAuthorRoles()) + "; " +
-                    "-fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; " +
-                    "-fx-background-radius: 999; -fx-padding: 3 10;");
-
-            Label metaLabel = new Label(
-                    (topic.getAuthorName() != null ? topic.getAuthorName() : "Auteur inconnu") +
-                            " - " + (topic.getCreatedAt() != null ? topic.getCreatedAt().format(dateFormatter) : "-") +
-                            " - " + topic.getCommentCount() + (topic.getCommentCount() > 1 ? " commentaires" : " commentaire")
-            );
-            metaLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
-
-            Label typeBadge = new Label(topic.getDisplayType());
-            typeBadge.setStyle("-fx-background-color: " + (topic.isVideo() ? "#fed7aa" : "#dbeafe") + "; " +
-                    "-fx-text-fill: " + (topic.isVideo() ? "#c2410c" : "#1d4ed8") + "; " +
-                    "-fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 999; -fx-padding: 3 10;");
-
-            metaRow.getChildren().addAll(authorBadge, metaLabel, typeBadge);
-            titleBox.getChildren().addAll(titleLabel, metaRow);
-
-            FlowPane moderationPane = buildModerationBadges(topic);
-            if (!moderationPane.getChildren().isEmpty()) {
-                titleBox.getChildren().add(moderationPane);
-            }
-
-            HBox actions = new HBox(8);
-            actions.setAlignment(Pos.CENTER_RIGHT);
-
-            Button detailsButton = createActionButton(FontAwesomeSolid.EYE, "#1d4ed8", "#dbeafe", "Voir les details");
-            detailsButton.setOnAction(event -> {
-                logDetailOpenRequest(topic, "button");
-                openForumDetail(topic.getId());
-            });
-            actions.getChildren().add(detailsButton);
-
-            if (isAdmin()) {
-                Button reportButton = createActionButton(
-                        FontAwesomeSolid.FLAG,
-                        topic.isReported() ? "#b91c1c" : "#b45309",
-                        topic.isReported() ? "#fee2e2" : "#fef3c7",
-                        topic.isReported() ? "Retirer le signalement" : "Marquer comme signale"
-                );
-                reportButton.setOnAction(event -> toggleTopicReported(topic));
-
-                Button hiddenButton = createActionButton(
-                        topic.isHidden() ? FontAwesomeSolid.EYE : FontAwesomeSolid.EYE_SLASH,
-                        topic.isHidden() ? "#0f766e" : "#475569",
-                        topic.isHidden() ? "#ccfbf1" : "#e2e8f0",
-                        topic.isHidden() ? "Afficher le sujet" : "Masquer le sujet"
-                );
-                hiddenButton.setOnAction(event -> toggleTopicHidden(topic));
-                actions.getChildren().addAll(reportButton, hiddenButton);
-            }
-
-            if (canManageTopic(topic)) {
-                Button editButton = createActionButton(FontAwesomeSolid.PEN, "#c2410c", "#ffedd5", "Modifier");
-                editButton.setOnAction(event -> openForumForm(topic));
-
-                Button deleteButton = createActionButton(FontAwesomeSolid.TRASH_ALT, "#dc2626", "#fee2e2", "Supprimer");
-                deleteButton.setOnAction(event -> deleteTopic(topic));
-                actions.getChildren().addAll(editButton, deleteButton);
-            }
-
-            topRow.getChildren().addAll(titleBox, actions);
-
-            Label summaryLabel = new Label(topic.getDisplaySummary());
-            summaryLabel.setWrapText(true);
-            summaryLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #334155; -fx-line-spacing: 2;");
-
-            VBox optionalBlock = new VBox(8);
-            if (topic.isVideo()) {
-                StackPane thumbnail = createVideoThumbnail(topic);
-                if (thumbnail != null) {
-                    optionalBlock.getChildren().add(thumbnail);
-                }
-            }
-
-            FlowPane tagPane = buildTags(topic);
-
-            card.getChildren().addAll(topRow, summaryLabel);
-            if (!optionalBlock.getChildren().isEmpty()) {
-                card.getChildren().add(optionalBlock);
-            }
-            if (!tagPane.getChildren().isEmpty()) {
-                card.getChildren().add(tagPane);
-            }
-
-            topicsContainer.getChildren().add(card);
+            topicsContainer.getChildren().add(buildTopicCard(topic));
         }
     }
 
-    private FlowPane buildModerationBadges(ForumTopic topic) {
-        FlowPane pane = new FlowPane();
-        pane.setHgap(8);
-        pane.setVgap(8);
+    private VBox buildTopicCard(ForumTopic topic) {
+        VBox card = new VBox();
+        card.getStyleClass().add("forum-topic-card");
+        if (topic.isReported()) card.getStyleClass().add("reported");
+        if (topic.isHidden())   card.getStyleClass().add("hidden");
+
+        // Header row: type/status badges on left, action buttons on right
+        HBox headerRow = new HBox(8);
+        headerRow.getStyleClass().add("forum-topic-header");
+        headerRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label typeBadge = new Label(topic.getDisplayType());
+        typeBadge.getStyleClass().add(topic.isVideo() ? "badge-type-video" : "badge-type-article");
+        headerRow.getChildren().add(typeBadge);
 
         if (topic.isReported()) {
-            pane.getChildren().add(createBadge("Signale", "#fef3c7", "#b45309"));
+            Label rBadge = new Label("Signale");
+            rBadge.getStyleClass().add("badge-reported");
+            headerRow.getChildren().add(rBadge);
         }
         if (topic.isHidden()) {
-            pane.getChildren().add(createBadge("Masque", "#e2e8f0", "#475569"));
+            Label hBadge = new Label("Masque");
+            hBadge.getStyleClass().add("badge-hidden");
+            headerRow.getChildren().add(hBadge);
         }
 
-        return pane;
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        headerRow.getChildren().add(spacer);
+
+        HBox actions = new HBox(6);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        Button detailsButton = createActionButton(FontAwesomeSolid.EYE, "#1d4ed8", "btn-view", "Voir les details");
+        detailsButton.setOnAction(event -> {
+            logDetailOpenRequest(topic, "button");
+            openForumDetail(topic.getId());
+        });
+        actions.getChildren().add(detailsButton);
+
+        if (isAdmin()) {
+            String reportClass = topic.isReported() ? "btn-report-active" : "btn-report";
+            String reportIconColor = topic.isReported() ? "#b91c1c" : "#b45309";
+            Button reportButton = createActionButton(FontAwesomeSolid.FLAG, reportIconColor, reportClass,
+                    topic.isReported() ? "Retirer le signalement" : "Marquer comme signale");
+            reportButton.setOnAction(event -> toggleTopicReported(topic));
+
+            FontAwesomeSolid hideIcon = topic.isHidden() ? FontAwesomeSolid.EYE : FontAwesomeSolid.EYE_SLASH;
+            String hideClass = topic.isHidden() ? "btn-hide-active" : "btn-hide";
+            String hideIconColor = topic.isHidden() ? "#0f766e" : "#475569";
+            Button hiddenButton = createActionButton(hideIcon, hideIconColor, hideClass,
+                    topic.isHidden() ? "Afficher le sujet" : "Masquer le sujet");
+            hiddenButton.setOnAction(event -> toggleTopicHidden(topic));
+            actions.getChildren().addAll(reportButton, hiddenButton);
+        }
+
+        if (canManageTopic(topic)) {
+            Button editButton = createActionButton(FontAwesomeSolid.PEN, "#c2410c", "btn-edit", "Modifier");
+            editButton.setOnAction(event -> openForumForm(topic));
+
+            Button deleteButton = createActionButton(FontAwesomeSolid.TRASH_ALT, "#dc2626", "btn-delete", "Supprimer");
+            deleteButton.setOnAction(event -> deleteTopic(topic));
+            actions.getChildren().addAll(editButton, deleteButton);
+        }
+
+        headerRow.getChildren().add(actions);
+        card.getChildren().add(headerRow);
+
+        // Title
+        Label titleLabel = new Label(topic.getTitle());
+        titleLabel.getStyleClass().add("forum-topic-title");
+        card.getChildren().add(titleLabel);
+
+        // Summary
+        String summaryText = topic.getDisplaySummary();
+        if (summaryText != null && !summaryText.isBlank()) {
+            Label summaryLabel = new Label(summaryText);
+            summaryLabel.getStyleClass().add("forum-topic-summary");
+            card.getChildren().add(summaryLabel);
+        }
+
+        // Video thumbnail
+        if (topic.isVideo()) {
+            StackPane thumbnail = createVideoThumbnail(topic);
+            if (thumbnail != null) {
+                VBox videoWrapper = new VBox(thumbnail);
+                videoWrapper.setPadding(new Insets(0, 18, 12, 18));
+                card.getChildren().add(videoWrapper);
+            }
+        }
+
+        // Tags
+        FlowPane tagPane = buildTags(topic);
+        if (!tagPane.getChildren().isEmpty()) {
+            tagPane.getStyleClass().add("forum-topic-tags");
+            card.getChildren().add(tagPane);
+        }
+
+        // Divider
+        Region divider = new Region();
+        divider.getStyleClass().add("forum-topic-divider");
+        card.getChildren().add(divider);
+
+        // Footer: role badge + author name + date + comment count
+        HBox footerRow = new HBox(8);
+        footerRow.getStyleClass().add("forum-topic-footer");
+        footerRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label authorBadge = new Label(roleLabel(topic.getAuthorRoles()));
+        authorBadge.getStyleClass().add(roleCssClass(topic.getAuthorRoles()));
+        footerRow.getChildren().add(authorBadge);
+
+        String metaText = (topic.getAuthorName() != null ? topic.getAuthorName() : "Auteur inconnu") +
+                "  ·  " + (topic.getCreatedAt() != null ? topic.getCreatedAt().format(dateFormatter) : "-") +
+                "  ·  " + topic.getCommentCount() +
+                (topic.getCommentCount() > 1 ? " commentaires" : " commentaire");
+        Label metaLabel = new Label(metaText);
+        metaLabel.getStyleClass().add("forum-meta-label");
+        footerRow.getChildren().add(metaLabel);
+
+        card.getChildren().add(footerRow);
+
+        return card;
     }
 
     private FlowPane buildTags(ForumTopic topic) {
@@ -354,8 +357,7 @@ public class ForumListController extends ForumController {
                 continue;
             }
             Label label = new Label("#" + clean);
-            label.setStyle("-fx-background-color: #f1f5f9; -fx-text-fill: #475569; " +
-                    "-fx-font-size: 11px; -fx-background-radius: 999; -fx-padding: 4 10;");
+            label.getStyleClass().add("badge-tag");
             pane.getChildren().add(label);
         }
         return pane;
@@ -450,21 +452,20 @@ public class ForumListController extends ForumController {
         return cleaned.isEmpty() ? null : cleaned;
     }
 
-    private Label createBadge(String text, String backgroundColor, String textColor) {
-        Label label = new Label(text);
-        label.setStyle("-fx-background-color: " + backgroundColor + "; -fx-text-fill: " + textColor + "; " +
-                "-fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 999; -fx-padding: 4 10;");
-        return label;
+    private String roleCssClass(String roles) {
+        if (roles == null) return "badge-role-user";
+        if (roles.contains("ROLE_ADMIN")) return "badge-role-admin";
+        if (roles.contains("ROLE_MEDECIN")) return "badge-role-medecin";
+        return "badge-role-user";
     }
 
-    private Button createActionButton(FontAwesomeSolid iconType, String iconColor, String backgroundColor, String tooltip) {
+    private Button createActionButton(FontAwesomeSolid iconType, String iconColor, String btnStyleClass, String tooltip) {
         Button button = new Button();
         FontIcon icon = new FontIcon(iconType);
         icon.setIconSize(13);
         icon.setIconColor(Color.web(iconColor));
         button.setGraphic(icon);
-        button.setStyle("-fx-background-color: " + backgroundColor + "; -fx-padding: 7; " +
-                "-fx-background-radius: 8; -fx-cursor: hand;");
+        button.getStyleClass().addAll("topic-action-btn", btnStyleClass);
         button.setTooltip(new Tooltip(tooltip));
         return button;
     }
