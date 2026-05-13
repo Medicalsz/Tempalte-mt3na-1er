@@ -1,4 +1,4 @@
-ackage com.medicare.services;
+package com.medicare.services;
 
 import com.medicare.models.ForumTopic;
 import com.medicare.utils.MyConnection;
@@ -530,4 +530,3 @@ public class ForumService {
         }
     }
 }
-

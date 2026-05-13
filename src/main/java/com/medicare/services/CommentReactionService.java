@@ -1,4 +1,4 @@
-ackage com.medicare.services;
+package com.medicare.services;
 
 import com.medicare.models.ForumCommentReaction;
 import com.medicare.utils.MyConnection;
@@ -229,4 +229,3 @@ public class CommentReactionService {
         }
     }
 }
-

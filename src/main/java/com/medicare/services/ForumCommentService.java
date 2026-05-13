@@ -1,4 +1,4 @@
-ackage com.medicare.services;
+package com.medicare.services;
 
 import com.medicare.models.ForumComment;
 import com.medicare.utils.MyConnection;

@@ -1,4 +1,4 @@
-ackage com.medicare.controllers;
+package com.medicare.controllers;
 
 import com.medicare.models.ChatMessage;
 import com.medicare.models.ChatAssistantRecommendation;
@@ -99,7 +99,7 @@ public class ForumDetailController extends ForumController {
     @FXML private Button deleteButton;
 
     private final ForumService forumService = new ForumService();
-    private final ForumCommentService ForumCommentService = new ForumCommentService();
+    private final ForumCommentService commentService = new ForumCommentService();
     private final CommentReactionService commentReactionService = new CommentReactionService();
     private final ChatAssistantService chatAssistantService = new ChatAssistantService();
     private final ContentModerationService contentModerationService = new ContentModerationService();
@@ -438,7 +438,7 @@ public class ForumDetailController extends ForumController {
         applyAutomaticFlag(comment, moderationResult);
 
         try {
-            ForumCommentService.addComment(comment);
+            commentService.addComment(comment);
             newCommentArea.clear();
             commentErrorLabel.setText("");
             loadComments();
@@ -906,7 +906,7 @@ public class ForumDetailController extends ForumController {
     private void loadComments() {
         commentsContainer.getChildren().clear();
 
-        List<ForumComment> comments = ForumCommentService.findByTopicId(topicId, isAdmin());
+        List<ForumComment> comments = commentService.findByTopicId(topicId, isAdmin());
         currentComments = comments;
         User currentUser = resolveCurrentUser();
         commentsStatsLabel.setText(comments.size() + (comments.size() > 1 ? " commentaires" : " commentaire"));
@@ -1373,7 +1373,7 @@ public class ForumDetailController extends ForumController {
         applyAutomaticFlag(reply, moderationResult);
 
         try {
-            ForumCommentService.addComment(reply);
+            commentService.addComment(reply);
             replyArea.clear();
             replyFeedbackLabel.setText("");
             loadComments();
@@ -1492,7 +1492,7 @@ public class ForumDetailController extends ForumController {
         }
 
         try {
-            ForumCommentService.setCommentReported(comment.getId(), newState, newState ? user.getId() : null);
+            commentService.setCommentReported(comment.getId(), newState, newState ? user.getId() : null);
             loadComments();
         } catch (Exception e) {
             showError("Impossible de mettre a jour le signalement du commentaire.", e);
@@ -1505,7 +1505,7 @@ public class ForumDetailController extends ForumController {
         }
 
         try {
-            ForumCommentService.deleteComment(commentId);
+            commentService.deleteComment(commentId);
             loadComments();
         } catch (Exception e) {
             showError("Impossible de supprimer le commentaire.", e);
@@ -1996,7 +1996,7 @@ public class ForumDetailController extends ForumController {
     }
 
     private String extractMarkdownListItem(String line) {
-        if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("â€¢ ")) {
+        if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ")) {
             String item = cleanInlineMarkdown(line.substring(2).trim());
             return item.isEmpty() ? null : item;
         }
@@ -2195,4 +2195,3 @@ public class ForumDetailController extends ForumController {
     }
 
 }
-
