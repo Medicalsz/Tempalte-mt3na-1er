@@ -12,6 +12,7 @@ import com.medicare.utils.FileStorageUtil;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -1379,6 +1380,13 @@ public final class UserSectionFactory {
         StackPane.setMargin(hint, new Insets(16, 0, 0, 18));
         banner.getChildren().add(hint);
 
+        Consumer<String> applyCoverChange = newPath -> {
+            currentUser.setCoverPhoto(newPath);
+            userService.updateCoverPhoto(currentUser.getId(), newPath);
+            applyCoverBackground(banner, newPath);
+            if (onUserUpdated != null) onUserUpdated.accept(currentUser);
+        };
+
         banner.setOnMouseClicked(e -> {
             ContextMenu menu = buildPhotoMenu(
                 owner,
@@ -1386,16 +1394,32 @@ public final class UserSectionFactory {
                 "covers",
                 "couverture",
                 false,
-                newPath -> {
-                    currentUser.setCoverPhoto(newPath);
-                    userService.updateCoverPhoto(currentUser.getId(), newPath);
-                    if (onUserUpdated != null) onUserUpdated.accept(currentUser);
-                }
+                applyCoverChange,
+                () -> enterInPlaceCropCover(banner, currentUser.getCoverPhoto(),
+                    3.0, applyCoverChange)
             );
             menu.show(banner, e.getScreenX(), e.getScreenY());
         });
 
         return banner;
+    }
+
+    /** Re-applies the cover banner CSS background to point at the given photo path. */
+    private static void applyCoverBackground(StackPane banner, String coverPath) {
+        String baseStyle = "-fx-background-radius: 22 22 0 0; -fx-cursor: hand;";
+        String coverUrl = toCssUrl(coverPath);
+        if (coverUrl != null) {
+            banner.setStyle(baseStyle
+                + " -fx-background-image: url('" + coverUrl + "');"
+                + " -fx-background-size: cover;"
+                + " -fx-background-position: center center;"
+                + " -fx-background-repeat: no-repeat;"
+            );
+        } else {
+            banner.setStyle(baseStyle
+                + " -fx-background-color: linear-gradient(to bottom right, #fce4ec, #ede9fe 55%, #dbeafe);"
+            );
+        }
     }
 
     private static StackPane buildProfilePicture(User currentUser, Window owner,
@@ -1430,6 +1454,13 @@ public final class UserSectionFactory {
         wrap.setMaxSize(size + 12, size + 12);
         wrap.setStyle("-fx-cursor: hand;");
 
+        Consumer<String> applyProfileChange = newPath -> {
+            currentUser.setPhoto(newPath);
+            userService.updateProfilePhoto(currentUser.getId(), newPath);
+            updatePreview(preview, newPath);
+            if (onUserUpdated != null) onUserUpdated.accept(currentUser);
+        };
+
         wrap.setOnMouseClicked(e -> {
             ContextMenu menu = buildPhotoMenu(
                 owner,
@@ -1437,12 +1468,9 @@ public final class UserSectionFactory {
                 "profiles",
                 "profil",
                 true,
-                newPath -> {
-                    currentUser.setPhoto(newPath);
-                    userService.updateProfilePhoto(currentUser.getId(), newPath);
-                    updatePreview(preview, newPath);
-                    if (onUserUpdated != null) onUserUpdated.accept(currentUser);
-                }
+                applyProfileChange,
+                () -> enterInPlaceCropProfile(wrap, preview, cameraBadge,
+                    currentUser.getPhoto(), 1.0, applyProfileChange, "profiles")
             );
             menu.show(wrap, e.getScreenX(), e.getScreenY());
         });
@@ -1542,7 +1570,8 @@ public final class UserSectionFactory {
                                               String uploadCategory,
                                               String photoKind,
                                               boolean squareCrop,
-                                              Consumer<String> onChanged) {
+                                              Consumer<String> onChanged,
+                                              Runnable onRecropInPlace) {
         ContextMenu menu = new ContextMenu();
         String existing = currentPath.get();
         boolean hasPhoto = existing != null && !existing.isBlank();
@@ -1561,7 +1590,11 @@ public final class UserSectionFactory {
         changeItem.setOnAction(e -> pickAndApplyPhoto(owner, uploadCategory, squareCrop, onChanged));
 
         MenuItem cropItem = new MenuItem("Recadrer la photo");
-        cropItem.setOnAction(e -> recropExistingPhoto(owner, currentPath.get(), uploadCategory, squareCrop, onChanged));
+        if (onRecropInPlace != null) {
+            cropItem.setOnAction(e -> onRecropInPlace.run());
+        } else {
+            cropItem.setOnAction(e -> recropExistingPhoto(owner, currentPath.get(), uploadCategory, squareCrop, onChanged));
+        }
 
         MenuItem deleteItem = new MenuItem("Supprimer la photo");
         deleteItem.setOnAction(e -> onChanged.accept(null));
@@ -1609,6 +1642,307 @@ public final class UserSectionFactory {
             return createProfilePhotoCrop(source);
         }
         return centerCropToAspect(source, 3.0, 1200);
+    }
+
+    // =============================================================
+    //  In-place crop for the profile picture (square, 1:1)
+    // =============================================================
+
+    private static void enterInPlaceCropProfile(StackPane wrap, ImageView preview, Node cameraBadge,
+                                                String storedPath, double aspect,
+                                                Consumer<String> applyChange, String uploadCategory) {
+        if (storedPath == null || storedPath.isBlank()) return;
+
+        Path source;
+        try {
+            source = storedPath.startsWith("file:/")
+                ? Path.of(java.net.URI.create(storedPath))
+                : Path.of(storedPath);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return;
+        }
+        if (!java.nio.file.Files.exists(source)) return;
+
+        Image full = tryLoadImage(storedPath);
+        if (full == null) return;
+
+        double srcW = full.getWidth();
+        double srcH = full.getHeight();
+        double initialSide = Math.min(srcW, srcH);
+
+        // Mutable viewport: [x, y, side]
+        double[] vp = {(srcW - initialSide) / 2.0, (srcH - initialSide) / 2.0, initialSide};
+
+        preview.setImage(full);
+        preview.setPreserveRatio(false);
+        preview.setViewport(new javafx.geometry.Rectangle2D(vp[0], vp[1], vp[2], vp[2]));
+
+        // Hide the camera badge while editing
+        cameraBadge.setVisible(false);
+        cameraBadge.setManaged(false);
+
+        // Disable the context menu while editing
+        EventHandler<? super javafx.scene.input.MouseEvent> originalClick = wrap.getOnMouseClicked();
+        wrap.setOnMouseClicked(null);
+
+        // Drag to pan
+        double[] dragStart = new double[4]; // mouseX, mouseY, vpX, vpY
+        wrap.setOnMousePressed(e -> {
+            dragStart[0] = e.getSceneX();
+            dragStart[1] = e.getSceneY();
+            dragStart[2] = vp[0];
+            dragStart[3] = vp[1];
+            e.consume();
+        });
+        wrap.setOnMouseDragged(e -> {
+            double displaySide = preview.getFitWidth();
+            if (displaySide <= 0) displaySide = 120;
+            double scale = vp[2] / displaySide;
+            double dx = (e.getSceneX() - dragStart[0]) * scale;
+            double dy = (e.getSceneY() - dragStart[1]) * scale;
+            vp[0] = clamp(dragStart[2] - dx, 0, srcW - vp[2]);
+            vp[1] = clamp(dragStart[3] - dy, 0, srcH - vp[2]);
+            preview.setViewport(new javafx.geometry.Rectangle2D(vp[0], vp[1], vp[2], vp[2]));
+            e.consume();
+        });
+
+        // Wheel to zoom
+        wrap.setOnScroll(e -> {
+            double factor = e.getDeltaY() > 0 ? 0.9 : 1.1;
+            double newSide = clamp(vp[2] * factor, Math.min(80, initialSide), initialSide);
+            double cx = vp[0] + vp[2] / 2.0;
+            double cy = vp[1] + vp[2] / 2.0;
+            vp[2] = newSide;
+            vp[0] = clamp(cx - newSide / 2.0, 0, srcW - newSide);
+            vp[1] = clamp(cy - newSide / 2.0, 0, srcH - newSide);
+            preview.setViewport(new javafx.geometry.Rectangle2D(vp[0], vp[1], vp[2], vp[2]));
+            e.consume();
+        });
+
+        // Save + Cancel overlay buttons
+        Button saveBtn = inPlaceCropButton(FontAwesomeSolid.CHECK, "#16a34a");
+        Button cancelBtn = inPlaceCropButton(FontAwesomeSolid.TIMES, "#dc2626");
+        HBox actions = new HBox(6, cancelBtn, saveBtn);
+        actions.setAlignment(Pos.BOTTOM_CENTER);
+        StackPane.setAlignment(actions, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(actions, new Insets(0, 0, -8, 0));
+        wrap.getChildren().add(actions);
+
+        Runnable exitEditMode = () -> {
+            wrap.setOnMousePressed(null);
+            wrap.setOnMouseDragged(null);
+            wrap.setOnScroll(null);
+            wrap.getChildren().remove(actions);
+            cameraBadge.setVisible(true);
+            cameraBadge.setManaged(true);
+            wrap.setOnMouseClicked(originalClick);
+        };
+
+        cancelBtn.setOnAction(e -> {
+            preview.setViewport(null);
+            updatePreview(preview, storedPath);
+            exitEditMode.run();
+        });
+
+        saveBtn.setOnAction(e -> {
+            try {
+                Path cropped = createProfilePhotoCrop(source,
+                    (int) Math.round(vp[0]),
+                    (int) Math.round(vp[1]),
+                    (int) Math.round(vp[2]));
+                String stored = FileStorageUtil.copyToUploads(cropped, uploadCategory);
+                preview.setViewport(null);
+                applyChange.accept(stored);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+            exitEditMode.run();
+        });
+    }
+
+    // =============================================================
+    //  In-place crop for the cover banner (3:1)
+    // =============================================================
+
+    private static void enterInPlaceCropCover(StackPane banner, String storedPath,
+                                              double aspect, Consumer<String> applyChange) {
+        if (storedPath == null || storedPath.isBlank()) return;
+
+        Path source;
+        try {
+            source = storedPath.startsWith("file:/")
+                ? Path.of(java.net.URI.create(storedPath))
+                : Path.of(storedPath);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return;
+        }
+        if (!java.nio.file.Files.exists(source)) return;
+
+        Image full = tryLoadImage(storedPath);
+        if (full == null) return;
+
+        double srcW = full.getWidth();
+        double srcH = full.getHeight();
+
+        // Initial viewport sized to fit the 3:1 aspect, centered
+        double[] vp = new double[4]; // x, y, w, h
+        if (srcW / srcH > aspect) {
+            vp[3] = srcH;
+            vp[2] = srcH * aspect;
+            vp[0] = (srcW - vp[2]) / 2.0;
+            vp[1] = 0;
+        } else {
+            vp[2] = srcW;
+            vp[3] = srcW / aspect;
+            vp[0] = 0;
+            vp[1] = (srcH - vp[3]) / 2.0;
+        }
+        double initialW = vp[2];
+
+        // Replace CSS background with an unmanaged ImageView (managed=false avoids layout impact)
+        banner.setStyle("-fx-background-color: #0f172a; -fx-background-radius: 22 22 0 0; -fx-cursor: move;");
+
+        ImageView editView = new ImageView(full);
+        editView.setPreserveRatio(false);
+        editView.setSmooth(true);
+        editView.setManaged(false);
+        editView.fitWidthProperty().bind(banner.widthProperty());
+        editView.setFitHeight(180);
+        editView.setViewport(new javafx.geometry.Rectangle2D(vp[0], vp[1], vp[2], vp[3]));
+        // Make sure layout coords are 0,0 so it fills the banner
+        editView.setLayoutX(0);
+        editView.setLayoutY(0);
+        banner.getChildren().add(0, editView);
+
+        // Disable click → menu while editing
+        EventHandler<? super javafx.scene.input.MouseEvent> originalClick = banner.getOnMouseClicked();
+        banner.setOnMouseClicked(null);
+
+        // Drag to pan
+        double[] dragStart = new double[4];
+        banner.setOnMousePressed(e -> {
+            dragStart[0] = e.getSceneX();
+            dragStart[1] = e.getSceneY();
+            dragStart[2] = vp[0];
+            dragStart[3] = vp[1];
+            e.consume();
+        });
+        banner.setOnMouseDragged(e -> {
+            double displayW = banner.getWidth();
+            if (displayW <= 0) displayW = 1;
+            double scale = vp[2] / displayW;
+            double dx = (e.getSceneX() - dragStart[0]) * scale;
+            double dy = (e.getSceneY() - dragStart[1]) * scale;
+            vp[0] = clamp(dragStart[2] - dx, 0, srcW - vp[2]);
+            vp[1] = clamp(dragStart[3] - dy, 0, srcH - vp[3]);
+            editView.setViewport(new javafx.geometry.Rectangle2D(vp[0], vp[1], vp[2], vp[3]));
+            e.consume();
+        });
+
+        // Wheel to zoom (maintains 3:1 ratio)
+        banner.setOnScroll(e -> {
+            double factor = e.getDeltaY() > 0 ? 0.9 : 1.1;
+            double newW = clamp(vp[2] * factor, Math.min(200, initialW), Math.min(srcW, srcH * aspect));
+            double newH = newW / aspect;
+            double cx = vp[0] + vp[2] / 2.0;
+            double cy = vp[1] + vp[3] / 2.0;
+            vp[2] = newW;
+            vp[3] = newH;
+            vp[0] = clamp(cx - newW / 2.0, 0, srcW - newW);
+            vp[1] = clamp(cy - newH / 2.0, 0, srcH - newH);
+            editView.setViewport(new javafx.geometry.Rectangle2D(vp[0], vp[1], vp[2], vp[3]));
+            e.consume();
+        });
+
+        // Save + Cancel overlay (top-right)
+        Button saveBtn = inPlaceCropButton(FontAwesomeSolid.CHECK, "#16a34a");
+        Button cancelBtn = inPlaceCropButton(FontAwesomeSolid.TIMES, "#dc2626");
+        HBox actions = new HBox(8, cancelBtn, saveBtn);
+        StackPane.setAlignment(actions, Pos.TOP_RIGHT);
+        StackPane.setMargin(actions, new Insets(14, 18, 0, 0));
+        banner.getChildren().add(actions);
+
+        Runnable exitEditMode = () -> {
+            banner.setOnMousePressed(null);
+            banner.setOnMouseDragged(null);
+            banner.setOnScroll(null);
+            banner.getChildren().remove(editView);
+            banner.getChildren().remove(actions);
+            banner.setOnMouseClicked(originalClick);
+        };
+
+        cancelBtn.setOnAction(e -> {
+            applyCoverBackground(banner, storedPath);
+            exitEditMode.run();
+        });
+
+        saveBtn.setOnAction(e -> {
+            try {
+                Path cropped = cropImageRegion(source,
+                    (int) Math.round(vp[0]),
+                    (int) Math.round(vp[1]),
+                    (int) Math.round(vp[2]),
+                    (int) Math.round(vp[3]),
+                    1200);
+                String stored = FileStorageUtil.copyToUploads(cropped, "covers");
+                applyChange.accept(stored);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                applyCoverBackground(banner, storedPath);
+            }
+            exitEditMode.run();
+        });
+    }
+
+    private static Button inPlaceCropButton(FontAwesomeSolid iconType, String bgColor) {
+        FontIcon icon = new FontIcon(iconType);
+        icon.setIconSize(14);
+        icon.setIconColor(Color.WHITE);
+        Button btn = new Button();
+        btn.setGraphic(icon);
+        btn.setStyle(
+            "-fx-background-color: " + bgColor + ";"
+            + " -fx-background-radius: 999;"
+            + " -fx-min-width: 34; -fx-min-height: 34;"
+            + " -fx-pref-width: 34; -fx-pref-height: 34;"
+            + " -fx-padding: 0; -fx-cursor: hand;"
+            + " -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.22), 8, 0, 0, 2);"
+        );
+        return btn;
+    }
+
+    private static double clamp(double value, double min, double max) {
+        if (max < min) return min;
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static Path cropImageRegion(Path source, int x, int y, int w, int h, int targetWidth) throws IOException {
+        BufferedImage original = ImageIO.read(source.toFile());
+        if (original == null) return source;
+        x = Math.max(0, Math.min(x, original.getWidth() - 1));
+        y = Math.max(0, Math.min(y, original.getHeight() - 1));
+        w = Math.max(1, Math.min(w, original.getWidth() - x));
+        h = Math.max(1, Math.min(h, original.getHeight() - y));
+        BufferedImage cropped = original.getSubimage(x, y, w, h);
+
+        int outW = Math.min(targetWidth, w);
+        int outH = (int) Math.round((double) outW * h / w);
+        BufferedImage out = new BufferedImage(outW, outH, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = out.createGraphics();
+        g.setColor(java.awt.Color.WHITE);
+        g.fillRect(0, 0, outW, outH);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g.drawImage(cropped, 0, 0, outW, outH, null);
+        g.dispose();
+
+        Path tmp = java.nio.file.Files.createTempFile("crop-", ".jpg");
+        try (FileOutputStream fos = new FileOutputStream(tmp.toFile())) {
+            ImageIO.write(out, "jpg", fos);
+        }
+        return tmp;
     }
 
     private static void showPhotoPopup(String photoPath, Window owner) {
