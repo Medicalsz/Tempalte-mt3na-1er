@@ -1,6 +1,7 @@
 package com.medicare.controllers;
 
 import com.medicare.HelloApplication;
+import com.medicare.controllers.ForumListController;
 import com.medicare.models.User;
 import com.medicare.utils.Session;
 import javafx.fxml.FXML;
@@ -32,6 +33,7 @@ public class DashboardAdminController {
     @FXML private Button btnDonation;
     @FXML private Button btnProduit;
     @FXML private Button btnCollaboration;
+    @FXML private Button btnPartenaire;
     @FXML private Button btnForum;
     @FXML private Button btnLogout;
     @FXML private VBox   rdvSubMenu;
@@ -45,7 +47,7 @@ public class DashboardAdminController {
 
     private Button[] allButtons() {
         return new Button[]{btnAccueil, btnUtilisateurs, btnRendezVous,
-                            btnDonation, btnProduit, btnCollaboration, btnForum};
+                            btnDonation, btnProduit, btnCollaboration, btnPartenaire, btnForum};
     }
 
     @FXML
@@ -72,6 +74,7 @@ public class DashboardAdminController {
         btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
         btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
         btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
+        btnPartenaire.setGraphic(icon(FontAwesomeSolid.BUILDING));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
         btnLogout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, Color.web("#fecaca")));
 
@@ -204,7 +207,7 @@ public class DashboardAdminController {
     }
 
     public void navigateToPartners() {
-        highlightButton(btnCollaboration);
+        highlightButton(btnPartenaire);
         try {
             FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("admin-partners-view.fxml"));
             Node view = loader.load();
@@ -217,12 +220,26 @@ public class DashboardAdminController {
         }
     }
 
+    @FXML private void onPartenaireClick() {
+        setSubMenuOpen(false);
+        navigateToPartners();
+    }
+
     @FXML private void onForumClick() {
         setSubMenuOpen(false);
         highlightButton(btnForum);
-        setContent(new Label("Gestion du Forum") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("forum-list-view.fxml"));
+            Node view = loader.load();
+            ForumListController controller = loader.getController();
+            controller.setForumContext(contentArea, currentUser);
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement forum") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML private void onLogoutClick() {

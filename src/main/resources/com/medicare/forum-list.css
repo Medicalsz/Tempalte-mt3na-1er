@@ -1,0 +1,168 @@
+.forum-list-scroll,
+.forum-list-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-color: transparent;
+}
+
+.forum-list-content {
+    -fx-background-color: transparent;
+}
+
+.forum-header-card {
+    -fx-background-color: linear-gradient(to bottom right, #ffffff, #eff6ff 45%, #f5f3ff);
+    -fx-background-radius: 24;
+    -fx-border-color: #DBEAFE;
+    -fx-border-radius: 24;
+    -fx-border-width: 1.2;
+    -fx-padding: 22 24;
+    -fx-effect: dropshadow(gaussian, rgba(30, 42, 120, 0.12), 24, 0.18, 0, 8);
+}
+
+.forum-title-icon {
+    -fx-min-width: 52;
+    -fx-min-height: 52;
+    -fx-pref-width: 52;
+    -fx-pref-height: 52;
+    -fx-background-color: linear-gradient(to bottom right, #DBEAFE, #EDE9FE);
+    -fx-background-radius: 18;
+    -fx-border-color: rgba(37, 99, 235, 0.18);
+    -fx-border-radius: 18;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.16), 12, 0.18, 0, 4);
+}
+
+.forum-title {
+    -fx-font-size: 30px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #1E2A78;
+}
+
+.forum-subtitle {
+    -fx-font-size: 12.5px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #64748B;
+}
+
+.forum-add-button,
+.forum-moderation-button {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-padding: 12 20;
+    -fx-cursor: hand;
+    -fx-graphic-text-gap: 8;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.22), 14, 0.20, 0, 5);
+}
+
+.forum-add-button {
+    -fx-background-color: linear-gradient(to right, #2563EB, #7C3AED);
+    -fx-border-color: transparent;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.26), 16, 0.22, 0, 6);
+}
+
+.forum-add-button:hover {
+    -fx-background-color: linear-gradient(to right, #1D4ED8, #6D28D9);
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.30), 20, 0.24, 0, 8);
+}
+
+.forum-moderation-button {
+    -fx-background-color: linear-gradient(to right, #FFF7ED, #FFEDD5);
+    -fx-border-color: #FDBA74;
+    -fx-border-width: 1.2;
+    -fx-text-fill: #C2410C;
+    -fx-effect: dropshadow(gaussian, rgba(194, 65, 12, 0.16), 14, 0.18, 0, 5);
+}
+
+.forum-moderation-button:hover {
+    -fx-background-color: linear-gradient(to right, #FFEDD5, #FED7AA);
+    -fx-border-color: #FB923C;
+    -fx-effect: dropshadow(gaussian, rgba(194, 65, 12, 0.22), 18, 0.22, 0, 7);
+}
+
+.forum-search-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 22;
+    -fx-border-color: #DBEAFE;
+    -fx-border-radius: 22;
+    -fx-border-width: 1.2;
+    -fx-effect: dropshadow(gaussian, rgba(30, 42, 120, 0.11), 20, 0.18, 0, 7);
+}
+
+.forum-search-card:hover {
+    -fx-border-color: #BFDBFE;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.16), 24, 0.20, 0, 8);
+}
+
+.forum-search-input-shell {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 18;
+    -fx-border-color: #DBEAFE;
+    -fx-border-radius: 18;
+    -fx-border-width: 1.2;
+    -fx-padding: 0 14;
+}
+
+.forum-search-input-shell:focused-within {
+    -fx-border-color: #2563EB;
+}
+
+.forum-search-field {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-radius: 0;
+    -fx-font-size: 13.5px;
+    -fx-text-fill: #1E293B;
+    -fx-padding: 0 2;
+    -fx-prompt-text-fill: #94A3B8;
+}
+
+.forum-type-combo {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 16;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 16;
+    -fx-border-width: 1.1;
+    -fx-font-size: 13.5px;
+    -fx-text-fill: #1E293B;
+}
+
+.forum-type-combo:focused {
+    -fx-border-color: #2563EB;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.14), 10, 0.16, 0, 2);
+}
+
+.forum-type-combo .list-cell {
+    -fx-text-fill: #1E293B;
+    -fx-font-size: 13px;
+}
+
+.forum-type-combo .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.forum-admin-checkbox {
+    -fx-text-fill: #475569;
+    -fx-font-size: 12.5px;
+    -fx-font-weight: 700;
+    -fx-padding: 0 0 0 4;
+}
+
+.forum-admin-checkbox .box {
+    -fx-background-color: white;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+}
+
+.forum-admin-checkbox:selected .box {
+    -fx-background-color: #2563EB;
+    -fx-border-color: #2563EB;
+}
+
+.forum-admin-checkbox:selected .mark {
+    -fx-background-color: white;
+}

@@ -1,6 +1,7 @@
 package com.medicare.controllers;
 
 import com.medicare.HelloApplication;
+import com.medicare.controllers.ForumListController;
 import com.medicare.models.User;
 import com.medicare.services.RendezVousService;
 import com.medicare.ui.UserSectionFactory;
@@ -50,6 +51,7 @@ public class DashboardPatientController {
     @FXML private Button btnDonation;
     @FXML private Button btnProduit;
     @FXML private Button btnCollaboration;
+    @FXML private Button btnPartenaire;
     @FXML private Button btnForum;
     @FXML private Button btnMatchDoctors;
     @FXML private Button btnNotifications;
@@ -85,6 +87,7 @@ public class DashboardPatientController {
         btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
         btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
         btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
+        btnPartenaire.setGraphic(icon(FontAwesomeSolid.BUILDING));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
         btnMatchDoctors.setGraphic(icon(FontAwesomeSolid.MAP_MARKER_ALT));
         btnNotifications.setGraphic(icon(FontAwesomeSolid.BELL, Color.web("#fef3c7")));
@@ -300,11 +303,37 @@ public class DashboardPatientController {
     }
 
     @FXML
+    private void onPartenaireClick() {
+        highlightButton(btnPartenaire);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("user-partners-view.fxml"));
+            Node view = loader.load();
+            UserPartnersController ctrl = loader.getController();
+            ctrl.loadPartners(contentArea);
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement partenaires") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
+    }
+
+    @FXML
     private void onForumClick() {
         highlightButton(btnForum);
-        setContent(new Label("Forum") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("forum-list-view.fxml"));
+            Node view = loader.load();
+            ForumListController controller = loader.getController();
+            controller.setForumContext(contentArea, currentUser);
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement forum") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML
@@ -489,6 +518,7 @@ public class DashboardPatientController {
         btnDonation.setStyle(normalStyle);
         btnProduit.setStyle(normalStyle);
         btnCollaboration.setStyle(normalStyle);
+        btnPartenaire.setStyle(normalStyle);
         btnForum.setStyle(normalStyle);
         btnMatchDoctors.setStyle(normalStyle);
         btnNotifications.setStyle(normalStyle);
