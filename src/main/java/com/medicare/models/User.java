@@ -101,6 +101,7 @@ public class User {
 
     public String getRoles() { return roles; }
     public void setRoles(String roles) { this.roles = roles; }
+    public boolean hasRole(String role) { return roles != null && roles.contains(role); }
 
     public LocalDate getDateNaissance() { return dateNaissance; }
     public void setDateNaissance(LocalDate dateNaissance) { this.dateNaissance = dateNaissance; }
