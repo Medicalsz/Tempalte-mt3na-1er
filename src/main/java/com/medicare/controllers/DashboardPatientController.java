@@ -409,6 +409,11 @@ public class DashboardPatientController {
 
     private void openProfilePage() {
         resetSidebarButtons();
+        java.util.Map<String, Runnable> quickNav = new java.util.LinkedHashMap<>();
+        quickNav.put("posts",      this::onForumClick);
+        quickNav.put("rendezvous", this::onRendezVousClick);
+        quickNav.put("collab",     this::onCollaborationClick);
+        quickNav.put("donation",   this::onDonationClick);
         setContent(UserSectionFactory.createProfileSection(
             currentUser,
             contentArea.getScene().getWindow(),
@@ -416,7 +421,8 @@ public class DashboardPatientController {
                 currentUser = user;
                 refreshUserHeader();
             },
-            this::logoutToAccueil
+            this::logoutToAccueil,
+            quickNav
         ));
         userProfileButton.setStyle("-fx-background-color: rgba(255,255,255,0.22); -fx-background-radius: 16; -fx-cursor: hand; -fx-padding: 12;");
     }

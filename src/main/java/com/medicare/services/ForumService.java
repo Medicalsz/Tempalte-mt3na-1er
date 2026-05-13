@@ -26,6 +26,7 @@ public class ForumService {
                 SELECT t.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        (
                            SELECT COUNT(*)
                            FROM forum_comment c
@@ -38,6 +39,7 @@ public class ForumService {
                 SELECT t.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        (
                            SELECT COUNT(*)
                            FROM forum_comment c
@@ -70,6 +72,7 @@ public class ForumService {
                 SELECT t.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        (
                            SELECT COUNT(*)
                            FROM forum_comment c
@@ -83,6 +86,7 @@ public class ForumService {
                 SELECT t.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        (
                            SELECT COUNT(*)
                            FROM forum_comment c
@@ -142,6 +146,7 @@ public class ForumService {
                 SELECT t.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        COALESCE(stats.comment_count, 0) AS comment_count
                 FROM forum_topic t
                 LEFT JOIN user u ON u.id = t.author_id
@@ -174,6 +179,7 @@ public class ForumService {
                 SELECT t.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        (
                            SELECT COUNT(*)
                            FROM forum_comment c
@@ -394,6 +400,7 @@ public class ForumService {
         }
         topic.setAuthorName(trimToNull(rs.getString("author_name")));
         topic.setAuthorRoles(rs.getString("author_roles"));
+        topic.setAuthorPhoto(trimToNull(rs.getString("author_photo")));
         topic.setCommentCount(rs.getInt("comment_count"));
         return topic;
     }
@@ -412,6 +419,7 @@ public class ForumService {
                 SELECT t.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        (
                            SELECT COUNT(*)
                            FROM forum_comment c

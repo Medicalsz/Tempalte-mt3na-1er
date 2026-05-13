@@ -98,8 +98,18 @@ public final class UserSectionFactory {
         Consumer<User> onUpdated,
         Runnable onDeleteAccount
     ) {
+        return createProfileSection(currentUser, owner, onUpdated, onDeleteAccount, null);
+    }
+
+    public static Node createProfileSection(
+        User currentUser,
+        Window owner,
+        Consumer<User> onUpdated,
+        Runnable onDeleteAccount,
+        Map<String, Runnable> quickNavActions
+    ) {
         VBox page = new VBox(24,
-            buildProfileHeader(currentUser),
+            buildProfileHeader(currentUser, quickNavActions),
             buildPublicInfoCard(currentUser),
             buildEmptyPostsCard()
         );
@@ -1213,6 +1223,10 @@ public final class UserSectionFactory {
     }
 
     private static VBox buildProfileHeader(User currentUser) {
+        return buildProfileHeader(currentUser, null);
+    }
+
+    private static VBox buildProfileHeader(User currentUser, Map<String, Runnable> quickNavActions) {
         ImageView profileImage = createCircularPreview(120);
         updatePreview(profileImage, currentUser.getPhoto());
 
@@ -1228,7 +1242,51 @@ public final class UserSectionFactory {
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(28));
         box.setStyle("-fx-background-color: white; -fx-background-radius: 22; -fx-border-color: #e5e7eb; -fx-border-radius: 22;");
+
+        if (quickNavActions != null && !quickNavActions.isEmpty()) {
+            HBox quickNav = buildQuickNavRow(quickNavActions);
+            box.getChildren().add(quickNav);
+        }
         return box;
+    }
+
+    private static HBox buildQuickNavRow(Map<String, Runnable> actions) {
+        HBox row = new HBox(10);
+        row.setAlignment(Pos.CENTER);
+        row.setPadding(new Insets(14, 0, 0, 0));
+
+        addQuickNavButton(row, actions, "posts",       "Posts",       FontAwesomeSolid.COMMENTS,      "#7c3aed", "#ede9fe");
+        addQuickNavButton(row, actions, "rendezvous",  "Rendez-vous", FontAwesomeSolid.CALENDAR_ALT,  "#0d9488", "#ccfbf1");
+        addQuickNavButton(row, actions, "collab",      "Collab",      FontAwesomeSolid.HANDSHAKE,     "#c2410c", "#ffedd5");
+        addQuickNavButton(row, actions, "donation",    "Donation",    FontAwesomeSolid.HEART,         "#dc2626", "#fee2e2");
+
+        return row;
+    }
+
+    private static void addQuickNavButton(HBox row, Map<String, Runnable> actions, String key,
+                                          String label, FontAwesomeSolid iconType,
+                                          String fg, String bg) {
+        Runnable action = actions.get(key);
+        if (action == null) {
+            return;
+        }
+        FontIcon icon = new FontIcon(iconType);
+        icon.setIconSize(14);
+        icon.setIconColor(Color.web(fg));
+
+        Button btn = new Button(label, icon);
+        btn.setContentDisplay(ContentDisplay.LEFT);
+        btn.setGraphicTextGap(8);
+        btn.setStyle(
+            "-fx-background-color: " + bg + ";"
+            + " -fx-text-fill: " + fg + ";"
+            + " -fx-font-size: 13px; -fx-font-weight: bold;"
+            + " -fx-background-radius: 999;"
+            + " -fx-border-color: " + fg + "; -fx-border-radius: 999; -fx-border-width: 1;"
+            + " -fx-padding: 8 16; -fx-cursor: hand;"
+        );
+        btn.setOnAction(e -> action.run());
+        row.getChildren().add(btn);
     }
 
     private static VBox buildPublicInfoCard(User currentUser) {

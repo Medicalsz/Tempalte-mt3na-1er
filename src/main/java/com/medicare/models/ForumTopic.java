@@ -20,6 +20,7 @@ public class ForumTopic {
     private LocalDateTime reportedAt;
     private String authorName;
     private String authorRoles;
+    private String authorPhoto;
     private int commentCount;
 
     public int getId() { return id; }
@@ -72,6 +73,9 @@ public class ForumTopic {
 
     public String getAuthorRoles() { return authorRoles; }
     public void setAuthorRoles(String authorRoles) { this.authorRoles = authorRoles; }
+
+    public String getAuthorPhoto() { return authorPhoto; }
+    public void setAuthorPhoto(String authorPhoto) { this.authorPhoto = authorPhoto; }
 
     public int getCommentCount() { return commentCount; }
     public void setCommentCount(int commentCount) { this.commentCount = commentCount; }

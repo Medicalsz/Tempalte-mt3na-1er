@@ -26,6 +26,7 @@ public class ForumCommentService {
                 SELECT c.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        t.title AS topic_title
                 FROM forum_comment c
                 LEFT JOIN user u ON u.id = c.author_id
@@ -36,6 +37,7 @@ public class ForumCommentService {
                 SELECT c.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        t.title AS topic_title
                 FROM forum_comment c
                 LEFT JOIN user u ON u.id = c.author_id
@@ -88,6 +90,7 @@ public class ForumCommentService {
                 SELECT c.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        t.title AS topic_title
                 FROM forum_comment c
                 LEFT JOIN user u ON u.id = c.author_id
@@ -297,6 +300,7 @@ public class ForumCommentService {
         }
         comment.setAuthorName(trimToNull(rs.getString("author_name")));
         comment.setAuthorRoles(rs.getString("author_roles"));
+        comment.setAuthorPhoto(trimToNull(rs.getString("author_photo")));
         comment.setTopicTitle(trimToNull(rs.getString("topic_title")));
         return comment;
     }
@@ -315,6 +319,7 @@ public class ForumCommentService {
                 SELECT c.*,
                        CONCAT(COALESCE(u.prenom, ''), ' ', COALESCE(u.nom, '')) AS author_name,
                        u.roles AS author_roles,
+                       u.photo AS author_photo,
                        t.title AS topic_title
                 FROM forum_comment c
                 LEFT JOIN user u ON u.id = c.author_id
