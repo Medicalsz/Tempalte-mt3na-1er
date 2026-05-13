@@ -135,14 +135,31 @@ public final class UserSectionFactory {
         Runnable onSettingsClick
     ) {
         VBox contentSwapArea = new VBox(24);
-        contentSwapArea.getChildren().addAll(buildPublicInfoCard(currentUser), buildEmptyPostsCard());
+        Runnable resetToDefault = () -> {
+            contentSwapArea.getChildren().clear();
+            contentSwapArea.getChildren().addAll(
+                buildPublicInfoCard(currentUser),
+                createUserPostsSection(currentUser)
+            );
+        };
+        resetToDefault.run();
 
-        Consumer<Node> swapper = node -> {
+        // Track which quick-nav key is currently active (for toggle behavior)
+        String[] activeKey = { null };
+
+        java.util.function.BiConsumer<String, Node> swapper = (key, node) -> {
+            if (key != null && key.equals(activeKey[0])) {
+                activeKey[0] = null;
+                resetToDefault.run();
+                return;
+            }
             contentSwapArea.getChildren().clear();
             if (node != null) {
+                activeKey[0] = key;
                 contentSwapArea.getChildren().add(node);
             } else {
-                contentSwapArea.getChildren().addAll(buildPublicInfoCard(currentUser), buildEmptyPostsCard());
+                activeKey[0] = null;
+                resetToDefault.run();
             }
         };
 
@@ -1268,7 +1285,7 @@ public final class UserSectionFactory {
                                            Consumer<User> onUserUpdated,
                                            Map<String, Supplier<Node>> quickNavSuppliers,
                                            Runnable onSettingsClick,
-                                           Consumer<Node> contentSwapper) {
+                                           java.util.function.BiConsumer<String, Node> contentSwapper) {
         UserService userService = new UserService();
 
         // ── Cover area: cover banner + gear button + overlapping profile picture ──
@@ -1364,17 +1381,21 @@ public final class UserSectionFactory {
         StackPane.setMargin(hint, new Insets(16, 0, 0, 18));
         banner.getChildren().add(hint);
 
-        ContextMenu menu = buildPhotoMenu(
-            owner,
-            () -> currentUser.getCoverPhoto(),
-            "covers",
-            newPath -> {
-                currentUser.setCoverPhoto(newPath);
-                userService.updateCoverPhoto(currentUser.getId(), newPath);
-                if (onUserUpdated != null) onUserUpdated.accept(currentUser);
-            }
-        );
-        banner.setOnMouseClicked(e -> menu.show(banner, e.getScreenX(), e.getScreenY()));
+        banner.setOnMouseClicked(e -> {
+            ContextMenu menu = buildPhotoMenu(
+                owner,
+                () -> currentUser.getCoverPhoto(),
+                "covers",
+                "couverture",
+                false,
+                newPath -> {
+                    currentUser.setCoverPhoto(newPath);
+                    userService.updateCoverPhoto(currentUser.getId(), newPath);
+                    if (onUserUpdated != null) onUserUpdated.accept(currentUser);
+                }
+            );
+            menu.show(banner, e.getScreenX(), e.getScreenY());
+        });
 
         return banner;
     }
@@ -1411,18 +1432,22 @@ public final class UserSectionFactory {
         wrap.setMaxSize(size + 12, size + 12);
         wrap.setStyle("-fx-cursor: hand;");
 
-        ContextMenu menu = buildPhotoMenu(
-            owner,
-            () -> currentUser.getPhoto(),
-            "profiles",
-            newPath -> {
-                currentUser.setPhoto(newPath);
-                userService.updateProfilePhoto(currentUser.getId(), newPath);
-                updatePreview(preview, newPath);
-                if (onUserUpdated != null) onUserUpdated.accept(currentUser);
-            }
-        );
-        wrap.setOnMouseClicked(e -> menu.show(wrap, e.getScreenX(), e.getScreenY()));
+        wrap.setOnMouseClicked(e -> {
+            ContextMenu menu = buildPhotoMenu(
+                owner,
+                () -> currentUser.getPhoto(),
+                "profiles",
+                "profil",
+                true,
+                newPath -> {
+                    currentUser.setPhoto(newPath);
+                    userService.updateProfilePhoto(currentUser.getId(), newPath);
+                    updatePreview(preview, newPath);
+                    if (onUserUpdated != null) onUserUpdated.accept(currentUser);
+                }
+            );
+            menu.show(wrap, e.getScreenX(), e.getScreenY());
+        });
 
         return wrap;
     }
@@ -1469,7 +1494,8 @@ public final class UserSectionFactory {
         return pill;
     }
 
-    private static HBox buildQuickNavRow(Map<String, Supplier<Node>> suppliers, Consumer<Node> contentSwapper) {
+    private static HBox buildQuickNavRow(Map<String, Supplier<Node>> suppliers,
+                                         java.util.function.BiConsumer<String, Node> contentSwapper) {
         HBox row = new HBox(10);
         row.setAlignment(Pos.CENTER);
         row.setPadding(new Insets(14, 0, 0, 0));
@@ -1483,8 +1509,8 @@ public final class UserSectionFactory {
     }
 
     private static void addQuickNavButton(HBox row, Map<String, Supplier<Node>> suppliers,
-                                          Consumer<Node> contentSwapper, String key,
-                                          String label, FontAwesomeSolid iconType,
+                                          java.util.function.BiConsumer<String, Node> contentSwapper,
+                                          String key, String label, FontAwesomeSolid iconType,
                                           String fg, String bg) {
         Supplier<Node> supplier = suppliers.get(key);
         if (supplier == null) {
@@ -1506,10 +1532,9 @@ public final class UserSectionFactory {
             + " -fx-padding: 8 16; -fx-cursor: hand;"
         );
         btn.setOnAction(e -> {
+            if (contentSwapper == null) return;
             Node node = supplier.get();
-            if (node != null && contentSwapper != null) {
-                contentSwapper.accept(node);
-            }
+            contentSwapper.accept(key, node);
         });
         row.getChildren().add(btn);
     }
@@ -1517,32 +1542,79 @@ public final class UserSectionFactory {
     private static ContextMenu buildPhotoMenu(Window owner,
                                               Supplier<String> currentPath,
                                               String uploadCategory,
+                                              String photoKind,
+                                              boolean squareCrop,
                                               Consumer<String> onChanged) {
         ContextMenu menu = new ContextMenu();
+        String existing = currentPath.get();
+        boolean hasPhoto = existing != null && !existing.isBlank();
+
+        if (!hasPhoto) {
+            MenuItem addItem = new MenuItem("Ajouter une photo de " + photoKind);
+            addItem.setOnAction(e -> pickAndApplyPhoto(owner, uploadCategory, squareCrop, onChanged));
+            menu.getItems().add(addItem);
+            return menu;
+        }
+
         MenuItem viewItem = new MenuItem("Voir la photo");
         viewItem.setOnAction(e -> showPhotoPopup(currentPath.get(), owner));
 
         MenuItem changeItem = new MenuItem("Changer la photo");
-        changeItem.setOnAction(e -> {
-            FileChooser chooser = new FileChooser();
-            chooser.setTitle("Choisir une photo");
-            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"));
-            File file = chooser.showOpenDialog(owner);
-            if (file != null) {
-                try {
-                    String stored = FileStorageUtil.copyToUploads(file.toPath(), uploadCategory);
-                    onChanged.accept(stored);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            }
-        });
+        changeItem.setOnAction(e -> pickAndApplyPhoto(owner, uploadCategory, squareCrop, onChanged));
+
+        MenuItem cropItem = new MenuItem("Recadrer la photo");
+        cropItem.setOnAction(e -> recropExistingPhoto(owner, currentPath.get(), uploadCategory, squareCrop, onChanged));
 
         MenuItem deleteItem = new MenuItem("Supprimer la photo");
         deleteItem.setOnAction(e -> onChanged.accept(null));
 
-        menu.getItems().addAll(viewItem, changeItem, deleteItem);
+        menu.getItems().addAll(viewItem, changeItem, cropItem, deleteItem);
         return menu;
+    }
+
+    private static void pickAndApplyPhoto(Window owner, String uploadCategory,
+                                          boolean squareCrop, Consumer<String> onChanged) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Choisir une photo");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"));
+        File file = chooser.showOpenDialog(owner);
+        if (file == null) return;
+        try {
+            Path source = file.toPath();
+            Path toStore = source;
+            if (squareCrop) {
+                Path cropped = openProfileCropDialog(source, owner);
+                if (cropped == null) return; // user cancelled
+                toStore = cropped;
+            }
+            String stored = FileStorageUtil.copyToUploads(toStore, uploadCategory);
+            onChanged.accept(stored);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private static void recropExistingPhoto(Window owner, String currentStoredPath,
+                                            String uploadCategory, boolean squareCrop,
+                                            Consumer<String> onChanged) {
+        if (currentStoredPath == null || currentStoredPath.isBlank()) return;
+        try {
+            Path source;
+            if (currentStoredPath.startsWith("file:/")) {
+                source = Path.of(java.net.URI.create(currentStoredPath));
+            } else {
+                source = Path.of(currentStoredPath);
+            }
+            if (!java.nio.file.Files.exists(source)) return;
+            Path cropped = squareCrop
+                ? openProfileCropDialog(source, owner)
+                : source;
+            if (cropped == null) return;
+            String stored = FileStorageUtil.copyToUploads(cropped, uploadCategory);
+            onChanged.accept(stored);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     private static void showPhotoPopup(String photoPath, Window owner) {
