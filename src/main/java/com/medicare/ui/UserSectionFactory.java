@@ -501,62 +501,120 @@ public final class UserSectionFactory {
     public static Node createPhotoSection(User user, Window owner, Consumer<User> onUpdated) {
         UserService svc = new UserService();
 
-        ImageView preview = createCircularPreview(100);
-        updatePreview(preview, user.getPhoto());
+        // --- Cover Photo Setup ---
+        Label coverLabel = new Label(user.getCoverPhoto() == null ? "Aucune couverture sélectionnée." : user.getCoverPhoto());
+        coverLabel.setWrapText(true);
+        coverLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #9E9E9E;");
 
-        Label pathLabel = new Label(user.getPhoto() == null ? "Aucune photo sélectionnée." : user.getPhoto());
-        pathLabel.setWrapText(true);
-        pathLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #9E9E9E;");
+        StackPane coverBanner = new StackPane();
+        coverBanner.setMinHeight(120);
+        coverBanner.setPrefHeight(120);
+        coverBanner.setMaxHeight(120);
+        coverBanner.setMinWidth(0);
+        coverBanner.setPrefWidth(0);
+        coverBanner.setMaxWidth(Double.MAX_VALUE);
+        applyCoverBackground(coverBanner, user.getCoverPhoto());
 
-        final java.nio.file.Path[] chosen = {null};
+        final java.nio.file.Path[] coverChosen = {null};
 
-        Button chooseBtn = secondaryButton("📁 Parcourir…", "#546E7A");
-        chooseBtn.setOnAction(ev -> {
+        Button chooseCoverBtn = secondaryButton("📁 Parcourir Couverture…", "#546E7A");
+        chooseCoverBtn.setOnAction(ev -> {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Choisir une couverture");
+            fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"));
+            File f = fc.showOpenDialog(owner);
+            if (f != null) {
+                try {
+                    Path cropped = openCropDialog(f.toPath(), owner, 3.0, "Recadrer la couverture", 1200);
+                    if (cropped != null) {
+                        coverChosen[0] = cropped;
+                        coverLabel.setText(f.getName() + " (recadrée)");
+                        applyCoverBackground(coverBanner, cropped.toUri().toString());
+                    }
+                } catch (Exception ex) {
+                    coverChosen[0] = f.toPath();
+                    coverLabel.setText(f.getName());
+                    applyCoverBackground(coverBanner, f.toURI().toString());
+                }
+            }
+        });
+
+        VBox coverBox = new VBox(10, new Label("Photo de Couverture"), coverBanner, chooseCoverBtn, coverLabel);
+        coverBox.setStyle("-fx-padding: 0 0 16 0; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0;");
+
+        // --- Profile Photo Setup ---
+        ImageView profilePreview = createCircularPreview(100);
+        updatePreview(profilePreview, user.getPhoto());
+
+        Label profileLabel = new Label(user.getPhoto() == null ? "Aucune photo sélectionnée." : user.getPhoto());
+        profileLabel.setWrapText(true);
+        profileLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #9E9E9E;");
+
+        final java.nio.file.Path[] profileChosen = {null};
+
+        Button chooseProfileBtn = secondaryButton("📁 Parcourir Profil…", "#546E7A");
+        chooseProfileBtn.setOnAction(ev -> {
             FileChooser fc = new FileChooser();
             fc.setTitle("Choisir une photo");
             fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"));
             File f = fc.showOpenDialog(owner);
             if (f != null) {
                 try {
-                    Path cropped = openProfileCropDialog(f.toPath(), owner);
+                    Path cropped = openCropDialog(f.toPath(), owner, 1.0, "Recadrer la photo de profil", 512);
                     if (cropped != null) {
-                        chosen[0] = cropped;
-                        pathLabel.setText(f.getName() + " (recadree)");
-                        updatePreview(preview, cropped.toUri().toString());
+                        profileChosen[0] = cropped;
+                        profileLabel.setText(f.getName() + " (recadrée)");
+                        updatePreview(profilePreview, cropped.toUri().toString());
                     }
                 } catch (Exception ex) {
-                    chosen[0] = f.toPath();
-                    pathLabel.setText(f.getName());
-                    updatePreview(preview, f.toURI().toString());
+                    profileChosen[0] = f.toPath();
+                    profileLabel.setText(f.getName());
+                    updatePreview(profilePreview, f.toURI().toString());
                 }
             }
         });
 
-        Button cameraBtn = secondaryButton("📸 Prendre une photo", "#C2185B");
-        cameraBtn.setOnAction(ev -> openCameraPopup(preview, pathLabel, chosen, owner));
+        Button cameraBtn = secondaryButton("📸 Prendre photo", "#C2185B");
+        cameraBtn.setOnAction(ev -> openCameraPopup(profilePreview, profileLabel, profileChosen, owner));
+
+        HBox profileBtnRow = new HBox(10, chooseProfileBtn, cameraBtn);
+        profileBtnRow.setAlignment(Pos.CENTER_LEFT);
+
+        HBox profilePreviewRow = new HBox(16, profilePreview, new VBox(10, profileBtnRow, profileLabel));
+        profilePreviewRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox profileBox = new VBox(10, new Label("Photo de Profil"), profilePreviewRow);
+        profileBox.setStyle("-fx-padding: 16 0 0 0;");
 
         Label status = statusLabel();
-        Button save = primaryButton("Enregistrer la photo", "#546E7A");
+        Button save = primaryButton("Enregistrer les photos", "#546E7A");
         save.setOnAction(e -> {
-            if (chosen[0] == null) { showFieldError(status, "Veuillez choisir ou capturer une photo."); return; }
+            if (profileChosen[0] == null && coverChosen[0] == null) { 
+                showFieldError(status, "Veuillez choisir ou capturer au moins une photo."); 
+                return; 
+            }
             try {
-                String stored = FileStorageUtil.copyToUploads(chosen[0], "profiles");
-                User copy = copyUser(user); copy.setPhoto(stored);
+                User copy = copyUser(user);
+                if (profileChosen[0] != null) {
+                    String storedProfile = FileStorageUtil.copyToUploads(profileChosen[0], "profiles");
+                    copy.setPhoto(storedProfile);
+                }
+                if (coverChosen[0] != null) {
+                    String storedCover = FileStorageUtil.copyToUploads(coverChosen[0], "covers");
+                    copy.setCoverPhoto(storedCover);
+                }
+
                 if (svc.updateProfile(copy, null)) {
-                    user.setPhoto(stored);
+                    if (profileChosen[0] != null) user.setPhoto(copy.getPhoto());
+                    if (coverChosen[0] != null) user.setCoverPhoto(copy.getCoverPhoto());
                     onUpdated.accept(user);
-                    showFieldSuccess(status, "Photo de profil mise à jour !");
+                    showFieldSuccess(status, "Photos mises à jour !");
                 } else { showFieldError(status, "Erreur lors de la sauvegarde."); }
             } catch (Exception ex) { showFieldError(status, "Erreur: " + ex.getMessage()); }
         });
 
-        HBox btnRow = new HBox(10, chooseBtn, cameraBtn);
-        btnRow.setAlignment(Pos.CENTER_LEFT);
-
-        HBox previewRow = new HBox(16, preview, new VBox(10, btnRow, pathLabel));
-        previewRow.setAlignment(Pos.CENTER_LEFT);
-
-        return wrap(tileCard("#B0BEC5", List.of(previewRow, status, save)));
+        VBox content = new VBox(coverBox, profileBox);
+        return wrap(tileCard("#B0BEC5", List.of(content, status, save)));
     }
 
     private static void openCameraPopup(ImageView previewImg, Label pathLbl,
@@ -577,7 +635,7 @@ public final class UserSectionFactory {
                             new File(System.getProperty("java.io.tmpdir")));
                         try (FileOutputStream fos = new FileOutputStream(tmp)) { fos.write(bytes); }
                         if (camRef[0] != null) camRef[0].close();
-                        Path cropped = openProfileCropDialog(tmp.toPath(), owner);
+                        Path cropped = openCropDialog(tmp.toPath(), owner, 1.0, "Recadrer la photo de profil", 512);
                         chosen[0] = cropped != null ? cropped : createProfilePhotoCrop(tmp.toPath());
                         pathLbl.setText("photo_camera_recadree.jpg");
                         updatePreview(previewImg, chosen[0].toUri().toString());
@@ -1919,23 +1977,31 @@ public final class UserSectionFactory {
     }
 
     private static Path cropImageRegion(Path source, int x, int y, int w, int h, int targetWidth) throws IOException {
-        BufferedImage original = ImageIO.read(source.toFile());
-        if (original == null) return source;
-        x = Math.max(0, Math.min(x, original.getWidth() - 1));
-        y = Math.max(0, Math.min(y, original.getHeight() - 1));
-        w = Math.max(1, Math.min(w, original.getWidth() - x));
-        h = Math.max(1, Math.min(h, original.getHeight() - y));
-        BufferedImage cropped = original.getSubimage(x, y, w, h);
+        Image fxImage = new Image(source.toUri().toString(), false);
+        if (fxImage.isError()) return source;
+
+        x = Math.max(0, Math.min(x, (int) fxImage.getWidth() - 1));
+        y = Math.max(0, Math.min(y, (int) fxImage.getHeight() - 1));
+        w = Math.max(1, Math.min(w, (int) fxImage.getWidth() - x));
+        h = Math.max(1, Math.min(h, (int) fxImage.getHeight() - y));
+
+        javafx.scene.image.PixelReader reader = fxImage.getPixelReader();
+        if (reader == null) return source;
+        javafx.scene.image.WritableImage cropped = new javafx.scene.image.WritableImage(reader, x, y, w, h);
 
         int outW = Math.min(targetWidth, w);
         int outH = (int) Math.round((double) outW * h / w);
+        
+        BufferedImage bImage = javafx.embed.swing.SwingFXUtils.fromFXImage(cropped, null);
+        if (bImage == null) return source;
+
         BufferedImage out = new BufferedImage(outW, outH, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = out.createGraphics();
         g.setColor(java.awt.Color.WHITE);
         g.fillRect(0, 0, outW, outH);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g.drawImage(cropped, 0, 0, outW, outH, null);
+        g.drawImage(bImage, 0, 0, outW, outH, null);
         g.dispose();
 
         Path tmp = java.nio.file.Files.createTempFile("crop-", ".jpg");
@@ -1988,11 +2054,11 @@ public final class UserSectionFactory {
 
     /** Center-crop a source image to a target aspect ratio (width / height) at the given max width. */
     private static Path centerCropToAspect(Path source, double aspectRatio, int targetWidth) throws IOException {
-        BufferedImage original = ImageIO.read(source.toFile());
-        if (original == null) return source;
+        Image fxImage = new Image(source.toUri().toString(), false);
+        if (fxImage.isError()) return source;
 
-        int srcW = original.getWidth();
-        int srcH = original.getHeight();
+        int srcW = (int) fxImage.getWidth();
+        int srcH = (int) fxImage.getHeight();
         double srcAspect = (double) srcW / srcH;
 
         int cropW, cropH, cropX, cropY;
@@ -2007,19 +2073,26 @@ public final class UserSectionFactory {
             cropX = 0;
             cropY = (srcH - cropH) / 2;
         }
-        cropW = Math.max(1, Math.min(cropW, srcW));
-        cropH = Math.max(1, Math.min(cropH, srcH));
-        BufferedImage cropped = original.getSubimage(cropX, cropY, cropW, cropH);
+        cropW = Math.max(1, Math.min(cropW, srcW - cropX));
+        cropH = Math.max(1, Math.min(cropH, srcH - cropY));
+
+        javafx.scene.image.PixelReader reader = fxImage.getPixelReader();
+        if (reader == null) return source;
+        javafx.scene.image.WritableImage cropped = new javafx.scene.image.WritableImage(reader, cropX, cropY, cropW, cropH);
 
         int outW = Math.min(targetWidth, cropW);
         int outH = (int) Math.round(outW / aspectRatio);
+        
+        BufferedImage bImage = javafx.embed.swing.SwingFXUtils.fromFXImage(cropped, null);
+        if (bImage == null) return source;
+
         BufferedImage output = new BufferedImage(outW, outH, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = output.createGraphics();
         g.setColor(java.awt.Color.WHITE);
         g.fillRect(0, 0, outW, outH);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g.drawImage(cropped, 0, 0, outW, outH, null);
+        g.drawImage(bImage, 0, 0, outW, outH, null);
         g.dispose();
 
         Path target = java.nio.file.Files.createTempFile("cover-crop-", ".jpg");
@@ -2079,7 +2152,9 @@ public final class UserSectionFactory {
         headerText.setAlignment(Pos.CENTER_LEFT);
 
         // Unread badge in header
-        int unreadCount = currentUser.isVerified() ? 0 : 1;
+        com.medicare.services.NotificationService notifSvc = new com.medicare.services.NotificationService();
+        int dbUnread = notifSvc.getUnreadCount(currentUser.getId());
+        int unreadCount = dbUnread + (currentUser.isVerified() ? 0 : 1);
         Label badge = new Label(unreadCount > 0 ? String.valueOf(unreadCount) : "0");
         badge.setStyle("-fx-background-color: " + (unreadCount > 0 ? "#ef4444" : "#6b7280")
             + "; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold;"
@@ -2162,6 +2237,56 @@ public final class UserSectionFactory {
             + "; -fx-background-radius: 14; -fx-border-color: " + (verified ? "#bbf7d0" : "#fde68a")
             + "; -fx-border-radius: 14; -fx-border-width: 1;");
 
+        // ── DB notifications (donations, system, etc.) ────────────────
+        VBox dbRows = new VBox(10);
+        java.util.List<com.medicare.services.NotificationService.Notification> dbNotifs =
+                notifSvc.getAll(currentUser.getId());
+        for (com.medicare.services.NotificationService.Notification n : dbNotifs) {
+            boolean isDon   = "donation".equals(n.type());
+            boolean isSys   = "system".equals(n.type());
+            String  accent  = isDon ? "#10b981" : isSys ? "#6366f1" : "#f59e0b";
+            String  bg      = isDon ? "#f0fdf4" : isSys ? "#f5f3ff" : "#fffbeb";
+            String  border  = isDon ? "#bbf7d0" : isSys ? "#ddd6fe" : "#fde68a";
+
+            FontIcon ni = new FontIcon(isDon ? FontAwesomeSolid.HAND_HOLDING_HEART
+                                             : FontAwesomeSolid.BELL);
+            ni.setIconSize(20);
+            ni.setIconColor(Color.web(accent));
+            StackPane niCircle = new StackPane(ni);
+            niCircle.setMinSize(42, 42);
+            niCircle.setMaxSize(42, 42);
+            niCircle.setStyle("-fx-background-color: " + bg + "; -fx-background-radius: 21;");
+
+            Label nTitle = new Label(n.titre());
+            nTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #111827;");
+            nTitle.setWrapText(true);
+            Label nMsg = new Label(n.message());
+            nMsg.setStyle("-fx-font-size: 12px; -fx-text-fill: #6b7280;");
+            nMsg.setWrapText(true);
+            Label nTime = new Label(n.createdAt() != null ? n.createdAt().substring(0, 16) : "");
+            nTime.setStyle("-fx-font-size: 10px; -fx-text-fill: #9ca3af;");
+
+            VBox nText = new VBox(3, nTitle, nMsg, nTime);
+            HBox.setHgrow(nText, Priority.ALWAYS);
+
+            HBox nItem = new HBox(12, niCircle, nText);
+            nItem.setAlignment(Pos.TOP_LEFT);
+            nItem.setPadding(new Insets(12, 14, 12, 0));
+
+            Region nBorder = new Region();
+            nBorder.setMinWidth(4);
+            nBorder.setMaxWidth(4);
+            nBorder.setStyle("-fx-background-color: " + accent + "; -fx-background-radius: 4 0 0 4;");
+
+            HBox nRow = new HBox(0, nBorder, nItem);
+            nRow.setAlignment(Pos.TOP_LEFT);
+            nRow.setPadding(new Insets(0, 14, 0, 14));
+            nRow.setStyle("-fx-background-color: " + (n.isRead() ? "white" : bg)
+                    + "; -fx-background-radius: 12; -fx-border-color: " + border
+                    + "; -fx-border-radius: 12; -fx-border-width: 1;");
+            dbRows.getChildren().add(nRow);
+        }
+
         // ── "No more notifications" footer ────────────────────────────
         FontIcon doneIcon = new FontIcon(FontAwesomeSolid.CHECK_DOUBLE);
         doneIcon.setIconSize(14);
@@ -2173,7 +2298,7 @@ public final class UserSectionFactory {
         doneRow.setPadding(new Insets(12, 0, 4, 0));
 
         // ── Assemble card ─────────────────────────────────────────────
-        VBox body2 = new VBox(14, sectionLabel, notifRow, doneRow);
+        VBox body2 = new VBox(14, sectionLabel, notifRow, dbRows, doneRow);
         body2.setPadding(new Insets(20, 24, 20, 24));
 
         VBox card = new VBox(0, headerRow, body2);
@@ -2658,24 +2783,45 @@ public final class UserSectionFactory {
         return createProfilePhotoCrop(source, x, y, side);
     }
 
-    private static Path openProfileCropDialog(Path source, Window owner) throws IOException {
+    private static Path openCropDialog(Path source, Window owner, double aspect, String titleStr, int targetWidth) throws IOException {
         Image image = new Image(source.toUri().toString(), false);
         if (image.isError() || image.getWidth() <= 0 || image.getHeight() <= 0) {
-            return createProfilePhotoCrop(source);
+            return aspect == 1.0 ? createProfilePhotoCrop(source) : centerCropToAspect(source, aspect, targetWidth);
         }
 
         double imageWidth = image.getWidth();
         double imageHeight = image.getHeight();
-        double minSide = Math.min(imageWidth, imageHeight);
+
+        double maxCropW, maxCropH;
+        if (imageWidth / imageHeight > aspect) {
+            maxCropH = imageHeight;
+            maxCropW = imageHeight * aspect;
+        } else {
+            maxCropW = imageWidth;
+            maxCropH = imageWidth / aspect;
+        }
 
         ImageView cropView = new ImageView(image);
         cropView.setFitWidth(320);
-        cropView.setFitHeight(320);
+        cropView.setFitHeight(320 / aspect);
         cropView.setPreserveRatio(false);
         cropView.setSmooth(true);
 
-        ImageView circlePreview = createCircularPreview(92);
-        circlePreview.setImage(image);
+        ImageView preview = new ImageView(image);
+        if (aspect == 1.0) {
+            preview.setFitWidth(92);
+            preview.setFitHeight(92);
+            preview.setClip(new Circle(46, 46, 46));
+        } else {
+            preview.setFitWidth(180);
+            preview.setFitHeight(180 / aspect);
+            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(180, 180 / aspect);
+            clip.setArcWidth(12);
+            clip.setArcHeight(12);
+            preview.setClip(clip);
+        }
+        preview.setPreserveRatio(false);
+        preview.setSmooth(true);
 
         Slider zoom = new Slider(1, 3, 1);
         zoom.setShowTickMarks(true);
@@ -2685,21 +2831,21 @@ public final class UserSectionFactory {
         Slider vertical = new Slider();
 
         Runnable updateCrop = () -> {
-            double side = minSide / zoom.getValue();
-            horizontal.setMax(Math.max(0, imageWidth - side));
-            vertical.setMax(Math.max(0, imageHeight - side));
+            double currentCropW = maxCropW / zoom.getValue();
+            double currentCropH = maxCropH / zoom.getValue();
+            horizontal.setMax(Math.max(0, imageWidth - currentCropW));
+            vertical.setMax(Math.max(0, imageHeight - currentCropH));
             double x = Math.min(horizontal.getValue(), horizontal.getMax());
             double y = Math.min(vertical.getValue(), vertical.getMax());
-            horizontal.setValue(x);
-            vertical.setValue(y);
-            javafx.geometry.Rectangle2D viewport = new javafx.geometry.Rectangle2D(x, y, side, side);
+            javafx.geometry.Rectangle2D viewport = new javafx.geometry.Rectangle2D(x, y, currentCropW, currentCropH);
             cropView.setViewport(viewport);
-            circlePreview.setViewport(viewport);
+            preview.setViewport(viewport);
         };
 
-        double initialSide = minSide / zoom.getValue();
-        horizontal.setMax(Math.max(0, imageWidth - initialSide));
-        vertical.setMax(Math.max(0, imageHeight - initialSide));
+        double currentCropW = maxCropW / zoom.getValue();
+        double currentCropH = maxCropH / zoom.getValue();
+        horizontal.setMax(Math.max(0, imageWidth - currentCropW));
+        vertical.setMax(Math.max(0, imageHeight - currentCropH));
         horizontal.setValue(horizontal.getMax() / 2);
         vertical.setValue(vertical.getMax() / 2);
         updateCrop.run();
@@ -2708,14 +2854,14 @@ public final class UserSectionFactory {
         horizontal.valueProperty().addListener((obs, oldValue, newValue) -> updateCrop.run());
         vertical.valueProperty().addListener((obs, oldValue, newValue) -> updateCrop.run());
 
-        Label title = new Label("Recadrer la photo de profil");
+        Label title = new Label(titleStr);
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #111827;");
         Label helper = new Label("Ajustez le cadrage pour obtenir une photo nette et centree.");
         helper.setStyle("-fx-font-size: 12px; -fx-text-fill: #6b7280;");
 
         StackPane cropFrame = new StackPane(cropView);
-        cropFrame.setMinSize(320, 320);
-        cropFrame.setMaxSize(320, 320);
+        cropFrame.setMinSize(320, 320 / aspect);
+        cropFrame.setMaxSize(320, 320 / aspect);
         cropFrame.setStyle("-fx-background-color: #111827; -fx-border-color: #e5e7eb; -fx-border-width: 1;");
 
         VBox controls = new VBox(8,
@@ -2725,7 +2871,7 @@ public final class UserSectionFactory {
         );
         controls.setMinWidth(240);
 
-        VBox previewBox = new VBox(10, new Label("Apercu"), circlePreview);
+        VBox previewBox = new VBox(10, new Label("Apercu"), preview);
         previewBox.setAlignment(Pos.CENTER);
         previewBox.setStyle("-fx-font-size: 12px; -fx-text-fill: #6b7280;");
 
@@ -2742,7 +2888,7 @@ public final class UserSectionFactory {
         root.setStyle("-fx-background-color: white;");
 
         Stage stage = new Stage();
-        stage.setTitle("Recadrer la photo");
+        stage.setTitle(titleStr);
         stage.initModality(Modality.APPLICATION_MODAL);
         stage.initOwner(owner);
         stage.setResizable(false);
@@ -2752,12 +2898,15 @@ public final class UserSectionFactory {
         cancel.setOnAction(event -> stage.close());
         apply.setOnAction(event -> {
             try {
-                double side = minSide / zoom.getValue();
-                result[0] = createProfilePhotoCrop(
+                double cw = maxCropW / zoom.getValue();
+                double ch = maxCropH / zoom.getValue();
+                result[0] = cropImageRegion(
                         source,
                         (int) Math.round(horizontal.getValue()),
                         (int) Math.round(vertical.getValue()),
-                        (int) Math.round(side)
+                        (int) Math.round(cw),
+                        (int) Math.round(ch),
+                        targetWidth
                 );
                 stage.close();
             } catch (IOException ex) {
@@ -2769,17 +2918,21 @@ public final class UserSectionFactory {
     }
 
     private static Path createProfilePhotoCrop(Path source, int x, int y, int side) throws IOException {
-        BufferedImage original = ImageIO.read(source.toFile());
-        if (original == null) {
-            return source;
-        }
+        Image fxImage = new Image(source.toUri().toString(), false);
+        if (fxImage.isError()) return source;
 
-        side = Math.max(1, Math.min(side, Math.min(original.getWidth(), original.getHeight())));
-        x = Math.max(0, Math.min(x, original.getWidth() - side));
-        y = Math.max(0, Math.min(y, original.getHeight() - side));
-        BufferedImage cropped = original.getSubimage(x, y, side, side);
+        side = Math.max(1, Math.min(side, Math.min((int)fxImage.getWidth(), (int)fxImage.getHeight())));
+        x = Math.max(0, Math.min(x, (int)fxImage.getWidth() - side));
+        y = Math.max(0, Math.min(y, (int)fxImage.getHeight() - side));
+
+        javafx.scene.image.PixelReader reader = fxImage.getPixelReader();
+        if (reader == null) return source;
+        javafx.scene.image.WritableImage cropped = new javafx.scene.image.WritableImage(reader, x, y, side, side);
 
         int targetSize = 512;
+        BufferedImage bImage = javafx.embed.swing.SwingFXUtils.fromFXImage(cropped, null);
+        if (bImage == null) return source;
+
         BufferedImage output = new BufferedImage(targetSize, targetSize, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = output.createGraphics();
         graphics.setColor(java.awt.Color.WHITE);
@@ -2787,7 +2940,7 @@ public final class UserSectionFactory {
         graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        graphics.drawImage(cropped, 0, 0, targetSize, targetSize, null);
+        graphics.drawImage(bImage, 0, 0, targetSize, targetSize, null);
         graphics.dispose();
 
         File temp = File.createTempFile("profile_crop_", ".jpg");

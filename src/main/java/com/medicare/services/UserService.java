@@ -403,38 +403,14 @@ public class UserService implements Crud<User> {
             } catch (SQLException e) { System.out.println("Erreur updateLocation user(id): " + e.getMessage()); }
         }
 
-        // 2. Secondary Update: Try ID as Medecin ID (for medecin coordinates)
-        if (medecinCols.contains("latitude") && medecinCols.contains("longitude")) {
-            String qMed = "UPDATE medecin SET latitude = ?, longitude = ? WHERE id = ?";
+        // 2. Sync medecin row (matched by user_id — the only correct FK direction)
+        if (medecinCols.contains("user_id") && medecinCols.contains("latitude") && medecinCols.contains("longitude")) {
+            String qMed = "UPDATE medecin SET latitude = ?, longitude = ? WHERE user_id = ?";
             try (PreparedStatement ps = cnx.prepareStatement(qMed)) {
                 ps.setDouble(1, latitude); ps.setDouble(2, longitude);
                 ps.setInt(3, id);
                 if (ps.executeUpdate() > 0) updated = true;
-            } catch (SQLException e) { System.out.println("Erreur updateLocation medecin(id): " + e.getMessage()); }
-        }
-
-        // 3. Update linked user row by medecin.id whenever medecin has user_id
-        if (medecinCols.contains("user_id")
-                && userCols.contains("latitude") && userCols.contains("longitude")
-                && userCols.contains("city") && userCols.contains("adresse")) {
-            String qLink = "UPDATE user u JOIN medecin m ON u.id = m.user_id "
-                    + "SET u.latitude = ?, u.longitude = ?, u.city = ?, u.adresse = ? WHERE m.id = ?";
-            try (PreparedStatement ps = cnx.prepareStatement(qLink)) {
-                ps.setDouble(1, latitude); ps.setDouble(2, longitude);
-                ps.setString(3, safeCity);     ps.setString(4, safeAddr);
-                ps.setInt(5, id);
-                if (ps.executeUpdate() > 0) updated = true;
-            } catch (SQLException e) { System.out.println("Erreur updateLocation user(via medecin.id): " + e.getMessage()); }
-        }
-
-        // 4. Tertiary Update: Try ID as user_id linked to a medecin (for medecin coordinates)
-        if (medecinCols.contains("user_id") && medecinCols.contains("latitude") && medecinCols.contains("longitude")) {
-             String qUserLink = "UPDATE medecin SET latitude = ?, longitude = ? WHERE user_id = ?";
-             try (PreparedStatement ps = cnx.prepareStatement(qUserLink)) {
-                 ps.setDouble(1, latitude); ps.setDouble(2, longitude);
-                 ps.setInt(3, id);
-                 if (ps.executeUpdate() > 0) updated = true;
-             } catch (SQLException e) { System.out.println("Erreur updateLocation medecin(user_id): " + e.getMessage()); }
+            } catch (SQLException e) { System.out.println("Erreur updateLocation medecin(user_id): " + e.getMessage()); }
         }
 
         return updated;
@@ -495,16 +471,14 @@ public class UserService implements Crud<User> {
 
     public List<DoctorDistance> getDoctorsWithCoordinates(int excludeUserId, double fromLat, double fromLng) {
         List<DoctorDistance> doctors = new ArrayList<>();
-        String q = "SELECT u.id AS user_id, u.nom, u.prenom, u.city, u.adresse, u.latitude, u.longitude, m.specialite "
-                + "FROM user u "
-                + "LEFT JOIN medecin m ON m.user_id = u.id "
-                + "WHERE u.id <> ? "
-                + "AND u.roles LIKE ? "
-                + "AND u.latitude IS NOT NULL "
-                + "AND u.longitude IS NOT NULL";
+        // Query medecin table directly — uses medecin.latitude/longitude, no role-string filter needed
+        String q = "SELECT m.user_id, m.nom, m.prenom, m.ville AS city, m.adresse, m.latitude, m.longitude, m.specialite "
+                + "FROM medecin m "
+                + "WHERE m.user_id <> ? "
+                + "AND m.latitude IS NOT NULL "
+                + "AND m.longitude IS NOT NULL";
         try (PreparedStatement ps = cnx.prepareStatement(q)) {
             ps.setInt(1, excludeUserId);
-            ps.setString(2, "%ROLE_MEDECIN%");
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 int userId = rs.getInt("user_id");
@@ -651,16 +625,27 @@ public class UserService implements Crud<User> {
 
     public boolean deleteUser(int userId) {
         try {
-            cnx.createStatement().executeUpdate("DELETE FROM rendez_vous WHERE patient_id = " + userId);
-            cnx.createStatement().executeUpdate("DELETE FROM rendez_vous WHERE medecin_id IN (SELECT id FROM medecin WHERE user_id = " + userId + ")");
-            cnx.createStatement().executeUpdate("DELETE FROM disponibilite WHERE medecin_id IN (SELECT id FROM medecin WHERE user_id = " + userId + ")");
-            cnx.createStatement().executeUpdate("DELETE FROM medecin WHERE user_id = " + userId);
-            cnx.createStatement().executeUpdate("DELETE FROM demande_medecin WHERE user_id = " + userId);
-            try (PreparedStatement ps = cnx.prepareStatement("DELETE FROM user WHERE id = ?")) {
-                ps.setInt(1, userId); ps.executeUpdate();
+            cnx.setAutoCommit(false);
+            for (String q : new String[]{
+                    "DELETE FROM rendez_vous WHERE patient_id = ?",
+                    "DELETE FROM rendez_vous WHERE medecin_id IN (SELECT id FROM medecin WHERE user_id = ?)",
+                    "DELETE FROM disponibilite WHERE medecin_id IN (SELECT id FROM medecin WHERE user_id = ?)",
+                    "DELETE FROM medecin WHERE user_id = ?",
+                    "DELETE FROM demande_medecin WHERE user_id = ?",
+                    "DELETE FROM user WHERE id = ?"}) {
+                try (PreparedStatement ps = cnx.prepareStatement(q)) {
+                    ps.setInt(1, userId);
+                    ps.executeUpdate();
+                }
             }
+            cnx.commit();
             return true;
-        } catch (SQLException e) { System.out.println("Erreur deleteUser: " + e.getMessage()); }
+        } catch (SQLException e) {
+            try { cnx.rollback(); } catch (SQLException ignored) {}
+            System.out.println("Erreur deleteUser: " + e.getMessage());
+        } finally {
+            try { cnx.setAutoCommit(true); } catch (SQLException ignored) {}
+        }
         return false;
     }
 
@@ -776,6 +761,17 @@ public class UserService implements Crud<User> {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) list.add(mapUser(rs));
         } catch (SQLException e) { System.out.println("Erreur getUsersByRole: " + e.getMessage()); }
+        return list;
+    }
+
+    /** Returns all doctors identified by existence of a medecin row, not by role string. */
+    public List<User> getMedecins() {
+        List<User> list = new ArrayList<>();
+        String q = "SELECT u.*, m.rating_average FROM medecin m JOIN user u ON m.user_id = u.id ORDER BY u.id DESC";
+        try (Statement st = cnx.createStatement()) {
+            ResultSet rs = st.executeQuery(q);
+            while (rs.next()) list.add(mapUser(rs));
+        } catch (SQLException e) { System.out.println("Erreur getMedecins: " + e.getMessage()); }
         return list;
     }
 

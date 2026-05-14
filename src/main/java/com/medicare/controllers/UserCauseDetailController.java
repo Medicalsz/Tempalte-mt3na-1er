@@ -6,6 +6,8 @@ import com.medicare.models.Donation;
 import com.medicare.models.User;
 import com.medicare.services.DonationService;
 
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -14,7 +16,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 
 public class UserCauseDetailController {
@@ -32,12 +36,32 @@ public class UserCauseDetailController {
     @FXML private ImageView badgeImageView;
     @FXML private Label badgeNameLabel;
     @FXML private Label totalDonatedLabel;
+    @FXML private VBox badgeProgressionBox;
+
+    private static final Object[][] BADGE_TIERS = {
+        {"Badge Bronze",  "bronze.png",  0.0,      "#cd7f32"},
+        {"Badge Argent",  "argent.png",  1000.0,   "#94a3b8"},
+        {"Badge Or",      "or.png",      5000.0,   "#f59e0b"},
+        {"Badge Emeraude","emeraude.jpg",10000.0,  "#10b981"},
+        {"Badge Platine", "platine.jpg", 50000.0,  "#6366f1"},
+        {"Badge Diamond", "diamond.jpg", 100000.0, "#06b6d4"},
+    };
 
     private Donation selectedCause;
     private final DonationService donationService = new DonationService();
 
+    private Image loadBadgeImage(String imageFile) {
+        File f = new File(System.getProperty("user.dir"), "badges/" + imageFile);
+        return f.exists() ? new Image(f.toURI().toString()) : null;
+    }
+
     public void setCause(Donation cause) {
-        this.selectedCause = cause;
+        if (cause != null && cause.getId() > 0) {
+            Donation refreshed = donationService.getCauseById(cause.getId());
+            this.selectedCause = refreshed != null ? refreshed : cause;
+        } else {
+            this.selectedCause = cause;
+        }
         displayCauseDetails();
         updateBadge();
     }
@@ -49,41 +73,87 @@ public class UserCauseDetailController {
         double total = donationService.getTotalMoneyDonatedByUser(user.getId());
         totalDonatedLabel.setText(String.format("Total des dons : %.0f DT", total));
 
-        String badgeName;
-        String imageFile;
-
-        if (total >= 100000) {
-            badgeName = "Badge Diamond";
-            imageFile = "diamond.jpg";
-        } else if (total >= 50000) {
-            badgeName = "Badge Platine";
-            imageFile = "platine.jpg";
-        } else if (total >= 10000) {
-            badgeName = "Badge Emeraude";
-            imageFile = "emeraude.jpg";
-        } else if (total >= 5000) {
-            badgeName = "Badge Or";
-            imageFile = "or.png";
-        } else if (total >= 1000) {
-            badgeName = "Badge Argent";
-            imageFile = "argent.png";
-        } else {
-            badgeName = "Badge Bronze";
-            imageFile = "bronze.png";
+        // Determine current tier index
+        int currentTier = 0;
+        for (int i = BADGE_TIERS.length - 1; i >= 0; i--) {
+            if (total >= (double) BADGE_TIERS[i][2]) {
+                currentTier = i;
+                break;
+            }
         }
+
+        String badgeName  = (String) BADGE_TIERS[currentTier][0];
+        String imageFile  = (String) BADGE_TIERS[currentTier][1];
 
         badgeNameLabel.setText(badgeName);
-        
-        try {
-            File file = new File("badges", imageFile);
-            if (file.exists()) {
-                badgeImageView.setImage(new Image(file.toURI().toString()));
-            } else {
-                System.err.println("Fichier badge non trouvé : " + file.getAbsolutePath());
+
+        Image img = loadBadgeImage(imageFile);
+        if (img != null) badgeImageView.setImage(img);
+
+        buildBadgeProgression(total, currentTier);
+    }
+
+    private void buildBadgeProgression(double total, int currentTier) {
+        if (badgeProgressionBox == null) return;
+        badgeProgressionBox.getChildren().clear();
+
+        Label title = new Label("Progression des badges");
+        title.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+        badgeProgressionBox.getChildren().add(title);
+
+        FlowPane grid = new FlowPane(10, 10);
+        grid.setPrefWrapLength(300);
+
+        for (int i = 0; i < BADGE_TIERS.length; i++) {
+            String name      = (String) BADGE_TIERS[i][0];
+            String imageFile = (String) BADGE_TIERS[i][1];
+            double threshold = (double) BADGE_TIERS[i][2];
+            String color     = (String) BADGE_TIERS[i][3];
+
+            boolean isCurrent  = (i == currentTier);
+            boolean isUnlocked = (total >= threshold);
+
+            VBox tile = new VBox(5);
+            tile.setPrefWidth(84);
+            tile.setAlignment(Pos.CENTER);
+            tile.setPadding(new Insets(8));
+
+            String borderColor = isCurrent ? color : (isUnlocked ? "#e2e8f0" : "#f1f5f9");
+            String bg          = isCurrent ? "rgba(0,0,0,0.04)" : "transparent";
+            String borderWidth = isCurrent ? "2" : "1";
+            tile.setStyle(
+                "-fx-background-color: " + bg + ";" +
+                "-fx-background-radius: 10;" +
+                "-fx-border-color: " + borderColor + ";" +
+                "-fx-border-radius: 10;" +
+                "-fx-border-width: " + borderWidth + ";"
+            );
+
+            ImageView iv = new ImageView();
+            iv.setFitWidth(36);
+            iv.setFitHeight(36);
+            iv.setPreserveRatio(true);
+            Image img = loadBadgeImage(imageFile);
+            if (img != null) {
+                iv.setImage(img);
+                if (!isUnlocked) iv.setOpacity(0.3);
             }
-        } catch (Exception e) {
-            System.err.println("Erreur chargement badge : " + e.getMessage());
+
+            // Short name (remove "Badge " prefix)
+            Label nameLbl = new Label(name.replace("Badge ", ""));
+            nameLbl.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: " +
+                (isCurrent ? color : (isUnlocked ? "#1e293b" : "#94a3b8")) + ";");
+            nameLbl.setWrapText(true);
+            nameLbl.setAlignment(Pos.CENTER);
+
+            Label threshLbl = new Label(threshold == 0 ? "Débutant" : String.format("≥ %.0f DT", threshold));
+            threshLbl.setStyle("-fx-font-size: 9px; -fx-text-fill: #94a3b8;");
+
+            tile.getChildren().addAll(iv, nameLbl, threshLbl);
+            grid.getChildren().add(tile);
         }
+
+        badgeProgressionBox.getChildren().add(grid);
     }
 
     private void displayCauseDetails() {
@@ -93,12 +163,11 @@ public class UserCauseDetailController {
         causeDescLabel.setText(selectedCause.getDescription());
         currentAmountLabel.setText(String.format("%.0f DT", selectedCause.getMontantActuel()));
         goalAmountLabel.setText(String.format("Objectif : %.0f DT", selectedCause.getObjectifMontant()));
-        
+
         double progress = selectedCause.getPourcentage() / 100.0;
         progressBar.setProgress(progress);
         percentReachedLabel.setText(String.format("%.0f%% de l'objectif atteint", selectedCause.getPourcentage()));
 
-        // Chargement de l'image
         try {
             if (selectedCause.getImage() != null && !selectedCause.getImage().isEmpty()) {
                 String imagePath = selectedCause.getImage();
@@ -119,7 +188,6 @@ public class UserCauseDetailController {
             causeImageView.setImage(new Image(getClass().getResourceAsStream("/com/medicare/images/logo.png")));
         }
 
-        // Coins arrondis pour l'image
         Rectangle clip = new Rectangle(causeImageView.getFitWidth(), causeImageView.getFitHeight());
         clip.setArcWidth(30);
         clip.setArcHeight(30);
@@ -131,8 +199,6 @@ public class UserCauseDetailController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/user-donation-view.fxml"));
             Node view = loader.load();
-            
-            // On remonte au StackPane principal (contentArea)
             StackPane contentArea = (StackPane) causeTitleLabel.getScene().lookup("#contentArea");
             contentArea.getChildren().clear();
             contentArea.getChildren().add(view);
@@ -146,11 +212,8 @@ public class UserCauseDetailController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/medicare/user-donation-form-view.fxml"));
             Node view = loader.load();
-            
             UserDonationFormController controller = loader.getController();
             controller.setCause(selectedCause);
-            
-            // On remonte au StackPane principal (contentArea)
             StackPane contentArea = (StackPane) causeTitleLabel.getScene().lookup("#contentArea");
             contentArea.getChildren().clear();
             contentArea.getChildren().add(view);

@@ -19,6 +19,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -219,6 +221,24 @@ public class DonationController {
         Label objLabel = new Label("Objectif : " + String.format("%.2f", donation.getObjectifMontant()) + " DT");
         objLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #0d9488;");
 
+        // Progress bar
+        double pourcentage = donation.getPourcentage();
+        ProgressBar progressBar = new ProgressBar(pourcentage / 100.0);
+        progressBar.setPrefWidth(Double.MAX_VALUE);
+        progressBar.setPrefHeight(10);
+        progressBar.setStyle("-fx-accent: #10b981; -fx-control-inner-background: #f1f5f9;");
+
+        HBox progressStats = new HBox();
+        Label percentLabel = new Label(String.format("%.0f%%", pourcentage));
+        percentLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #10b981; -fx-font-size: 12px;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label amountLabel = new Label(String.format("%.0f / %.0f DT", donation.getMontantActuel(), donation.getObjectifMontant()));
+        amountLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
+        progressStats.getChildren().addAll(percentLabel, spacer, amountLabel);
+
+        VBox progressBox = new VBox(4, progressBar, progressStats);
+
         HBox buttonBox = new HBox(10);
         buttonBox.setAlignment(Pos.CENTER);
 
@@ -235,7 +255,7 @@ public class DonationController {
 
         buttonBox.getChildren().add(btnDelete);
 
-        box.getChildren().addAll(imageContainer, causeLabel, nomLabel, descLabel, objLabel, buttonBox);
+        box.getChildren().addAll(imageContainer, causeLabel, nomLabel, descLabel, objLabel, progressBox, buttonBox);
         return box;
     }
 

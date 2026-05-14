@@ -31,10 +31,16 @@ module com.medicare.medicarejavafx {
     requires commons.csv;
     requires java.dotenv;
     requires net.sf.biweekly;
+    requires webcam.capture;
+    requires cloudinary.core;
+    requires cloudinary.http5;
+    requires stripe.java;
     opens com.medicare to javafx.fxml;
     opens com.medicare.controllers to javafx.fxml;
     opens com.medicare.models to javafx.fxml;
     opens com.medicare.ui to javafx.web;
     exports com.medicare;
     exports com.medicare.controllers;
+    exports com.medicare.models;
+    exports com.medicare.services;
 }

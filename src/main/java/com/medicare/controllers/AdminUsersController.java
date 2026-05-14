@@ -175,21 +175,24 @@ public class AdminUsersController {
     }
 
     private void filterUsers(String search, String roleFilter) {
-        List<User> all = userService.getAllUsers();
+        // For doctors, query via medecin table (not user.roles string)
+        List<User> all = "Médecins".equals(roleFilter)
+                ? userService.getMedecins()
+                : userService.getAllUsers();
+
         Stream<User> stream = all.stream();
 
         if (search != null && !search.trim().isEmpty()) {
             String val = search.toLowerCase();
-            stream = stream.filter(u -> 
-                safe(u.getNom()).contains(val) || 
-                safe(u.getPrenom()).contains(val) || 
+            stream = stream.filter(u ->
+                safe(u.getNom()).contains(val) ||
+                safe(u.getPrenom()).contains(val) ||
                 safe(u.getEmail()).contains(val)
             );
         }
 
-        if (roleFilter != null && !roleFilter.equals("Tous")) {
-            String roleBit = roleFilter.equals("Patients") ? "ROLE_USER" : 
-                             roleFilter.equals("Médecins") ? "ROLE_MEDECIN" : "ROLE_ADMIN";
+        if (roleFilter != null && !roleFilter.equals("Tous") && !roleFilter.equals("Médecins")) {
+            String roleBit = roleFilter.equals("Patients") ? "ROLE_USER" : "ROLE_ADMIN";
             stream = stream.filter(u -> safe(u.getRoles()).contains(roleBit));
         }
 

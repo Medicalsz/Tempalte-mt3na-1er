@@ -125,7 +125,7 @@ public class RendezVousFormController {
             if (s.getNom() != null && s.getNom().equalsIgnoreCase(nomSpecialite)) {
                 specialiteCombo.setValue(s);
                 // Déclencher le chargement des médecins
-                List<Medecin> medecins = service.getMedecinsBySpecialite(s.getId());
+                List<Medecin> medecins = service.getMedecinsBySpecialite(s.getNom());
                 medecinCombo.setItems(FXCollections.observableArrayList(medecins));
                 medecinCombo.setDisable(false);
                 return;
@@ -148,7 +148,7 @@ public class RendezVousFormController {
 
         // Charger les médecins de cette spécialité et pré-remplir
         if (specialiteCombo.getValue() != null) {
-            List<Medecin> medecins = service.getMedecinsBySpecialite(specialiteCombo.getValue().getId());
+            List<Medecin> medecins = service.getMedecinsBySpecialite(specialiteCombo.getValue().getNom());
             medecinCombo.setItems(FXCollections.observableArrayList(medecins));
             for (Medecin m : medecins) {
                 if (m.getId() == rv.getMedecinId()) {
@@ -184,7 +184,7 @@ public class RendezVousFormController {
         specialiteCombo.setOnAction(e -> {
             Specialite selected = specialiteCombo.getValue();
             if (selected != null) {
-                List<Medecin> medecins = service.getMedecinsBySpecialite(selected.getId());
+                List<Medecin> medecins = service.getMedecinsBySpecialite(selected.getNom());
                 medecinCombo.setItems(FXCollections.observableArrayList(medecins));
                 medecinCombo.setDisable(false);
                 creneauxPane.getChildren().clear();

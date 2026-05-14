@@ -5,35 +5,37 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      background: #ffffff;
+      background: transparent;
       width: 100%; height: 100%;
       display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
     }
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      background: #f9f9f9;
-      border: 1px solid #dadce0;
-      border-radius: 4px;
-      padding: 7px 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      background: #ffffff;
+      border: 1.5px solid #dadce0;
+      border-radius: 8px;
+      padding: 8px 14px;
+      box-shadow: 0 1px 4px rgba(26,115,232,0.08);
     }
-    .badge img { width: 32px; height: 32px; flex-shrink: 0; }
+    .badge img { width: 28px; height: 28px; flex-shrink: 0; }
     .info { display: flex; flex-direction: column; }
     .info .prot {
-      font-family: Roboto, Arial, sans-serif;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
       font-size: 11px;
       font-weight: 600;
       color: #3c4043;
     }
     .info .links {
-      font-family: Roboto, Arial, sans-serif;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
       font-size: 10px;
       color: #70757a;
       margin-top: 1px;
     }
-    .info .links a { color: #70757a; text-decoration: none; }
+    .info .links a { color: #1a73e8; text-decoration: none; }
+    .info .links a:hover { text-decoration: underline; }
     .dot {
       width: 8px; height: 8px;
       border-radius: 50%;
@@ -41,7 +43,7 @@
       flex-shrink: 0;
       transition: background 0.3s;
     }
-    .dot.loading  { background: #fbbc04; }
+    .dot.loading  { background: #1a73e8; }
     .dot.ready    { background: #34a853; }
   </style>
 </head>

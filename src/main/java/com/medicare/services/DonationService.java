@@ -68,7 +68,7 @@ public class DonationService {
     public List<Donation> getAllDonations() {
         List<Donation> list = new ArrayList<>();
         String q = "SELECT d.*, COALESCE((SELECT SUM(dn.montant) FROM don dn " +
-                   "WHERE dn.cause_nom=d.nom AND dn.type='argent' AND dn.statut='confirme'),0) AS total " +
+                   "WHERE dn.cause_nom=d.nom AND dn.type='argent'),0) AS total " +
                    "FROM donation d ORDER BY d.id DESC";
         try (Statement st = cnx.createStatement(); ResultSet rs = st.executeQuery(q)) {
             while (rs.next()) {
@@ -223,7 +223,16 @@ public class DonationService {
         List<Don> list = new ArrayList<>();
         try (Statement st = cnx.createStatement();
              ResultSet rs = st.executeQuery("SELECT * FROM don ORDER BY date DESC")) {
-            while (rs.next()) list.add(mapDon(rs));
+            while (rs.next()) {
+                Don don = mapDon(rs);
+                if ("materiel".equals(don.getType())) {
+                    List<MaterialItem> items = getMaterialItemsForDon(don.getId());
+                    List<String> photos = new ArrayList<>();
+                    for (MaterialItem item : items) if (item.getPhoto() != null) photos.add(item.getPhoto());
+                    don.setObjectPhotos(photos);
+                }
+                list.add(don);
+            }
         } catch (SQLException e) {
             System.out.println("getAllDons: " + e.getMessage());
         }
@@ -289,7 +298,10 @@ public class DonationService {
     }
 
     public Donation getCauseById(int id) {
-        try (PreparedStatement ps = cnx.prepareStatement("SELECT * FROM donation WHERE id=?")) {
+        try (PreparedStatement ps = cnx.prepareStatement(
+                "SELECT d.*, COALESCE((SELECT SUM(dn.montant) FROM don dn " +
+                "WHERE dn.cause_nom=d.nom AND dn.type='argent'),0) AS total " +
+                "FROM donation d WHERE d.id=?")) {
             ps.setInt(1, id);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -300,7 +312,7 @@ public class DonationService {
                 d.setCause(rs.getString("cause"));
                 d.setImage(rs.getString("image"));
                 d.setObjectifMontant(rs.getDouble("objectif_montant"));
-                try { d.setMontantActuel(rs.getDouble("montant_actuel")); } catch (SQLException ignored) {}
+                d.setMontantActuel(rs.getDouble("total"));
                 return d;
             }
         } catch (SQLException e) {
@@ -312,7 +324,9 @@ public class DonationService {
 
     public Donation getCauseByDonId(int donId) {
         try (PreparedStatement ps = cnx.prepareStatement(
-                "SELECT d.* FROM donation d JOIN don dn ON dn.cause_nom=d.nom WHERE dn.id=?")) {
+                "SELECT d.*, COALESCE((SELECT SUM(dn2.montant) FROM don dn2 " +
+                "WHERE dn2.cause_nom=d.nom AND dn2.type='argent'),0) AS total " +
+                "FROM donation d JOIN don dn ON dn.cause_nom=d.nom WHERE dn.id=?")) {
             ps.setInt(1, donId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -323,6 +337,7 @@ public class DonationService {
                 d.setCause(rs.getString("cause"));
                 d.setImage(rs.getString("image"));
                 d.setObjectifMontant(rs.getDouble("objectif_montant"));
+                d.setMontantActuel(rs.getDouble("total"));
                 return d;
             }
         } catch (SQLException e) {
@@ -360,7 +375,7 @@ public class DonationService {
 
     public boolean updateDonStatut(int id, String statut) {
         try (PreparedStatement ps = cnx.prepareStatement("UPDATE don SET statut=? WHERE id=?")) {
-            ps.setString(1, statut);
+            ps.setString(1, normalizeStatut(statut));
             ps.setInt(2, id);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -419,6 +434,13 @@ public class DonationService {
 
     public String getLastError() {
         return lastError;
+    }
+
+    private String normalizeStatut(String statut) {
+        if (statut == null) return null;
+        String normalized = statut.trim().toLowerCase();
+        if ("confirmé".equals(normalized) || "confirmÃ©".equals(normalized)) return "confirme";
+        return normalized;
     }
 
     private Don buildDonForUser(int userId, Donation cause) {

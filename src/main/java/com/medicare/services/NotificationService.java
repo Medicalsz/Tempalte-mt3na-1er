@@ -52,6 +52,12 @@ public class NotificationService {
         insert(userId, null, "system", titre, message);
     }
 
+    public void createDonationConfirmed(int userId, String causeNom, double montant) {
+        insert(userId, null, "donation",
+               "✅ Don confirmé !",
+               String.format("Votre don de %.0f DT pour la cause \"%s\" a été confirmé par l'administrateur. Merci pour votre générosité !", montant, causeNom));
+    }
+
     public int getUnreadCount(int userId) {
         String q = "SELECT COUNT(*) FROM notification WHERE user_id = ? AND is_read = 0";
         try (PreparedStatement ps = cnx.prepareStatement(q)) {

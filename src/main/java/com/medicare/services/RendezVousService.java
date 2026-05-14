@@ -7,7 +7,13 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.text.Normalizer;
 
 public class RendezVousService {
 
@@ -28,8 +34,10 @@ public class RendezVousService {
     // ==================== SPECIALITES ====================
 
     public List<Specialite> getAllSpecialites() {
-        List<Specialite> list = new ArrayList<>();
-        String q = "SELECT * FROM specialite WHERE active = 1 ORDER BY nom";
+        Map<String, Specialite> byName = new LinkedHashMap<>();
+        String q = "SELECT MIN(id) as id, TRIM(nom) as nom, MAX(slug) as slug, MAX(active) as active " +
+                   "FROM specialite WHERE active = 1 AND nom IS NOT NULL AND TRIM(nom) <> '' " +
+                   "GROUP BY LOWER(TRIM(nom)) ORDER BY TRIM(nom)";
         try {
             ResultSet rs = cnx.createStatement().executeQuery(q);
             while (rs.next()) {
@@ -38,29 +46,85 @@ public class RendezVousService {
                 s.setNom(rs.getString("nom"));
                 s.setSlug(rs.getString("slug"));
                 s.setActive(rs.getBoolean("active"));
-                list.add(s);
+                addSpecialiteIfMissing(byName, s);
             }
         } catch (SQLException e) { System.out.println("Erreur specialites: " + e.getMessage()); }
-        return list;
+
+        String doctorTable = getDoctorTableName();
+        Set<String> doctorColumns = getTableColumnsSafely(doctorTable);
+        if (doctorTable != null && doctorColumns.contains("specialite")) {
+            String doctorSpecialites = "SELECT DISTINCT TRIM(specialite) AS nom FROM " + doctorTable +
+                    " WHERE specialite IS NOT NULL AND TRIM(specialite) <> '' ORDER BY TRIM(specialite)";
+            try {
+                ResultSet rs = cnx.createStatement().executeQuery(doctorSpecialites);
+                int syntheticId = -1;
+                while (rs.next()) {
+                    Specialite s = new Specialite();
+                    s.setId(syntheticId--);
+                    s.setNom(rs.getString("nom"));
+                    s.setSlug(slugify(s.getNom()));
+                    s.setActive(true);
+                    addSpecialiteIfMissing(byName, s);
+                }
+            } catch (SQLException e) { System.out.println("Erreur specialites medecins: " + e.getMessage()); }
+        }
+
+        return new ArrayList<>(byName.values());
     }
 
     // ==================== MEDECINS PAR SPECIALITE ====================
 
     public List<Medecin> getMedecinsBySpecialite(int specialiteId) {
+        String specialiteNom = getSpecialiteNomById(specialiteId);
+        return getMedecinsBySpecialite(specialiteNom);
+    }
+
+    public List<Medecin> getMedecinsBySpecialite(String specialiteNom) {
         List<Medecin> list = new ArrayList<>();
-        // Match by specialite_ref_id OR by specialite text name (fallback for doctors without ref_id set)
-        String q = "SELECT m.id, m.user_id, m.specialite, m.cabinet, m.bio, m.specialite_ref_id, " +
-                   "m.rating_average, m.experience_years, m.consultation_duration, m.is_available_online, " +
-                   "u.nom, u.prenom, u.email, u.photo " +
-                   "FROM medecin m " +
-                   "JOIN user u ON m.user_id = u.id " +
-                   "WHERE m.specialite_ref_id = ? " +
-                   "   OR m.specialite = (SELECT nom FROM specialite WHERE id = ?) " +
-                   "ORDER BY u.nom";
+        if (specialiteNom == null || specialiteNom.isBlank()) return list;
+
+        String doctorTable = getDoctorTableName();
+        if (doctorTable == null) return list;
+
+        Set<String> cols = getTableColumnsSafely(doctorTable);
+        boolean hasUserId = cols.contains("user_id");
+        boolean hasSpecialiteRef = cols.contains("specialite_ref_id");
+        boolean hasSpecialite = cols.contains("specialite");
+        if (!hasSpecialite && !hasSpecialiteRef) return list;
+
+        String userJoin = hasUserId ? "LEFT JOIN user u ON m.user_id = u.id " : "";
+        String specJoin = hasSpecialiteRef ? "LEFT JOIN specialite s ON m.specialite_ref_id = s.id " : "";
+
+        StringBuilder q = new StringBuilder();
+        q.append("SELECT m.id, ")
+         .append(columnOrNull(cols, "user_id", "m")).append(" AS user_id, ")
+         .append(specialiteExpression(hasSpecialite, hasSpecialiteRef)).append(" AS specialite, ")
+         .append(columnOrNull(cols, "cabinet", "m")).append(" AS cabinet, ")
+         .append(columnOrNull(cols, "bio", "m")).append(" AS bio, ")
+         .append(columnOrNull(cols, "specialite_ref_id", "m")).append(" AS specialite_ref_id, ")
+         .append(columnOrDefault(cols, "rating_average", "m", "0")).append(" AS rating_average, ")
+         .append(columnOrNull(cols, "experience_years", "m")).append(" AS experience_years, ")
+         .append(columnOrDefault(cols, "consultation_duration", "m", "30")).append(" AS consultation_duration, ")
+         .append(columnOrDefault(cols, "is_available_online", "m", "0")).append(" AS is_available_online, ")
+         .append(nameExpression(cols, hasUserId, "nom")).append(" AS nom, ")
+         .append(nameExpression(cols, hasUserId, "prenom")).append(" AS prenom, ")
+         .append(nameExpression(cols, hasUserId, "email")).append(" AS email, ")
+         .append(nameExpression(cols, hasUserId, "photo")).append(" AS photo ")
+         .append("FROM ").append(doctorTable).append(" m ")
+         .append(userJoin)
+         .append(specJoin)
+         .append("WHERE ");
+        if (hasSpecialiteRef) {
+            q.append("m.specialite_ref_id IN (SELECT id FROM specialite WHERE LOWER(TRIM(nom)) = LOWER(TRIM(?))) ");
+            if (hasSpecialite) q.append("OR ");
+        }
+        if (hasSpecialite) q.append("LOWER(TRIM(m.specialite)) = LOWER(TRIM(?)) ");
+        q.append("ORDER BY nom, prenom");
         try {
-            PreparedStatement ps = cnx.prepareStatement(q);
-            ps.setInt(1, specialiteId);
-            ps.setInt(2, specialiteId);
+            PreparedStatement ps = cnx.prepareStatement(q.toString());
+            int idx = 1;
+            if (hasSpecialiteRef) ps.setString(idx++, specialiteNom);
+            if (hasSpecialite) ps.setString(idx, specialiteNom);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Medecin m = new Medecin();
@@ -74,7 +138,8 @@ public class RendezVousService {
                 m.setEmail(rs.getString("email"));
                 m.setPhoto(rs.getString("photo"));
                 m.setRatingAverage(rs.getDouble("rating_average"));
-                m.setExperienceYears(rs.getInt("experience_years"));
+                int experienceYears = rs.getInt("experience_years");
+                if (!rs.wasNull()) m.setExperienceYears(experienceYears);
                 m.setConsultationDuration(rs.getInt("consultation_duration"));
                 m.setAvailableOnline(rs.getBoolean("is_available_online"));
                 list.add(m);
@@ -205,16 +270,18 @@ public class RendezVousService {
 
     public List<RendezVous> getByPatient(int patientId) {
         List<RendezVous> list = new ArrayList<>();
+        String doctorTable = getDoctorTableName();
+        if (doctorTable == null) return list;
         // Try with hidden_by_patient filter (requires migration); fall back without it
         String q = "SELECT rv.*, u.nom AS med_nom, u.prenom AS med_prenom, m.specialite " +
                    "FROM rendez_vous rv " +
-                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN " + doctorTable + " m ON rv.medecin_id = m.id " +
                    "JOIN user u ON m.user_id = u.id " +
                    "WHERE rv.patient_id = ? AND rv.hidden_by_patient = 0 " +
                    "ORDER BY rv.date DESC, rv.heure DESC";
         String qFallback = "SELECT rv.*, u.nom AS med_nom, u.prenom AS med_prenom, m.specialite " +
                    "FROM rendez_vous rv " +
-                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN " + doctorTable + " m ON rv.medecin_id = m.id " +
                    "JOIN user u ON m.user_id = u.id " +
                    "WHERE rv.patient_id = ? " +
                    "ORDER BY rv.date DESC, rv.heure DESC";
@@ -258,11 +325,13 @@ public class RendezVousService {
     }
 
     public RendezVous getById(int id) {
+        String doctorTable = getDoctorTableName();
+        if (doctorTable == null) return null;
         String q = "SELECT rv.*, " +
                    "um.nom AS med_nom, um.prenom AS med_prenom, m.specialite, m.cabinet, " +
                    "up.nom AS pat_nom, up.prenom AS pat_prenom " +
                    "FROM rendez_vous rv " +
-                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN " + doctorTable + " m ON rv.medecin_id = m.id " +
                    "JOIN user um ON m.user_id = um.id " +
                    "JOIN user up ON rv.patient_id = up.id " +
                    "WHERE rv.id = ?";
@@ -341,7 +410,9 @@ public class RendezVousService {
     // ==================== MEDECIN ====================
 
     public int getMedecinIdByUserId(int userId) {
-        String q = "SELECT id FROM medecin WHERE user_id = ?";
+        String doctorTable = getDoctorTableName();
+        if (doctorTable == null) return -1;
+        String q = "SELECT id FROM " + doctorTable + " WHERE user_id = ?";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, userId);
@@ -451,12 +522,14 @@ public class RendezVousService {
 
     public List<RendezVous> getAllRendezVous() {
         List<RendezVous> list = new ArrayList<>();
+        String doctorTable = getDoctorTableName();
+        if (doctorTable == null) return list;
         String q = "SELECT rv.*, " +
                    "um.nom AS med_nom, um.prenom AS med_prenom, " +
                    "up.nom AS pat_nom, up.prenom AS pat_prenom, " +
                    "s.nom AS spec_nom " +
                    "FROM rendez_vous rv " +
-                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN " + doctorTable + " m ON rv.medecin_id = m.id " +
                    "JOIN user um ON m.user_id = um.id " +
                    "JOIN user up ON rv.patient_id = up.id " +
                    "LEFT JOIN specialite s ON m.specialite_ref_id = s.id " +
@@ -486,7 +559,7 @@ public class RendezVousService {
     // ==================== REPORT / RESCHEDULE ====================
 
     public boolean acceptReport(int id) {
-        String q = "UPDATE rendez_vous SET date = proposed_date, heure = proposed_heure, " +
+        String q = "UPDATE rendez_vous SET date = proposed_date, heure = proposed_heure, statut = 'confirme', " +
                    "proposed_date = NULL, proposed_heure = NULL, report_pending_patient_response = 0 WHERE id = ?";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
@@ -499,7 +572,7 @@ public class RendezVousService {
 
     public boolean refuseReport(int id) {
         String q = "UPDATE rendez_vous SET statut = 'annule', proposed_date = NULL, proposed_heure = NULL, " +
-                   "report_pending_patient_response = 0 WHERE id = ?";
+                   "report_pending_patient_response = 0, motif_annulation = 'Report refuse par le patient' WHERE id = ?";
         try {
             PreparedStatement ps = cnx.prepareStatement(q);
             ps.setInt(1, id);
@@ -542,11 +615,13 @@ public class RendezVousService {
 
     public List<RendezVous> getRendezVousConfirmesParDate(LocalDate date) {
         List<RendezVous> list = new ArrayList<>();
+        String doctorTable = getDoctorTableName();
+        if (doctorTable == null) return list;
         String q = "SELECT rv.*, " +
                    "um.nom AS med_nom, um.prenom AS med_prenom, " +
                    "up.nom AS pat_nom, up.prenom AS pat_prenom " +
                    "FROM rendez_vous rv " +
-                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN " + doctorTable + " m ON rv.medecin_id = m.id " +
                    "JOIN user um ON m.user_id = um.id " +
                    "JOIN user up ON rv.patient_id = up.id " +
                    "WHERE rv.date = ? AND rv.statut = 'confirme' AND rv.rappel_envoye = 0";
@@ -596,12 +671,14 @@ public class RendezVousService {
     }
 
     public Ordonnance getOrdonnanceByRdv(int rendezVousId) {
+        String doctorTable = getDoctorTableName();
+        if (doctorTable == null) return null;
         String q = "SELECT o.*, rv.date AS rdv_date, " +
                    "um.nom AS med_nom, um.prenom AS med_prenom, m.specialite, m.cabinet, " +
                    "up.nom AS pat_nom, up.prenom AS pat_prenom " +
                    "FROM ordonnance o " +
                    "JOIN rendez_vous rv ON o.rendez_vous_id = rv.id " +
-                   "JOIN medecin m ON rv.medecin_id = m.id " +
+                   "JOIN " + doctorTable + " m ON rv.medecin_id = m.id " +
                    "JOIN user um ON m.user_id = um.id " +
                    "JOIN user up ON rv.patient_id = up.id " +
                    "WHERE o.rendez_vous_id = ?";
@@ -729,5 +806,106 @@ public class RendezVousService {
             return true;
         } catch (SQLException e) { System.out.println("Erreur hideByMedecin: " + e.getMessage()); }
         return false;
+    }
+
+    private String getDoctorTableName() {
+        boolean hasMedicin = tableExists("medicin");
+        boolean hasMedecin = tableExists("medecin");
+        if (hasMedicin && hasMedecin) {
+            int medicinRows = countRowsSafely("medicin");
+            int medecinRows = countRowsSafely("medecin");
+            if (medicinRows > 0 || medecinRows > 0) {
+                return medicinRows >= medecinRows ? "medicin" : "medecin";
+            }
+            return "medicin";
+        }
+        if (hasMedicin) return "medicin";
+        if (hasMedecin) return "medecin";
+        return null;
+    }
+
+    private int countRowsSafely(String tableName) {
+        try (Statement st = cnx.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + tableName)) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException ignored) {}
+        return 0;
+    }
+
+    private boolean tableExists(String tableName) {
+        if (tableName == null) return false;
+        try {
+            DatabaseMetaData meta = cnx.getMetaData();
+            try (ResultSet rs = meta.getTables(cnx.getCatalog(), null, tableName, new String[]{"TABLE"})) {
+                if (rs.next()) return true;
+            }
+            try (ResultSet rs = meta.getTables(cnx.getCatalog(), null, tableName.toLowerCase(Locale.ROOT), new String[]{"TABLE"})) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    private Set<String> getTableColumnsSafely(String tableName) {
+        Set<String> columns = new LinkedHashSet<>();
+        if (tableName == null) return columns;
+        try (PreparedStatement ps = cnx.prepareStatement("SELECT * FROM " + tableName + " WHERE 1 = 0")) {
+            ResultSetMetaData meta = ps.executeQuery().getMetaData();
+            for (int i = 1; i <= meta.getColumnCount(); i++) {
+                columns.add(meta.getColumnName(i).toLowerCase(Locale.ROOT));
+            }
+        } catch (SQLException ignored) {}
+        return columns;
+    }
+
+    private String getSpecialiteNomById(int specialiteId) {
+        if (specialiteId <= 0) return null;
+        try (PreparedStatement ps = cnx.prepareStatement("SELECT nom FROM specialite WHERE id = ?")) {
+            ps.setInt(1, specialiteId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getString("nom");
+        } catch (SQLException e) {
+            System.out.println("Erreur specialite by id: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private void addSpecialiteIfMissing(Map<String, Specialite> byName, Specialite specialite) {
+        if (specialite == null || specialite.getNom() == null || specialite.getNom().isBlank()) return;
+        byName.putIfAbsent(normalizeKey(specialite.getNom()), specialite);
+    }
+
+    private String normalizeKey(String value) {
+        if (value == null) return "";
+        String normalized = Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return normalized.replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private String slugify(String value) {
+        return normalizeKey(value).replace(' ', '-').replaceAll("[^a-z0-9-]", "");
+    }
+
+    private String columnOrNull(Set<String> columns, String column, String alias) {
+        return columns.contains(column.toLowerCase(Locale.ROOT)) ? alias + "." + column : "NULL";
+    }
+
+    private String columnOrDefault(Set<String> columns, String column, String alias, String defaultValue) {
+        return columns.contains(column.toLowerCase(Locale.ROOT)) ? alias + "." + column : defaultValue;
+    }
+
+    private String specialiteExpression(boolean hasSpecialite, boolean hasSpecialiteRef) {
+        if (hasSpecialite && hasSpecialiteRef) return "COALESCE(s.nom, m.specialite)";
+        if (hasSpecialiteRef) return "s.nom";
+        return "m.specialite";
+    }
+
+    private String nameExpression(Set<String> doctorColumns, boolean hasUserId, String column) {
+        boolean hasDoctorColumn = doctorColumns.contains(column.toLowerCase(Locale.ROOT));
+        if (hasUserId && hasDoctorColumn) return "COALESCE(u." + column + ", m." + column + ")";
+        if (hasUserId) return "u." + column;
+        if (hasDoctorColumn) return "m." + column;
+        return "NULL";
     }
 }

@@ -379,13 +379,13 @@ public class ChatBotWidget {
         }
 
         String specialiteNom = bot.getSpecialite().nom;
-        int specialiteId = findSpecialiteId(specialiteNom);
-        if (specialiteId <= 0) {
+        String matchedSpecialite = findSpecialiteName(specialiteNom);
+        if (matchedSpecialite == null) {
             addBotBubble(messages, "Desole, la specialite '" + specialiteNom + "' n'est pas disponible dans notre base. Je ne peux pas reserver automatiquement.");
             return;
         }
 
-        List<Medecin> medecins = service.getMedecinsBySpecialite(specialiteId);
+        List<Medecin> medecins = service.getMedecinsBySpecialite(matchedSpecialite);
         if (medecins.isEmpty()) {
             addBotBubble(messages, "Aucun medecin disponible actuellement en " + specialiteNom + ".");
             return;
@@ -397,37 +397,46 @@ public class ChatBotWidget {
     }
 
     private int findSpecialiteId(String nom) {
-        if (nom == null) return -1;
+        String matched = findSpecialiteName(nom);
+        if (matched == null) return -1;
+        for (Specialite s : service.getAllSpecialites()) {
+            if (s.getNom() != null && normalize(s.getNom()).equals(normalize(matched))) return s.getId();
+        }
+        return -1;
+    }
+
+    private String findSpecialiteName(String nom) {
+        if (nom == null) return null;
         List<Specialite> all = service.getAllSpecialites();
         String nomNorm = normalize(nom);
 
         // 1) Exact (insensible a la casse et aux accents)
         for (Specialite s : all) {
-            if (s.getNom() != null && normalize(s.getNom()).equals(nomNorm)) return s.getId();
+            if (s.getNom() != null && normalize(s.getNom()).equals(nomNorm)) return s.getNom();
         }
         // 2) Prefixe commun d'au moins 5 caracteres
         for (Specialite s : all) {
             if (s.getNom() == null) continue;
-            if (commonPrefixLength(nomNorm, normalize(s.getNom())) >= 5) return s.getId();
+            if (commonPrefixLength(nomNorm, normalize(s.getNom())) >= 5) return s.getNom();
         }
         // 3) Contains
         for (Specialite s : all) {
             if (s.getNom() == null) continue;
             String dbNorm = normalize(s.getNom());
-            if (dbNorm.contains(nomNorm) || nomNorm.contains(dbNorm)) return s.getId();
+            if (dbNorm.contains(nomNorm) || nomNorm.contains(dbNorm)) return s.getNom();
         }
         // 4) Similarite floue (Levenshtein) : tolere les fautes de frappe
-        int bestId = -1;
+        String bestName = null;
         double bestScore = 0.0;
         for (Specialite s : all) {
             if (s.getNom() == null) continue;
             String dbNorm = normalize(s.getNom());
             double sim = similarity(nomNorm, dbNorm);
-            if (sim > bestScore) { bestScore = sim; bestId = s.getId(); }
+            if (sim > bestScore) { bestScore = sim; bestName = s.getNom(); }
         }
         // Seuil : 55% de similarite minimum
-        if (bestScore >= 0.55) return bestId;
-        return -1;
+        if (bestScore >= 0.55) return bestName;
+        return null;
     }
 
     private String normalize(String s) {

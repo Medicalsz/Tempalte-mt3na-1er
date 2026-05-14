@@ -826,11 +826,6 @@ public class RendezVousListController {
         DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter heureFmt = DateTimeFormatter.ofPattern("HH:mm");
 
-        Stage popup = new Stage();
-        popup.initStyle(StageStyle.TRANSPARENT);
-        popup.initModality(Modality.APPLICATION_MODAL);
-        popup.initOwner(container.getScene().getWindow());
-
         VBox modal = new VBox(12);
         modal.setAlignment(Pos.CENTER);
         modal.setPadding(new Insets(30));
@@ -859,7 +854,6 @@ public class RendezVousListController {
         Button closeBtn = new Button("Fermer");
         closeBtn.setStyle("-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-size: 13px; " +
                           "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 30;");
-        closeBtn.setOnAction(e -> popup.close());
 
         modal.getChildren().addAll(icon, titleLabel, details);
 
@@ -890,15 +884,21 @@ public class RendezVousListController {
         modal.getChildren().add(closeBtn);
 
         StackPane overlay = new StackPane(modal);
-        overlay.setStyle("-fx-background-color: transparent;");
+        overlay.setStyle("-fx-background-color: rgba(15,23,42,0.5);");
         overlay.setPadding(new Insets(20));
-        overlay.setOnMouseClicked(e -> { if (e.getTarget() == overlay) popup.close(); });
 
-        Scene scene = new Scene(overlay, 540, 500);
-        scene.setFill(Color.TRANSPARENT);
-        popup.setScene(scene);
-        attachBlur(popup, container.getScene().getWindow());
-        popup.show();
+        Runnable closePopup = () -> {
+            if (contentArea != null) {
+                contentArea.getChildren().remove(overlay);
+            }
+        };
+
+        closeBtn.setOnAction(e -> closePopup.run());
+        overlay.setOnMouseClicked(e -> { if (e.getTarget() == overlay) closePopup.run(); });
+
+        if (contentArea != null) {
+            contentArea.getChildren().add(overlay);
+        }
     }
 
     // ========== REPORT PATIENT ==========

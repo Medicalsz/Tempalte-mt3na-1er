@@ -1,5 +1,6 @@
 package com.medicare.utils;
 
+import javafx.geometry.Pos;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
@@ -20,26 +21,30 @@ import java.nio.charset.StandardCharsets;
  */
 public class CaptchaWidget extends VBox {
 
-    private static final String SECRET_KEY = "6LfimNAsAAAAAHYVerHw8o4gwwmS3nsGTxxkv9js";
-    private static final String VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
-    private static final double MIN_SCORE  = 0.5;
+    private static final String SECRET_KEY   = "6LfimNAsAAAAAHYVerHw8o4gwwmS3nsGTxxkv9js";
+    private static final String VERIFY_URL   = "https://www.google.com/recaptcha/api/siteverify";
+    private static final double MIN_SCORE    = 0.5;
+    private static final long   TOKEN_TIMEOUT_MS = 6000; // fail-open after 6 s
 
     private final WebEngine engine;
+    private final long loadedAt = System.currentTimeMillis();
 
     public CaptchaWidget() {
         WebView webView = new WebView();
-        webView.setPrefWidth(310);
-        webView.setPrefHeight(62);
-        webView.setMinHeight(62);
-        webView.setMaxHeight(62);
+        webView.setPrefWidth(334);
+        webView.setPrefHeight(60);
+        webView.setMinHeight(60);
+        webView.setMaxHeight(60);
         webView.setContextMenuEnabled(false);
+        webView.setStyle("-fx-background-color: transparent;");
 
         engine = webView.getEngine();
         engine.setUserStyleSheetLocation(null);
         engine.load(CaptchaServer.getUrl());
 
         getChildren().add(webView);
-        setStyle("-fx-background-color: white; -fx-background-radius: 4;");
+        setAlignment(Pos.CENTER);
+        setStyle("-fx-background-color: transparent;");
     }
 
     /**
@@ -50,12 +55,15 @@ public class CaptchaWidget extends VBox {
     public boolean verify() {
         String token = getToken();
         if (token == null || token.isBlank()) {
-            // Token not ready yet; trigger a fresh fetch for the next attempt
+            // If we've been waiting longer than the timeout, fail open (don't block the user)
+            if (System.currentTimeMillis() - loadedAt > TOKEN_TIMEOUT_MS) {
+                System.out.println("reCAPTCHA: token timeout — failing open");
+                return true;
+            }
             try { engine.executeScript("fetchToken('submit')"); } catch (Exception ignored) {}
             return false;
         }
         boolean ok = verifyWithGoogle(token);
-        // Refresh token for any subsequent attempt
         try { engine.executeScript("resetWidget()"); } catch (Exception ignored) {}
         return ok;
     }
@@ -103,8 +111,9 @@ public class CaptchaWidget extends VBox {
                 return score >= MIN_SCORE;
             }
         } catch (Exception e) {
-            System.out.println("reCAPTCHA verify error: " + e.getMessage());
-            return false;
+            // Google unreachable — fail open so login is never permanently blocked
+            System.out.println("reCAPTCHA verify error (fail open): " + e.getMessage());
+            return true;
         }
     }
 

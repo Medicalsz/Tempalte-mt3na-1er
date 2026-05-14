@@ -172,8 +172,14 @@ public class Medecin {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     // --- Display helpers ---
-    public String getFullName() { return prenom + " " + nom; }
+    public String getFullName() {
+        String fullName = ((prenom == null ? "" : prenom) + " " + (nom == null ? "" : nom)).trim();
+        return fullName.isBlank() ? "Medecin #" + id : fullName;
+    }
 
     @Override
-    public String toString() { return "Dr. " + prenom + " " + nom + " (" + specialite + ")"; }
+    public String toString() {
+        String spec = specialite == null || specialite.isBlank() ? "" : " (" + specialite + ")";
+        return "Dr. " + getFullName() + spec;
+    }
 }

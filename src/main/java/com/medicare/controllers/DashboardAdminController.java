@@ -32,6 +32,7 @@ public class DashboardAdminController {
     @FXML private Button btnEvaluations;
     @FXML private Button btnDonation;
     @FXML private Button btnProduit;
+    @FXML private Button btnCommande;
     @FXML private Button btnCollaboration;
     @FXML private Button btnPartenaire;
     @FXML private Button btnForum;
@@ -47,7 +48,7 @@ public class DashboardAdminController {
 
     private Button[] allButtons() {
         return new Button[]{btnAccueil, btnUtilisateurs, btnRendezVous,
-                            btnDonation, btnProduit, btnCollaboration, btnPartenaire, btnForum};
+                            btnDonation, btnProduit, btnCommande, btnCollaboration, btnPartenaire, btnForum};
     }
 
     @FXML
@@ -73,6 +74,7 @@ public class DashboardAdminController {
         btnEvaluations.setGraphic(icon(FontAwesomeSolid.AWARD, Color.web("#fde68a")));
         btnDonation.setGraphic(icon(FontAwesomeSolid.HEART));
         btnProduit.setGraphic(icon(FontAwesomeSolid.SHOPPING_CART));
+        btnCommande.setGraphic(icon(FontAwesomeSolid.LIST_ALT));
         btnCollaboration.setGraphic(icon(FontAwesomeSolid.HANDSHAKE));
         btnPartenaire.setGraphic(icon(FontAwesomeSolid.BUILDING));
         btnForum.setGraphic(icon(FontAwesomeSolid.COMMENTS));
@@ -180,9 +182,31 @@ public class DashboardAdminController {
     @FXML private void onProduitClick() {
         setSubMenuOpen(false);
         highlightButton(btnProduit);
-        setContent(new Label("Gestion des Produits") {{
-            setStyle("-fx-font-size: 20px; -fx-text-fill: #333;");
-        }});
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("produit-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement produits") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
+    }
+
+    @FXML private void onCommandeClick() {
+        setSubMenuOpen(false);
+        highlightButton(btnCommande);
+        try {
+            FXMLLoader loader = new FXMLLoader(HelloApplication.class.getResource("commande-view.fxml"));
+            Node view = loader.load();
+            setContent(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            setContent(new Label("Erreur chargement commandes") {{
+                setStyle("-fx-font-size: 16px; -fx-text-fill: #dc2626;");
+            }});
+        }
     }
 
     @FXML private void onCollaborationClick() {
